@@ -4,6 +4,10 @@ docs/
 node_modules/
 dist/
 build/
+
+# TypeScript / tooling
+*.tsbuildinfo
+coverage/
 .DS_Store
 .env.local
 .env.development.local
