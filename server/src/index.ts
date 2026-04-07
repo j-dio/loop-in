@@ -1,9 +1,9 @@
-import "dotenv/config";
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import pino from "pino";
+import "./config/env";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
 const app = express();
