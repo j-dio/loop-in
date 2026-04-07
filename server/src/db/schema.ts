@@ -1,1 +1,240 @@
-export {}
+import {
+  pgTable,
+  pgEnum,
+  varchar,
+  text,
+  timestamp,
+  uuid,
+  integer,
+  boolean,
+  uniqueIndex,
+  index,
+} from 'drizzle-orm/pg-core';
+import { desc } from 'drizzle-orm';
+
+export const workspaceVisibility = pgEnum('workspace_visibility', [
+  'public',
+  'invite_only',
+]);
+
+export const workspaceRole = pgEnum('workspace_role', ['owner', 'admin', 'member']);
+
+export const postCategory = pgEnum('post_category', [
+  'bug',
+  'feature_request',
+  'ui_tweak',
+]);
+
+export const moderationStatus = pgEnum('moderation_status', [
+  'pending',
+  'approved',
+  'spam',
+  'rejected',
+]);
+
+export const boardStatus = pgEnum('board_status', [
+  'inbox',
+  'under_review',
+  'planned',
+  'in_progress',
+  'shipped',
+]);
+
+export const users = pgTable('users', {
+  id: uuid('id')
+    .primaryKey()
+    .defaultRandom(), // generate a random UUID
+
+  email: varchar('email', { length: 255 })
+    .notNull(),
+
+  name: varchar('name', { length: 255 }),
+  
+  avatarUrl: text('avatar_url'),
+
+  provider: varchar('provider', { length: 50 })
+    .notNull(),
+
+  providerId: varchar('provider_id', { length: 255 })
+    .notNull(),
+  
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+}, (table) => ({
+  emailUnique: uniqueIndex('users_email_unique').on(table.email),
+  providerUnique: uniqueIndex('users_provider_provider_id_unique').on(
+    table.provider,
+    table.providerId,
+  ),
+}));
+
+export const sessions = pgTable('sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+
+  refreshTokenHash: varchar('refresh_token_hash', { length: 255 }).notNull(),
+
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+}, (table) => ({
+  userIdIdx: index('sessions_user_id_idx').on(table.userId),
+}));
+
+export const workspaces = pgTable('workspaces', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  ownerId: uuid('owner_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'restrict' }),
+
+  name: varchar('name', { length: 255 }).notNull(),
+
+  slug: varchar('slug', { length: 100 }).notNull(),
+
+  primaryColor: varchar('primary_color', { length: 7 })
+    .notNull()
+    .default('#0F172A'),
+
+  visibility: workspaceVisibility('visibility').notNull().default('public'),
+
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+}, (table) => ({
+  slugUnique: uniqueIndex('workspaces_slug_unique').on(table.slug),
+  ownerIdIdx: index('workspaces_owner_id_idx').on(table.ownerId),
+}));
+
+export const workspaceMembers = pgTable('workspace_members', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  workspaceId: uuid('workspace_id')
+    .notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+
+  role: workspaceRole('role').notNull(),
+
+  joinedAt: timestamp('joined_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+}, (table) => ({
+  workspaceUserUnique: uniqueIndex('workspace_members_workspace_id_user_id_unique').on(
+    table.workspaceId,
+    table.userId,
+  ),
+  workspaceIdIdx: index('workspace_members_workspace_id_idx').on(table.workspaceId),
+  userIdIdx: index('workspace_members_user_id_idx').on(table.userId),
+}));
+
+export const posts = pgTable('posts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  workspaceId: uuid('workspace_id')
+    .notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+
+  authorId: uuid('author_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'restrict' }),
+
+  title: varchar('title', { length: 255 }).notNull(),
+
+  description: text('description'),
+
+  category: postCategory('category').notNull(),
+
+  moderationStatus: moderationStatus('moderation_status')
+    .notNull()
+    .default('pending'),
+
+  boardStatus: boardStatus('board_status').notNull().default('inbox'),
+
+  isAnonymous: boolean('is_anonymous').notNull().default(false),
+
+  imageUrl: text('image_url'),
+
+  upvoteCount: integer('upvote_count').notNull().default(0),
+
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+}, (table) => ({
+  workspaceIdIdx: index('posts_workspace_id_idx').on(table.workspaceId),
+  workspaceModerationIdx: index('posts_workspace_id_moderation_status_idx').on(
+    table.workspaceId,
+    table.moderationStatus,
+  ),
+  workspaceBoardIdx: index('posts_workspace_id_board_status_idx').on(
+    table.workspaceId,
+    table.boardStatus,
+  ),
+  workspaceCreatedAtDescIdx: index('posts_workspace_id_created_at_desc_idx').on(
+    table.workspaceId,
+    desc(table.createdAt),
+  ),
+}));
+
+export const upvotes = pgTable('upvotes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  postId: uuid('post_id')
+    .notNull()
+    .references(() => posts.id, { onDelete: 'cascade' }),
+
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+}, (table) => ({
+  postUserUnique: uniqueIndex('upvotes_post_id_user_id_unique').on(
+    table.postId,
+    table.userId,
+  ),
+  postIdIdx: index('upvotes_post_id_idx').on(table.postId),
+  userIdIdx: index('upvotes_user_id_idx').on(table.userId),
+}));
+
+export const comments = pgTable('comments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  postId: uuid('post_id')
+    .notNull()
+    .references(() => posts.id, { onDelete: 'cascade' }),
+
+  workspaceId: uuid('workspace_id')
+    .notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+
+  authorId: uuid('author_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'restrict' }),
+
+  content: text('content').notNull(),
+
+  isOfficialReply: boolean('is_official_reply').notNull().default(false),
+
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+}, (table) => ({
+  postIdIdx: index('comments_post_id_idx').on(table.postId),
+  workspaceIdIdx: index('comments_workspace_id_idx').on(table.workspaceId),
+}));
