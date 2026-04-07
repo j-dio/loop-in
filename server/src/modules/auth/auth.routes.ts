@@ -5,6 +5,7 @@ import { upsertOAuthUser, createSession } from "./auth.service";
 import { signAccessToken } from "./auth.tokens";
 import { setAuthCookies } from "./auth.cookies";
 import { requireEnv } from "../../config/env";
+import { getMe } from "./auth.me";
 
 configureGooglePassport();
 
@@ -53,3 +54,5 @@ authRouter.get(
     }
   }
 );
+
+authRouter.get("/me", getMe);

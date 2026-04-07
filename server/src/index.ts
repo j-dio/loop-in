@@ -4,6 +4,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import pino from "pino";
 import "./config/env";
+import { authRouter } from "./modules/auth/auth.routes";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
 const app = express();
@@ -29,6 +30,9 @@ app.get("/health", (_req, res) => {
 
 const parsedPort = Number(process.env.PORT ?? 3001);
 const port = Number.isFinite(parsedPort) ? parsedPort : 3001;
+
+app.use("/auth", authRouter);
+
 app.listen(port, () => {
   logger.info({ port }, "server listening");
 });
