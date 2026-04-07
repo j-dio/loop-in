@@ -22,7 +22,7 @@ type GitHubEmail = {
 async function fetchGitHubPrimaryEmail(accessToken: string): Promise<string | null> {
   const res = await fetch("https://api.github.com/user/emails", {
     headers: {
-      Authorization: `token ${accessToken}`,
+      Authorization: `Bearer ${accessToken}`,
       Accept: "application/vnd.github+json",
       "X-GitHub-Api-Version": "2022-11-28",
       "User-Agent": "loopin-local-dev",
@@ -54,7 +54,7 @@ export function configureGitHubPassport() {
 
           const verified: GitHubVerifiedProfile = {
             provider: "github",
-            providerId: profile.id,
+            providerId: String(profile.id),
             email,
             name: profile.displayName ?? profile.username ?? null,
             avatarUrl: profile.photos?.[0]?.value ?? null,

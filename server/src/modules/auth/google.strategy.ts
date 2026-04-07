@@ -25,7 +25,7 @@ export function configureGooglePassport() {
 
           const verified: GoogleVerifiedProfile = {
             provider: "google",
-            providerId: profile.id,
+            providerId: String(profile.id),
             email,
             name: profile.displayName ?? null,
             avatarUrl: profile.photos?.[0]?.value ?? null,

@@ -33,6 +33,11 @@ const port = Number.isFinite(parsedPort) ? parsedPort : 3001;
 
 app.use("/auth", authRouter);
 
+app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  logger.error({ err, method: req.method, url: req.url }, "unhandled error");
+  res.status(500).json({ error: "Internal Server Error" });
+});
+
 app.listen(port, () => {
   logger.info({ port }, "server listening");
 });
