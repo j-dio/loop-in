@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { authenticate } from "../../middleware/authenticate";
 import { requireRole, requireWorkspace } from "../../middleware/workspace";
+import { createPostsRouterStack } from "../posts/posts.routes";
 import {
   deleteWorkspace,
   deleteWorkspaceMember,
@@ -16,6 +17,9 @@ export const workspacesRouter = Router();
 // Workspace CRUD (auth required)
 workspacesRouter.post("/", authenticate, postWorkspace);
 workspacesRouter.get("/", authenticate, getWorkspaces);
+
+// Posts (Phase 1 Step 3): /api/workspaces/:slug/posts — before /:slug PATCH to avoid shadowing
+workspacesRouter.use("/:slug/posts", createPostsRouterStack());
 
 // Members (admin or owner)
 const adminOrOwner = requireRole("admin", "owner");

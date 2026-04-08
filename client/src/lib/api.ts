@@ -1,5 +1,26 @@
+/**
+ * API origin for fetch(). In dev, align `localhost` vs `127.0.0.1` with the page:
+ * auth cookies are host-scoped, so `http://localhost:5173` + `http://127.0.0.1:3001`
+ * would send no cookies and every protected POST would 401.
+ */
 export function getApiBase(): string {
-  return import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+  const fromEnv = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+  if (typeof window === "undefined") return fromEnv;
+  try {
+    const api = new URL(fromEnv);
+    const pageHost = window.location.hostname;
+    if (
+      (api.hostname === "localhost" || api.hostname === "127.0.0.1") &&
+      (pageHost === "localhost" || pageHost === "127.0.0.1") &&
+      api.hostname !== pageHost
+    ) {
+      api.hostname = pageHost;
+      return api.origin;
+    }
+  } catch {
+    /* ignore invalid VITE_API_URL */
+  }
+  return fromEnv;
 }
 
 export class ApiError extends Error {
@@ -15,16 +36,42 @@ export class ApiError extends Error {
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const base = getApiBase();
   const headers = new Headers(init?.headers);
   if (init?.body !== undefined && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
-  const res = await fetch(`${getApiBase()}${path}`, {
-    ...init,
-    credentials: "include",
-    headers,
-  });
+  async function request(): Promise<Response> {
+    return fetch(`${base}${path}`, {
+      ...init,
+      credentials: "include",
+      headers,
+    });
+  }
+
+  let res = await request();
+
+  /**
+   * Access JWT is short-lived; refresh_token is only sent to `/auth/*` (cookie path).
+   * Expired access → POST /api/... returns 401 even though the session is still valid.
+   * Rotate access (and refresh) once, then retry the original request.
+   */
+  const canTryRefresh =
+    res.status === 401 &&
+    path !== "/auth/refresh" &&
+    path !== "/auth/logout" &&
+    !path.startsWith("/auth/google");
+
+  if (canTryRefresh) {
+    const refreshRes = await fetch(`${base}/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+    });
+    if (refreshRes.ok) {
+      res = await request();
+    }
+  }
 
   if (!res.ok) {
     const text = await res.text();
