@@ -2,6 +2,11 @@ import { Router } from "express";
 import { authenticate, optionalAuth } from "../../middleware/authenticate";
 import { requireWorkspace } from "../../middleware/workspace";
 import {
+  createCommentHandler,
+  deleteCommentHandler,
+  listCommentsHandler,
+} from "./comments.controller";
+import {
   createPostHandler,
   deletePostHandler,
   getPostHandler,
@@ -19,6 +24,9 @@ export const postsScopedRouter = Router({ mergeParams: true });
 postsScopedRouter.get("/", listPostsHandler);
 postsScopedRouter.get("/:postId/upvote", getUpvoteHandler);
 postsScopedRouter.post("/:postId/upvote", authenticate, postToggleUpvoteHandler);
+postsScopedRouter.get("/:postId/comments", listCommentsHandler);
+postsScopedRouter.post("/:postId/comments", authenticate, createCommentHandler);
+postsScopedRouter.delete("/:postId/comments/:commentId", authenticate, deleteCommentHandler);
 postsScopedRouter.get("/:postId", getPostHandler);
 postsScopedRouter.post("/", authenticate, createPostHandler);
 postsScopedRouter.patch("/:postId", authenticate, patchPostHandler);

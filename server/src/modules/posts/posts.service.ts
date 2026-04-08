@@ -27,13 +27,25 @@ export type PostPublic = {
   author: PostAuthorPublic;
 };
 
-type RequesterContext = {
+export type RequesterContext = {
   userId: string | undefined;
   workspaceRole: WorkspaceRole | undefined;
 };
 
 function isAdminOrOwner(role: WorkspaceRole | undefined): boolean {
   return role === "admin" || role === "owner";
+}
+
+/** Post visible for detail / comments / upvote: approved for all viewers; else author or staff. Not soft-deleted. */
+export function viewerCanSeePost(
+  p: { moderationStatus: string; authorId: string; deletedAt: Date | null },
+  ctx: RequesterContext
+): boolean {
+  if (p.deletedAt) return false;
+  const canViewApproved = p.moderationStatus === "approved";
+  const isAuthor = ctx.userId !== undefined && p.authorId === ctx.userId;
+  const staff = isAdminOrOwner(ctx.workspaceRole);
+  return canViewApproved || isAuthor || staff;
 }
 
 /** Same visibility as getPostById: upvote read/toggle only on posts the user could open. */
@@ -273,15 +285,11 @@ export async function getPostById(input: {
     .limit(1);
 
   if (!row) return "not_found";
-  if (row.post.deletedAt) return "not_found";
 
-  const p = row.post;
-  const canViewApproved = p.moderationStatus === "approved";
-  const isAuthor = input.ctx.userId !== undefined && p.authorId === input.ctx.userId;
-  const staff = isAdminOrOwner(input.ctx.workspaceRole);
-  const canViewNonApproved = isAuthor || staff;
-
-  if (!canViewApproved && !canViewNonApproved) return "forbidden";
+  if (!viewerCanSeePost(row.post, input.ctx)) {
+    if (row.post.deletedAt) return "not_found";
+    return "forbidden";
+  }
 
   return mapRowToPublic(row, input.ctx);
 }
