@@ -1,12 +1,19 @@
-import { Outlet } from 'react-router-dom';
+import { Link, Outlet } from "react-router-dom";
+import { useWorkspace } from "@/context/WorkspaceContext";
 
 export function AppShell() {
+  const { activeWorkspace } = useWorkspace();
+
   return (
     <div className="min-h-dvh bg-background text-foreground">
-      {/* Top Nav */}
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-6xl items-center px-4">
-          <div className='text-sm font-semibold'>Nav</div>
+        <div className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-4">
+          <Link to="/" className="text-sm font-semibold hover:underline">
+            LoopIn
+          </Link>
+          {activeWorkspace ? (
+            <span className="truncate text-sm text-muted-foreground">{activeWorkspace.name}</span>
+          ) : null}
         </div>
       </header>
 
