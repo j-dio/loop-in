@@ -1,6 +1,6 @@
-import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "../../db";
-import { posts, users } from "../../db/schema";
+import { posts, upvotes, users } from "../../db/schema";
 import type { WorkspaceRole } from "../workspaces/workspaces.service";
 
 export type PostCategory = "bug" | "feature_request" | "ui_tweak";
@@ -34,6 +34,26 @@ type RequesterContext = {
 
 function isAdminOrOwner(role: WorkspaceRole | undefined): boolean {
   return role === "admin" || role === "owner";
+}
+
+/** Same visibility as getPostById: upvote read/toggle only on posts the user could open. */
+function canAccessPostForUpvote(
+  p: { moderationStatus: string; authorId: string },
+  ctx: RequesterContext
+): boolean {
+  const approved = p.moderationStatus === "approved";
+  const isAuthor = ctx.userId !== undefined && p.authorId === ctx.userId;
+  const staff = isAdminOrOwner(ctx.workspaceRole);
+  return approved || isAuthor || staff;
+}
+
+async function fetchUpvotedPostIdsForUser(userId: string, postIds: string[]): Promise<string[]> {
+  if (postIds.length === 0) return [];
+  const rows = await db
+    .select({ postId: upvotes.postId })
+    .from(upvotes)
+    .where(and(eq(upvotes.userId, userId), inArray(upvotes.postId, postIds)));
+  return rows.map((r) => r.postId);
 }
 
 export function serializeAuthorForPost(
@@ -163,7 +183,7 @@ export async function listPosts(input: {
     | { k: "top"; upvoteCount: number; createdAt: Date; id: string }
     | null;
   ctx: RequesterContext;
-}): Promise<{ posts: PostPublic[]; nextCursor: string | null }> {
+}): Promise<{ posts: PostPublic[]; nextCursor: string | null; upvotedPostIds: string[] }> {
   const effectiveSort = input.sort === "trending" ? "top" : input.sort;
 
   const base = listBaseConditions(input.workspaceId);
@@ -220,9 +240,18 @@ export async function listPosts(input: {
     nextCursor = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
   }
 
+  const upvotedPostIds =
+    input.ctx.userId && page.length > 0
+      ? await fetchUpvotedPostIdsForUser(
+          input.ctx.userId,
+          page.map((r) => r.post.id)
+        )
+      : [];
+
   return {
     posts: page.map((r) => mapRowToPublic(r, input.ctx)),
     nextCursor,
+    upvotedPostIds,
   };
 }
 
@@ -330,4 +359,74 @@ export async function softDeletePost(input: {
   await db.update(posts).set({ deletedAt: new Date() }).where(eq(posts.id, input.postId));
 
   return "ok";
+}
+
+export async function getMyUpvoteState(input: {
+  workspaceId: string;
+  postId: string;
+  ctx: RequesterContext;
+}): Promise<{ upvoted: boolean } | "not_found" | "forbidden"> {
+  const [row] = await db
+    .select()
+    .from(posts)
+    .where(and(eq(posts.id, input.postId), eq(posts.workspaceId, input.workspaceId)))
+    .limit(1);
+
+  if (!row || row.deletedAt) return "not_found";
+  if (!canAccessPostForUpvote(row, input.ctx)) return "forbidden";
+
+  if (!input.ctx.userId) return { upvoted: false };
+
+  const [u] = await db
+    .select({ id: upvotes.id })
+    .from(upvotes)
+    .where(and(eq(upvotes.postId, input.postId), eq(upvotes.userId, input.ctx.userId)))
+    .limit(1);
+
+  return { upvoted: Boolean(u) };
+}
+
+export async function toggleUpvote(input: {
+  workspaceId: string;
+  postId: string;
+  userId: string;
+  ctx: RequesterContext;
+}): Promise<{ upvoted: boolean; upvoteCount: number } | "not_found" | "forbidden"> {
+  return db.transaction(async (tx) => {
+    const [locked] = await tx
+      .select()
+      .from(posts)
+      .where(and(eq(posts.id, input.postId), eq(posts.workspaceId, input.workspaceId)))
+      .for("update")
+      .limit(1);
+
+    if (!locked || locked.deletedAt) return "not_found";
+    if (!canAccessPostForUpvote(locked, input.ctx)) return "forbidden";
+
+    const [existing] = await tx
+      .select({ id: upvotes.id })
+      .from(upvotes)
+      .where(and(eq(upvotes.postId, input.postId), eq(upvotes.userId, input.userId)))
+      .limit(1);
+
+    if (existing) {
+      await tx.delete(upvotes).where(eq(upvotes.id, existing.id));
+      const [after] = await tx
+        .update(posts)
+        .set({ upvoteCount: sql`GREATEST(0, ${posts.upvoteCount} - 1)` })
+        .where(eq(posts.id, input.postId))
+        .returning({ upvoteCount: posts.upvoteCount });
+      if (!after) throw new Error("Failed to update post after upvote removal");
+      return { upvoted: false, upvoteCount: after.upvoteCount };
+    }
+
+    await tx.insert(upvotes).values({ postId: input.postId, userId: input.userId });
+    const [after] = await tx
+      .update(posts)
+      .set({ upvoteCount: sql`${posts.upvoteCount} + 1` })
+      .where(eq(posts.id, input.postId))
+      .returning({ upvoteCount: posts.upvoteCount });
+    if (!after) throw new Error("Failed to update post after upvote add");
+    return { upvoted: true, upvoteCount: after.upvoteCount };
+  });
 }

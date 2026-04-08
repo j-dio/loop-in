@@ -9,9 +9,11 @@ import {
 } from "./posts.schemas";
 import {
   createPost,
+  getMyUpvoteState,
   getPostById,
   listPosts,
   softDeletePost,
+  toggleUpvote,
   updatePost,
   type ListPostsSort,
 } from "./posts.service";
@@ -190,6 +192,56 @@ export async function deletePostHandler(req: Request, res: Response, next: NextF
     if (outcome === "forbidden") return res.status(403).json({ error: "Forbidden" });
 
     return res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getUpvoteHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });
+
+    const paramsParsed = PostIdParamsSchema.safeParse(req.params);
+    if (!paramsParsed.success) {
+      return res.status(400).json({ error: "Invalid params", details: paramsParsed.error.flatten() });
+    }
+
+    const result = await getMyUpvoteState({
+      workspaceId: req.workspace.id,
+      postId: paramsParsed.data.postId,
+      ctx: requesterCtx(req),
+    });
+
+    if (result === "not_found") return res.status(404).json({ error: "Post not found" });
+    if (result === "forbidden") return res.status(403).json({ error: "Forbidden" });
+
+    return res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function postToggleUpvoteHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user?.id) return res.status(401).json({ error: "Unauthorized" });
+    if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });
+
+    const paramsParsed = PostIdParamsSchema.safeParse(req.params);
+    if (!paramsParsed.success) {
+      return res.status(400).json({ error: "Invalid params", details: paramsParsed.error.flatten() });
+    }
+
+    const result = await toggleUpvote({
+      workspaceId: req.workspace.id,
+      postId: paramsParsed.data.postId,
+      userId: req.user.id,
+      ctx: requesterCtx(req),
+    });
+
+    if (result === "not_found") return res.status(404).json({ error: "Post not found" });
+    if (result === "forbidden") return res.status(403).json({ error: "Forbidden" });
+
+    return res.json(result);
   } catch (err) {
     next(err);
   }

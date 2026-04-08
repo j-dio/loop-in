@@ -5,8 +5,10 @@ import {
   createPostHandler,
   deletePostHandler,
   getPostHandler,
+  getUpvoteHandler,
   listPostsHandler,
   patchPostHandler,
+  postToggleUpvoteHandler,
 } from "./posts.controller";
 
 /**
@@ -15,6 +17,8 @@ import {
 export const postsScopedRouter = Router({ mergeParams: true });
 
 postsScopedRouter.get("/", listPostsHandler);
+postsScopedRouter.get("/:postId/upvote", getUpvoteHandler);
+postsScopedRouter.post("/:postId/upvote", authenticate, postToggleUpvoteHandler);
 postsScopedRouter.get("/:postId", getPostHandler);
 postsScopedRouter.post("/", authenticate, createPostHandler);
 postsScopedRouter.patch("/:postId", authenticate, patchPostHandler);
