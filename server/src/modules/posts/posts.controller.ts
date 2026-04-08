@@ -53,6 +53,10 @@ function requesterCtx(req: Request) {
   };
 }
 
+/**
+ * Public feed list. Response includes `upvotedPostIds`: post IDs on this page the current user
+ * has upvoted (batch lookup, no extra round-trips). Empty when unauthenticated.
+ */
 export async function listPostsHandler(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });

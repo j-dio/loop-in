@@ -7,6 +7,8 @@ import { useWorkspace } from "@/context/WorkspaceContext";
 import { ApiError, apiFetch } from "@/lib/api";
 import type { PostDTO, PostSort } from "@/lib/postTypes";
 
+type PostsPage = { posts: PostDTO[]; nextCursor: string | null; upvotedPostIds: string[] };
+
 export function Board() {
   const { slug } = useParams();
   const { workspaces, setActiveWorkspace, activeWorkspace, user } = useWorkspace();
@@ -19,6 +21,7 @@ export function Board() {
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pendingLocal, setPendingLocal] = useState<PostDTO[]>([]);
+  const [upvotedIds, setUpvotedIds] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     if (!slug) return;
@@ -36,11 +39,17 @@ export function Board() {
       const q = new URLSearchParams({ sort: opts.sort });
       if (opts.cursor) q.set("cursor", opts.cursor);
       const path = `/api/workspaces/${encodeURIComponent(slug)}/posts?${q.toString()}`;
-      const data = await apiFetch<{ posts: PostDTO[]; nextCursor: string | null }>(path);
+      const data = await apiFetch<PostsPage>(path);
       if (opts.append) {
         setPosts((prev) => [...prev, ...data.posts]);
+        setUpvotedIds((prev) => {
+          const next = new Set(prev);
+          for (const id of data.upvotedPostIds) next.add(id);
+          return next;
+        });
       } else {
         setPosts(data.posts);
+        setUpvotedIds(new Set(data.upvotedPostIds));
       }
       setNextCursor(data.nextCursor);
     },
@@ -90,6 +99,16 @@ export function Board() {
 
   const onCreated = useCallback((post: PostDTO) => {
     setPendingLocal((prev) => [post, ...prev.filter((p) => p.id !== post.id)]);
+  }, []);
+
+  const onUpvoteChange = useCallback((postId: string, upvoteCount: number, upvoted: boolean) => {
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, upvoteCount } : p)));
+    setUpvotedIds((prev) => {
+      const next = new Set(prev);
+      if (upvoted) next.add(postId);
+      else next.delete(postId);
+      return next;
+    });
   }, []);
 
   const mergedFeed = useMemo(() => {
@@ -177,6 +196,10 @@ export function Board() {
                 post={post}
                 workspaceSlug={slug}
                 pendingHighlight={post.moderationStatus === "pending"}
+                upvoted={upvotedIds.has(post.id)}
+                signedIn={Boolean(user)}
+                canUpvote={canPost}
+                onUpvoteChange={onUpvoteChange}
               />
             </li>
           ))}
