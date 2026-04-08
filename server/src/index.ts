@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import pino from "pino";
 import "./config/env";
 import { authRouter } from "./modules/auth/auth.routes";
+import { workspacesRouter } from "./modules/workspaces/workspaces.routes";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
 const app = express();
@@ -32,8 +33,20 @@ const parsedPort = Number(process.env.PORT ?? 3001);
 const port = Number.isFinite(parsedPort) ? parsedPort : 3001;
 
 app.use("/auth", authRouter);
+app.use("/api/workspaces", workspacesRouter);
 
 app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  // If JSON body parsing fails, Express throws a SyntaxError with status 400.
+  // Surface it as a 400 so callers can fix their request body.
+  if (
+    err instanceof SyntaxError &&
+    typeof (err as unknown as { status?: unknown }).status === "number" &&
+    (err as unknown as { status: number }).status === 400
+  ) {
+    logger.warn({ err, method: req.method, url: req.url }, "invalid json");
+    return res.status(400).json({ error: "Invalid JSON" });
+  }
+
   logger.error({ err, method: req.method, url: req.url }, "unhandled error");
   res.status(500).json({ error: "Internal Server Error" });
 });
