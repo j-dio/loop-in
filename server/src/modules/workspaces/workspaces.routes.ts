@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { authenticate } from "../../middleware/authenticate";
+import { authenticate, optionalAuth } from "../../middleware/authenticate";
+import { createWorkspaceRateLimiter } from "../../middleware/rateLimit";
 import { requireRole, requireWorkspace } from "../../middleware/workspace";
 import { createPostsRouterStack } from "../posts/posts.routes";
 import {
@@ -13,6 +14,10 @@ import {
 } from "./workspaces.controller";
 
 export const workspacesRouter = Router();
+
+// Decode JWT early so rate limits can key by user_id; routes still enforce `authenticate` where required.
+workspacesRouter.use(optionalAuth);
+workspacesRouter.use(createWorkspaceRateLimiter());
 
 // Workspace CRUD (auth required)
 workspacesRouter.post("/", authenticate, postWorkspace);

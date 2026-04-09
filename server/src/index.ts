@@ -6,9 +6,20 @@ import pino from "pino";
 import "./config/env";
 import { authRouter } from "./modules/auth/auth.routes";
 import { workspacesRouter } from "./modules/workspaces/workspaces.routes";
+import {
+  createAuthRateLimiter,
+  RATE_LIMITS,
+  setHealthRateLimitHeaders,
+  setRateLimitHeaders,
+} from "./middleware/rateLimit";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
 const app = express();
+
+// When behind a trusted reverse proxy (e.g. Nginx), set TRUST_PROXY=1 so `req.ip` uses X-Forwarded-For safely.
+if (process.env.TRUST_PROXY === "1") {
+  app.set("trust proxy", 1);
+}
 
 app.use(helmet());
 app.use(
@@ -26,16 +37,26 @@ app.use((req, res, next) => {
 });
 
 app.get("/health", (_req, res) => {
+  // Not counted against any bucket; headers are informational for observability only.
+  setHealthRateLimitHeaders(res);
   res.json({ status: "ok" });
 });
 
 const parsedPort = Number(process.env.PORT ?? 3001);
 const port = Number.isFinite(parsedPort) ? parsedPort : 3001;
 
-app.use("/auth", authRouter);
+app.use("/auth", createAuthRateLimiter(), authRouter);
 app.use("/api/workspaces", workspacesRouter);
 
 app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  if (!res.headersSent && res.getHeader("X-RateLimit-Limit") === undefined) {
+    const resetSec = Math.ceil(Date.now() / 1000) + Math.ceil(RATE_LIMITS.default.windowMs / 1000);
+    setRateLimitHeaders(res, {
+      limit: RATE_LIMITS.default.limit,
+      remaining: RATE_LIMITS.default.limit,
+      resetSec,
+    });
+  }
   // If JSON body parsing fails, Express throws a SyntaxError with status 400.
   // Surface it as a 400 so callers can fix their request body.
   if (
