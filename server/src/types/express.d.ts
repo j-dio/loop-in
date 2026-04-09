@@ -18,6 +18,7 @@ declare global {
         slug: string;
         primaryColor: string;
         visibility: "public" | "invite_only";
+        requireApproval: boolean;
         createdAt: Date;
       };
 

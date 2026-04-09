@@ -19,6 +19,7 @@ export const CreateWorkspaceBodySchema = z.object({
   slug: WorkspaceSlugSchema,
   primaryColor: HexColorSchema.optional(),
   visibility: WorkspaceVisibilitySchema.optional(),
+  require_approval: z.boolean().optional(),
 });
 
 export const PatchWorkspaceParamsSchema = z.object({
@@ -30,6 +31,7 @@ export const PatchWorkspaceBodySchema = z
     name: z.string().trim().min(1).max(255).optional(),
     primaryColor: HexColorSchema.optional(),
     visibility: WorkspaceVisibilitySchema.optional(),
+    require_approval: z.boolean().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, "at least one field must be provided");
 

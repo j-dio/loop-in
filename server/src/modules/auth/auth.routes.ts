@@ -3,6 +3,7 @@ import passport from "passport";
 import { configureGooglePassport, type GoogleVerifiedProfile } from "./google.strategy";
 import {
   createSession,
+  deleteExpiredSessionsFireAndForget,
   deleteSessionById,
   findSessionByRefreshTokenHash,
   rotateSession,
@@ -105,6 +106,7 @@ authRouter.post("/refresh", async (req, res, next) => {
     });
 
     setAuthCookies(res, accessToken, nextRefreshToken);
+    deleteExpiredSessionsFireAndForget();
     return res.json({ ok: true });
   } catch (err) {
     next(err);

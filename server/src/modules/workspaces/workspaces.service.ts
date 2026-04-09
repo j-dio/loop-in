@@ -1,6 +1,7 @@
+import { randomBytes } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "../../db";
-import { users, workspaceMembers, workspaces } from "../../db/schema";
+import { pendingInvites, users, workspaceMembers, workspaces } from "../../db/schema";
 
 export type WorkspaceVisibility = "public" | "invite_only";
 export type WorkspaceRole = "owner" | "admin" | "member";
@@ -12,6 +13,7 @@ export type Workspace = {
   slug: string;
   primaryColor: string;
   visibility: WorkspaceVisibility;
+  requireApproval: boolean;
   createdAt: Date;
 };
 
@@ -23,6 +25,7 @@ function mapWorkspaceRow(row: typeof workspaces.$inferSelect): Workspace {
     slug: row.slug,
     primaryColor: row.primaryColor,
     visibility: row.visibility as WorkspaceVisibility,
+    requireApproval: row.requireApproval,
     createdAt: row.createdAt,
   };
 }
@@ -33,6 +36,7 @@ export async function createWorkspaceWithOwnerMembership(input: {
   slug: string;
   primaryColor?: string | undefined;
   visibility?: WorkspaceVisibility | undefined;
+  requireApproval?: boolean | undefined;
 }): Promise<Workspace> {
   return await db.transaction(async (tx) => {
     const [insertedWorkspace] = await tx
@@ -43,6 +47,7 @@ export async function createWorkspaceWithOwnerMembership(input: {
         slug: input.slug,
         primaryColor: input.primaryColor ?? undefined,
         visibility: input.visibility ?? undefined,
+        requireApproval: input.requireApproval ?? undefined,
       })
       .returning();
 
@@ -97,6 +102,7 @@ export async function updateWorkspaceBySlug(input: {
     name?: string | undefined;
     primaryColor?: string | undefined;
     visibility?: WorkspaceVisibility | undefined;
+    requireApproval?: boolean | undefined;
   };
 }): Promise<Workspace | null> {
   const [updated] = await db
@@ -105,6 +111,7 @@ export async function updateWorkspaceBySlug(input: {
       name: input.patch.name,
       primaryColor: input.patch.primaryColor,
       visibility: input.patch.visibility,
+      requireApproval: input.patch.requireApproval,
     })
     .where(eq(workspaces.slug, input.slug))
     .returning();
@@ -135,14 +142,19 @@ export async function findUserByEmailCaseInsensitive(email: string): Promise<{ i
   return row ?? null;
 }
 
-export async function inviteUserAsMember(input: {
+async function addExistingUserAsMember(input: {
   workspaceId: string;
   userId: string;
 }): Promise<WorkspaceMemberPublic | "already_member"> {
   const [existing] = await db
     .select({ role: workspaceMembers.role })
     .from(workspaceMembers)
-    .where(and(eq(workspaceMembers.workspaceId, input.workspaceId), eq(workspaceMembers.userId, input.userId)))
+    .where(
+      and(
+        eq(workspaceMembers.workspaceId, input.workspaceId),
+        eq(workspaceMembers.userId, input.userId)
+      )
+    )
     .limit(1);
 
   if (existing) return "already_member";
@@ -173,6 +185,54 @@ export async function inviteUserAsMember(input: {
     role: memberRow.role as WorkspaceRole,
     joinedAt: memberRow.joinedAt,
   };
+}
+
+/**
+ * Invite by email: if the user exists, add membership; otherwise store a pending invite (7-day expiry).
+ */
+export async function inviteUserAsMember(input: {
+  workspaceId: string;
+  email: string;
+  invitedByUserId: string;
+}): Promise<
+  WorkspaceMemberPublic | { pending: true; email: string } | "already_member" | "already_pending"
+> {
+  const normalizedEmail = input.email.trim().toLowerCase();
+
+  const invitedUser = await findUserByEmailCaseInsensitive(input.email);
+  if (invitedUser) {
+    return addExistingUserAsMember({
+      workspaceId: input.workspaceId,
+      userId: invitedUser.id,
+    });
+  }
+
+  const [existingPending] = await db
+    .select({ id: pendingInvites.id })
+    .from(pendingInvites)
+    .where(
+      and(
+        eq(pendingInvites.workspaceId, input.workspaceId),
+        eq(pendingInvites.email, normalizedEmail)
+      )
+    )
+    .limit(1);
+
+  if (existingPending) return "already_pending";
+
+  const token = randomBytes(32).toString("base64url");
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  await db.insert(pendingInvites).values({
+    workspaceId: input.workspaceId,
+    email: normalizedEmail,
+    role: "member",
+    invitedBy: input.invitedByUserId,
+    token,
+    expiresAt,
+  });
+
+  return { pending: true, email: normalizedEmail };
 }
 
 export async function listWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberPublic[]> {

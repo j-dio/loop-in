@@ -13,7 +13,6 @@ import {
 import {
   createWorkspaceWithOwnerMembership,
   deleteWorkspaceBySlug,
-  findUserByEmailCaseInsensitive,
   inviteUserAsMember,
   listWorkspaceMembers,
   listWorkspacesForUser,
@@ -30,7 +29,7 @@ export async function postWorkspace(req: Request, res: Response, next: NextFunct
       return res.status(400).json({ error: "Invalid request", details: parsed.error.flatten() });
     }
 
-    const { name, slug, primaryColor, visibility } = parsed.data;
+    const { name, slug, primaryColor, visibility, require_approval } = parsed.data;
 
     const [existing] = await db
       .select({ id: workspaces.id })
@@ -46,6 +45,7 @@ export async function postWorkspace(req: Request, res: Response, next: NextFunct
       slug,
       primaryColor,
       visibility,
+      requireApproval: require_approval,
     });
 
     return res.status(201).json({ workspace });
@@ -79,9 +79,13 @@ export async function patchWorkspace(req: Request, res: Response, next: NextFunc
       return res.status(400).json({ error: "Invalid request", details: bodyParsed.error.flatten() });
     }
 
+    const { require_approval, ...rest } = bodyParsed.data;
     const updated = await updateWorkspaceBySlug({
       slug: paramsParsed.data.slug,
-      patch: bodyParsed.data,
+      patch: {
+        ...rest,
+        ...(require_approval !== undefined ? { requireApproval: require_approval } : {}),
+      },
     });
 
     if (!updated) return res.status(404).json({ error: "Workspace not found" });
@@ -125,16 +129,20 @@ export async function postWorkspaceMember(req: Request, res: Response, next: Nex
       return res.status(400).json({ error: "Invalid request", details: bodyParsed.error.flatten() });
     }
 
-    const invited = await findUserByEmailCaseInsensitive(bodyParsed.data.email);
-    if (!invited) return res.status(404).json({ error: "User not found" });
-
     const result = await inviteUserAsMember({
       workspaceId: req.workspace.id,
-      userId: invited.id,
+      email: bodyParsed.data.email,
+      invitedByUserId: req.user.id,
     });
 
     if (result === "already_member") {
       return res.status(409).json({ error: "User is already a member" });
+    }
+    if (result === "already_pending") {
+      return res.status(409).json({ error: "An invite is already pending for this email" });
+    }
+    if ("pending" in result && result.pending) {
+      return res.status(202).json({ pending: true, email: result.email });
     }
 
     return res.status(201).json({ member: result });
