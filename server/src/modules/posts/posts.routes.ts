@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authenticate, optionalAuth } from "../../middleware/authenticate";
-import { requireWorkspace } from "../../middleware/workspace";
+import { requireRole, requireWorkspace } from "../../middleware/workspace";
 import {
   createCommentHandler,
   deleteCommentHandler,
@@ -11,10 +11,16 @@ import {
   deletePostHandler,
   getPostHandler,
   getUpvoteHandler,
+  listAdminKanbanHandler,
+  listAdminTriageHandler,
   listPostsHandler,
+  moderatePostHandler,
+  patchPostBoardStatusHandler,
   patchPostHandler,
   postToggleUpvoteHandler,
 } from "./posts.controller";
+
+const adminOnly = [authenticate, requireRole("owner", "admin")] as const;
 
 /**
  * Mounted at /api/workspaces/:slug/posts — parent applies optionalAuth + requireWorkspace.
@@ -22,6 +28,8 @@ import {
 export const postsScopedRouter = Router({ mergeParams: true });
 
 postsScopedRouter.get("/", listPostsHandler);
+postsScopedRouter.get("/admin/triage", ...adminOnly, listAdminTriageHandler);
+postsScopedRouter.get("/admin/kanban", ...adminOnly, listAdminKanbanHandler);
 postsScopedRouter.get("/:postId/upvote", getUpvoteHandler);
 postsScopedRouter.post("/:postId/upvote", authenticate, postToggleUpvoteHandler);
 postsScopedRouter.get("/:postId/comments", listCommentsHandler);
@@ -29,6 +37,8 @@ postsScopedRouter.post("/:postId/comments", authenticate, createCommentHandler);
 postsScopedRouter.delete("/:postId/comments/:commentId", authenticate, deleteCommentHandler);
 postsScopedRouter.get("/:postId", getPostHandler);
 postsScopedRouter.post("/", authenticate, createPostHandler);
+postsScopedRouter.patch("/:postId/moderate", ...adminOnly, moderatePostHandler);
+postsScopedRouter.patch("/:postId/status", ...adminOnly, patchPostBoardStatusHandler);
 postsScopedRouter.patch("/:postId", authenticate, patchPostHandler);
 postsScopedRouter.delete("/:postId", authenticate, deletePostHandler);
 

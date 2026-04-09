@@ -1,7 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
 import {
+  AdminPostsListQuerySchema,
   CreatePostBodySchema,
   ListPostsQuerySchema,
+  ModeratePostBodySchema,
+  PatchBoardStatusBodySchema,
   PostCursorSchema,
   PostIdParamsSchema,
   PostsParentParamsSchema,
@@ -11,10 +14,14 @@ import {
   createPost,
   getMyUpvoteState,
   getPostById,
+  listApprovedPostsForKanban,
+  listPendingPostsForTriage,
   listPosts,
+  moderatePost,
   softDeletePost,
   toggleUpvote,
   updatePost,
+  updatePostBoardStatus,
   type ListPostsSort,
 } from "./posts.service";
 
@@ -57,6 +64,124 @@ function requesterCtx(req: Request) {
  * Public feed list. Response includes `upvotedPostIds`: post IDs on this page the current user
  * has upvoted (batch lookup, no extra round-trips). Empty when unauthenticated.
  */
+export async function listAdminTriageHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });
+
+    const paramsParsed = PostsParentParamsSchema.safeParse(req.params);
+    if (!paramsParsed.success) {
+      return res.status(400).json({ error: "Invalid params", details: paramsParsed.error.flatten() });
+    }
+
+    const queryParsed = AdminPostsListQuerySchema.safeParse(req.query);
+    if (!queryParsed.success) {
+      return res.status(400).json({ error: "Invalid query", details: queryParsed.error.flatten() });
+    }
+
+    const posts = await listPendingPostsForTriage({
+      workspaceId: req.workspace.id,
+      limit: queryParsed.data.limit,
+      ctx: requesterCtx(req),
+    });
+
+    return res.json({ posts });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listAdminKanbanHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });
+
+    const paramsParsed = PostsParentParamsSchema.safeParse(req.params);
+    if (!paramsParsed.success) {
+      return res.status(400).json({ error: "Invalid params", details: paramsParsed.error.flatten() });
+    }
+
+    const queryParsed = AdminPostsListQuerySchema.safeParse(req.query);
+    if (!queryParsed.success) {
+      return res.status(400).json({ error: "Invalid query", details: queryParsed.error.flatten() });
+    }
+
+    const posts = await listApprovedPostsForKanban({
+      workspaceId: req.workspace.id,
+      limit: queryParsed.data.limit,
+      ctx: requesterCtx(req),
+    });
+
+    return res.json({ posts });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function moderatePostHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user?.id) return res.status(401).json({ error: "Unauthorized" });
+    if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });
+
+    const paramsParsed = PostIdParamsSchema.safeParse(req.params);
+    if (!paramsParsed.success) {
+      return res.status(400).json({ error: "Invalid params", details: paramsParsed.error.flatten() });
+    }
+
+    const bodyParsed = ModeratePostBodySchema.safeParse(req.body);
+    if (!bodyParsed.success) {
+      return res.status(400).json({ error: "Invalid request", details: bodyParsed.error.flatten() });
+    }
+
+    const updated = await moderatePost({
+      workspaceId: req.workspace.id,
+      postId: paramsParsed.data.postId,
+      moderationStatus: bodyParsed.data.moderation_status,
+      ctx: requesterCtx(req),
+    });
+
+    if (updated === "not_found") return res.status(404).json({ error: "Post not found" });
+    if (updated === "invalid_transition") {
+      return res.status(400).json({ error: "Moderation can only be set from pending" });
+    }
+
+    return res.json({ post: updated });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function patchPostBoardStatusHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user?.id) return res.status(401).json({ error: "Unauthorized" });
+    if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });
+
+    const paramsParsed = PostIdParamsSchema.safeParse(req.params);
+    if (!paramsParsed.success) {
+      return res.status(400).json({ error: "Invalid params", details: paramsParsed.error.flatten() });
+    }
+
+    const bodyParsed = PatchBoardStatusBodySchema.safeParse(req.body);
+    if (!bodyParsed.success) {
+      return res.status(400).json({ error: "Invalid request", details: bodyParsed.error.flatten() });
+    }
+
+    const updated = await updatePostBoardStatus({
+      workspaceId: req.workspace.id,
+      postId: paramsParsed.data.postId,
+      boardStatus: bodyParsed.data.board_status,
+      ctx: requesterCtx(req),
+    });
+
+    if (updated === "not_found") return res.status(404).json({ error: "Post not found" });
+    if (updated === "not_approved") {
+      return res.status(409).json({ error: "Post must be approved before updating board status" });
+    }
+
+    return res.json({ post: updated });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function listPostsHandler(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });

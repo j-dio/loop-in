@@ -51,3 +51,15 @@ export const PatchPostBodySchema = z
     category: PostCategorySchema.optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: "at least one field must be provided" });
+
+export const ModeratePostBodySchema = z.object({
+  moderation_status: z.enum(["approved", "spam", "rejected"]),
+});
+
+export const PatchBoardStatusBodySchema = z.object({
+  board_status: z.enum(["inbox", "under_review", "planned", "in_progress", "shipped"]),
+});
+
+export const AdminPostsListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).optional().default(100),
+});

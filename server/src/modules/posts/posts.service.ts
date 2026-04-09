@@ -438,3 +438,137 @@ export async function toggleUpvote(input: {
     return { upvoted: true, upvoteCount: after.upvoteCount };
   });
 }
+
+export async function moderatePost(input: {
+  workspaceId: string;
+  postId: string;
+  moderationStatus: Exclude<ModerationStatus, "pending">;
+  ctx: RequesterContext;
+}): Promise<PostPublic | "not_found" | "invalid_transition"> {
+  const [row] = await db
+    .select()
+    .from(posts)
+    .where(and(eq(posts.id, input.postId), eq(posts.workspaceId, input.workspaceId)))
+    .limit(1);
+
+  if (!row || row.deletedAt) return "not_found";
+  if (row.moderationStatus !== "pending") return "invalid_transition";
+
+  const [updated] = await db
+    .update(posts)
+    .set({ moderationStatus: input.moderationStatus })
+    .where(eq(posts.id, input.postId))
+    .returning();
+
+  if (!updated) return "not_found";
+
+  const [joined] = await db
+    .select({
+      post: posts,
+      authorId: users.id,
+      authorName: users.name,
+      authorAvatar: users.avatarUrl,
+    })
+    .from(posts)
+    .innerJoin(users, eq(posts.authorId, users.id))
+    .where(eq(posts.id, input.postId))
+    .limit(1);
+
+  if (!joined) return "not_found";
+
+  return mapRowToPublic(joined, input.ctx);
+}
+
+export async function updatePostBoardStatus(input: {
+  workspaceId: string;
+  postId: string;
+  boardStatus: BoardStatus;
+  ctx: RequesterContext;
+}): Promise<PostPublic | "not_found" | "not_approved"> {
+  const [row] = await db
+    .select()
+    .from(posts)
+    .where(and(eq(posts.id, input.postId), eq(posts.workspaceId, input.workspaceId)))
+    .limit(1);
+
+  if (!row || row.deletedAt) return "not_found";
+  if (row.moderationStatus !== "approved") return "not_approved";
+
+  const [updated] = await db
+    .update(posts)
+    .set({ boardStatus: input.boardStatus })
+    .where(eq(posts.id, input.postId))
+    .returning();
+
+  if (!updated) return "not_found";
+
+  const [joined] = await db
+    .select({
+      post: posts,
+      authorId: users.id,
+      authorName: users.name,
+      authorAvatar: users.avatarUrl,
+    })
+    .from(posts)
+    .innerJoin(users, eq(posts.authorId, users.id))
+    .where(eq(posts.id, input.postId))
+    .limit(1);
+
+  if (!joined) return "not_found";
+
+  return mapRowToPublic(joined, input.ctx);
+}
+
+export async function listPendingPostsForTriage(input: {
+  workspaceId: string;
+  limit: number;
+  ctx: RequesterContext;
+}): Promise<PostPublic[]> {
+  const rows = await db
+    .select({
+      post: posts,
+      authorId: users.id,
+      authorName: users.name,
+      authorAvatar: users.avatarUrl,
+    })
+    .from(posts)
+    .innerJoin(users, eq(posts.authorId, users.id))
+    .where(
+      and(
+        eq(posts.workspaceId, input.workspaceId),
+        eq(posts.moderationStatus, "pending"),
+        isNull(posts.deletedAt)
+      )
+    )
+    .orderBy(desc(posts.createdAt), desc(posts.id))
+    .limit(input.limit);
+
+  return rows.map((r) => mapRowToPublic(r, input.ctx));
+}
+
+export async function listApprovedPostsForKanban(input: {
+  workspaceId: string;
+  limit: number;
+  ctx: RequesterContext;
+}): Promise<PostPublic[]> {
+  const rows = await db
+    .select({
+      post: posts,
+      authorId: users.id,
+      authorName: users.name,
+      authorAvatar: users.avatarUrl,
+    })
+    .from(posts)
+    .innerJoin(users, eq(posts.authorId, users.id))
+    .where(
+      and(
+        eq(posts.workspaceId, input.workspaceId),
+        eq(posts.moderationStatus, "approved"),
+        isNull(posts.deletedAt)
+      )
+    )
+    .orderBy(desc(posts.createdAt), desc(posts.id))
+    .limit(input.limit);
+
+  return rows.map((r) => mapRowToPublic(r, input.ctx));
+}
