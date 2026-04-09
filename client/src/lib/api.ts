@@ -90,3 +90,32 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 
   return res.json() as Promise<T>;
 }
+
+/** Body for `PATCH /api/workspaces/:slug` (owner only). */
+export type UpdateWorkspaceBody = {
+  name?: string;
+  primaryColor?: string;
+  visibility?: "public" | "invite_only";
+  require_approval?: boolean;
+};
+
+export async function updateWorkspace(
+  slug: string,
+  body: UpdateWorkspaceBody
+): Promise<{
+  workspace: {
+    id: string;
+    ownerId: string;
+    name: string;
+    slug: string;
+    primaryColor: string;
+    visibility: "public" | "invite_only";
+    requireApproval: boolean;
+    createdAt: string;
+  };
+}> {
+  return apiFetch(`/api/workspaces/${encodeURIComponent(slug)}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}

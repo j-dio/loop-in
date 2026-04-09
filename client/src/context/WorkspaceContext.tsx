@@ -24,6 +24,7 @@ export type Workspace = {
   slug: string;
   primaryColor: string;
   visibility: "public" | "invite_only";
+  requireApproval: boolean;
   createdAt: string;
 };
 
@@ -48,7 +49,8 @@ function readStoredWorkspace(): Workspace | null {
   const raw = sessionStorage.getItem(STORAGE_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as Workspace;
+    const w = JSON.parse(raw) as Workspace;
+    return { ...w, requireApproval: w.requireApproval ?? true };
   } catch {
     sessionStorage.removeItem(STORAGE_KEY);
     return null;
@@ -75,6 +77,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (me.user) {
         const data = await apiFetch<{ workspaces: Workspace[] }>("/api/workspaces");
         setWorkspaces(data.workspaces);
+        setActiveWorkspaceState((prev) => {
+          if (!prev) return prev;
+          const next = data.workspaces.find((w) => w.id === prev.id);
+          if (!next) return prev;
+          sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+          return next;
+        });
       } else {
         setWorkspaces([]);
         setActiveWorkspace(null);
