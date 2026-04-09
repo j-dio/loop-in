@@ -1,9 +1,11 @@
+import "./config/env";
+import "./instrument";
 import express from "express";
+import * as Sentry from "@sentry/node";
 import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import pino from "pino";
-import "./config/env";
 import { authRouter } from "./modules/auth/auth.routes";
 import { workspacesRouter } from "./modules/workspaces/workspaces.routes";
 import {
@@ -47,6 +49,16 @@ const port = Number.isFinite(parsedPort) ? parsedPort : 3001;
 
 app.use("/auth", createAuthRateLimiter(), authRouter);
 app.use("/api/workspaces", workspacesRouter);
+
+if (process.env.NODE_ENV !== "production") {
+  app.get("/debug/sentry-test", (_req, _res, next) => {
+    next(new Error("Sentry test error (intentional)"));
+  });
+}
+
+if (process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
 
 app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (!res.headersSent && res.getHeader("X-RateLimit-Limit") === undefined) {
