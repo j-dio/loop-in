@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowBigUp } from "lucide-react";
+import { ArrowBigUp, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useWorkspace } from "@/context/WorkspaceContext";
@@ -43,6 +43,8 @@ export function Thread() {
   const [upvoted, setUpvoted] = useState(false);
   const [upvoteCount, setUpvoteCount] = useState(0);
   const [upvoteBusy, setUpvoteBusy] = useState(false);
+  const [viewerIsAdminOrOwner, setViewerIsAdminOrOwner] = useState(false);
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!slug) return;
@@ -53,6 +55,30 @@ export function Thread() {
   }, [slug, workspaces, setActiveWorkspace, activeWorkspace?.id]);
 
   const isMember = Boolean(slug && user && workspaces.some((w) => w.slug === slug));
+
+  useEffect(() => {
+    if (!slug || !user || !isMember) {
+      setViewerIsAdminOrOwner(false);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const data = await apiFetch<{ members: { userId: string; role: string }[] }>(
+          `/api/workspaces/${encodeURIComponent(slug)}/members`
+        );
+        if (cancelled) return;
+        const me = data.members.find((m) => m.userId === user.id);
+        const r = me?.role;
+        setViewerIsAdminOrOwner(r === "admin" || r === "owner");
+      } catch {
+        if (!cancelled) setViewerIsAdminOrOwner(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, user, isMember]);
 
   const loadPost = useCallback(async () => {
     if (!slug || !postId) return;
@@ -156,7 +182,23 @@ export function Thread() {
     }
   }
 
-  async function handleSubmitComment(e: React.FormEvent) {
+  async function handleDeleteComment(commentId: string) {
+    if (!slug || !postId || deletingCommentId) return;
+    setDeletingCommentId(commentId);
+    try {
+      await apiFetch(
+        `/api/workspaces/${encodeURIComponent(slug)}/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}`,
+        { method: "DELETE" }
+      );
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+    } catch {
+      /* keep comment; user can retry */
+    } finally {
+      setDeletingCommentId(null);
+    }
+  }
+
+  async function handleSubmitComment(e: FormEvent) {
     e.preventDefault();
     if (!slug || !postId || !isMember || submitting) return;
     const trimmed = commentBody.trim();
@@ -272,30 +314,45 @@ export function Thread() {
               <p className="text-muted-foreground text-sm">No comments yet.</p>
             ) : (
               <ul className="space-y-3">
-                {comments.map((c) => (
-                  <li key={c.id}>
-                    <article
-                      className={`rounded-lg border bg-card p-4 shadow-xs ${
-                        c.isOfficialReply
-                          ? "border-l-4 border-l-primary pl-3"
-                          : ""
-                      }`}
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        {c.isOfficialReply ? (
-                          <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                            Founder
+                {comments.map((c) => {
+                  const canDelete =
+                    Boolean(user) &&
+                    (c.author.id === user!.id || viewerIsAdminOrOwner);
+                  return (
+                    <li key={c.id} className="group">
+                      <article
+                        className={`relative rounded-lg border bg-card p-4 shadow-xs ${
+                          c.isOfficialReply ? "border-l-4 border-l-primary pl-3" : ""
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-center gap-2 pr-10">
+                          {c.isOfficialReply ? (
+                            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                              Founder
+                            </span>
+                          ) : null}
+                          <span className="text-sm font-medium">{c.author.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            <time dateTime={c.createdAt}>{new Date(c.createdAt).toLocaleString()}</time>
                           </span>
+                        </div>
+                        {canDelete ? (
+                          <button
+                            type="button"
+                            className="absolute right-3 top-3 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-destructive group-hover:opacity-100"
+                            title="Delete comment"
+                            aria-label="Delete comment"
+                            disabled={deletingCommentId === c.id}
+                            onClick={() => void handleDeleteComment(c.id)}
+                          >
+                            <Trash2 className="size-3.5" strokeWidth={2} aria-hidden />
+                          </button>
                         ) : null}
-                        <span className="text-sm font-medium">{c.author.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          <time dateTime={c.createdAt}>{new Date(c.createdAt).toLocaleString()}</time>
-                        </span>
-                      </div>
-                      <p className="mt-2 whitespace-pre-wrap text-sm">{c.content}</p>
-                    </article>
-                  </li>
-                ))}
+                        <p className="mt-2 whitespace-pre-wrap text-sm">{c.content}</p>
+                      </article>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>
