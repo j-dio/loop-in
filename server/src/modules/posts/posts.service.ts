@@ -120,8 +120,11 @@ export async function createPost(input: {
   description: string | null | undefined;
   category: PostCategory;
   isAnonymous: boolean;
+  requireApproval: boolean;
   ctx: RequesterContext;
 }): Promise<PostPublic> {
+  const moderationStatus = input.requireApproval ? "pending" : "approved";
+
   const [inserted] = await db
     .insert(posts)
     .values({
@@ -131,7 +134,7 @@ export async function createPost(input: {
       description: input.description ?? null,
       category: input.category,
       isAnonymous: input.isAnonymous,
-      moderationStatus: "pending",
+      moderationStatus,
       boardStatus: "inbox",
     })
     .returning();

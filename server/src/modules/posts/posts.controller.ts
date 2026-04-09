@@ -259,6 +259,7 @@ export async function createPostHandler(req: Request, res: Response, next: NextF
       description: description ?? null,
       category,
       isAnonymous: is_anonymous,
+      requireApproval: req.workspace.requireApproval,
       ctx: requesterCtx(req),
     });
 
