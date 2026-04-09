@@ -138,16 +138,25 @@ export function SubmitFeedbackDialog({ workspaceSlug, open, onOpenChange, onCrea
             </select>
           </div>
 
-          <label className="flex cursor-pointer items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={isAnonymous}
-              onChange={(ev) => setIsAnonymous(ev.target.checked)}
-              disabled={submitting}
-              className="size-4 rounded border"
-            />
-            Post anonymously
-          </label>
+          <div className="space-y-2">
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={isAnonymous}
+                onChange={(ev) => setIsAnonymous(ev.target.checked)}
+                disabled={submitting}
+                className="size-4 rounded border"
+              />
+              Post anonymously
+            </label>
+            {isAnonymous ? (
+              <p className="text-muted-foreground text-xs leading-relaxed pl-6">
+                Your identity will be hidden from other users. Workspace admins can see your identity
+                for moderation purposes. If you&apos;ve commented on other posts in this workspace under
+                your name, your identity may still be inferred.
+              </p>
+            ) : null}
+          </div>
 
           {error ? <p className="text-destructive text-sm">{error}</p> : null}
 
