@@ -104,6 +104,8 @@ export const workspaces = pgTable('workspaces', {
 
   visibility: workspaceVisibility('visibility').notNull().default('public'),
 
+  requireApproval: boolean('require_approval').notNull().default(true),
+
   createdAt: timestamp('created_at', { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -136,6 +138,43 @@ export const workspaceMembers = pgTable('workspace_members', {
   workspaceIdIdx: index('workspace_members_workspace_id_idx').on(table.workspaceId),
   userIdIdx: index('workspace_members_user_id_idx').on(table.userId),
 }));
+
+export const pendingInvites = pgTable(
+  'pending_invites',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+
+    email: varchar('email', { length: 255 }).notNull(),
+
+    /** `member` or `admin` at the API layer; stored as varchar per PRD. */
+    role: varchar('role', { length: 20 }).notNull().default('member'),
+
+    invitedBy: uuid('invited_by')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+
+    token: varchar('token', { length: 255 }).notNull(),
+
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    workspaceEmailUnique: uniqueIndex('pending_invites_workspace_id_email_unique').on(
+      table.workspaceId,
+      table.email,
+    ),
+    tokenUnique: uniqueIndex('pending_invites_token_unique').on(table.token),
+    workspaceIdIdx: index('pending_invites_workspace_id_idx').on(table.workspaceId),
+    emailIdx: index('pending_invites_email_idx').on(table.email),
+  }),
+);
 
 export const posts = pgTable('posts', {
   id: uuid('id').primaryKey().defaultRandom(),
