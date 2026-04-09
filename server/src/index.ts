@@ -5,7 +5,6 @@ import * as Sentry from "@sentry/node";
 import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import pino from "pino";
 import { authRouter } from "./modules/auth/auth.routes";
 import { workspacesRouter } from "./modules/workspaces/workspaces.routes";
 import {
@@ -14,8 +13,9 @@ import {
   setHealthRateLimitHeaders,
   setRateLimitHeaders,
 } from "./middleware/rateLimit";
+import { logger } from "./lib/logger";
+import { requestCompletionLogger } from "./middleware/requestLog";
 
-const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
 const app = express();
 
 // When behind a trusted reverse proxy (e.g. Nginx), set TRUST_PROXY=1 so `req.ip` uses X-Forwarded-For safely.
@@ -32,11 +32,7 @@ app.use(
 );
 app.use(express.json());
 app.use(cookieParser());
-
-app.use((req, res, next) => {
-  logger.info({ method: req.method, url: req.url }, "request");
-  next();
-});
+app.use(requestCompletionLogger(logger));
 
 app.get("/health", (_req, res) => {
   // Not counted against any bucket; headers are informational for observability only.
