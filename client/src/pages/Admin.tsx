@@ -1,7 +1,467 @@
-import { useParams } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import {
+  DragDropContext,
+  Draggable,
+  Droppable,
+  type DropResult,
+} from "@hello-pangea/dnd";
+import { Button } from "@/components/ui/button";
+import { useWorkspace } from "@/context/WorkspaceContext";
+import { ApiError, apiFetch } from "@/lib/api";
+import type { PostDTO } from "@/lib/postTypes";
 
-export function Admin() {
-  const { slug } = useParams()
-  return <div className="text-sm">Command center - slug: {slug}</div>
+type WorkspaceRole = "owner" | "admin" | "member";
+
+type MemberRow = {
+  userId: string;
+  email: string;
+  name: string | null;
+  role: WorkspaceRole;
+  joinedAt: string;
+};
+
+const BOARD_COLUMNS = [
+  { id: "inbox" as const, label: "Inbox" },
+  { id: "under_review" as const, label: "Under Review" },
+  { id: "planned" as const, label: "Planned" },
+  { id: "in_progress" as const, label: "In Progress" },
+  { id: "shipped" as const, label: "Shipped" },
+];
+
+type BoardColumnId = (typeof BOARD_COLUMNS)[number]["id"];
+
+type ColumnsState = Record<BoardColumnId, PostDTO[]>;
+
+function emptyColumns(): ColumnsState {
+  return {
+    inbox: [],
+    under_review: [],
+    planned: [],
+    in_progress: [],
+    shipped: [],
+  };
 }
 
+function groupKanbanPosts(posts: PostDTO[]): ColumnsState {
+  const next = emptyColumns();
+  for (const p of posts) {
+    if (next[p.boardStatus]) {
+      next[p.boardStatus].push(p);
+    }
+  }
+  return next;
+}
+
+function reorder<T>(list: T[], startIndex: number, endIndex: number): T[] {
+  const result = Array.from(list);
+  const [removed] = result.splice(startIndex, 1);
+  result.splice(endIndex, 0, removed);
+  return result;
+}
+
+function formatCategory(c: PostDTO["category"]) {
+  if (c === "bug") return "Bug";
+  if (c === "feature_request") return "Feature";
+  return "UI";
+}
+
+export function Admin() {
+  const { slug } = useParams();
+  const { user, loading: sessionLoading, workspaces, setActiveWorkspace, activeWorkspace } =
+    useWorkspace();
+
+  const [access, setAccess] = useState<"unknown" | "allowed" | "forbidden" | "no_session">(
+    "unknown"
+  );
+  const [tab, setTab] = useState<"triage" | "kanban">("triage");
+  const [triagePosts, setTriagePosts] = useState<PostDTO[]>([]);
+  const [kanbanColumns, setKanbanColumns] = useState<ColumnsState>(() => emptyColumns());
+  const [triageLoading, setTriageLoading] = useState(false);
+  const [kanbanLoading, setKanbanLoading] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [moderatingId, setModeratingId] = useState<string | null>(null);
+  const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!slug) return;
+    const match = workspaces.find((w) => w.slug === slug);
+    if (match && match.id !== activeWorkspace?.id) {
+      setActiveWorkspace(match);
+    }
+  }, [slug, workspaces, setActiveWorkspace, activeWorkspace?.id]);
+
+  const isMember = Boolean(slug && user && workspaces.some((w) => w.slug === slug));
+
+  const verifyAccess = useCallback(async () => {
+    if (!slug || !user) {
+      setAccess("no_session");
+      return;
+    }
+    try {
+      await apiFetch<{ members: MemberRow[] }>(
+        `/api/workspaces/${encodeURIComponent(slug)}/members`
+      );
+      setAccess("allowed");
+    } catch (e) {
+      if (e instanceof ApiError && (e.status === 403 || e.status === 401)) {
+        setAccess("forbidden");
+      } else {
+        setAccess("forbidden");
+      }
+    }
+  }, [slug, user]);
+
+  useEffect(() => {
+    if (sessionLoading) return;
+    if (!user) {
+      setAccess("no_session");
+      return;
+    }
+    void verifyAccess();
+  }, [sessionLoading, user, verifyAccess]);
+
+  const loadTriage = useCallback(async () => {
+    if (!slug || access !== "allowed") return;
+    setTriageLoading(true);
+    setListError(null);
+    try {
+      const data = await apiFetch<{ posts: PostDTO[] }>(
+        `/api/workspaces/${encodeURIComponent(slug)}/posts/admin/triage`
+      );
+      setTriagePosts(data.posts);
+    } catch {
+      setListError("Could not load triage queue.");
+    } finally {
+      setTriageLoading(false);
+    }
+  }, [slug, access]);
+
+  const loadKanban = useCallback(async () => {
+    if (!slug || access !== "allowed") return;
+    setKanbanLoading(true);
+    setListError(null);
+    try {
+      const data = await apiFetch<{ posts: PostDTO[] }>(
+        `/api/workspaces/${encodeURIComponent(slug)}/posts/admin/kanban`
+      );
+      setKanbanColumns(groupKanbanPosts(data.posts));
+    } catch {
+      setListError("Could not load Kanban.");
+    } finally {
+      setKanbanLoading(false);
+    }
+  }, [slug, access]);
+
+  useEffect(() => {
+    if (access !== "allowed" || !slug) return;
+    if (tab === "triage") void loadTriage();
+    else void loadKanban();
+  }, [access, slug, tab, loadTriage, loadKanban]);
+
+  async function moderate(postId: string, moderation_status: "approved" | "spam" | "rejected") {
+    if (!slug) return;
+    setModeratingId(postId);
+    setActionError(null);
+    try {
+      await apiFetch<{ post: PostDTO }>(
+        `/api/workspaces/${encodeURIComponent(slug)}/posts/${encodeURIComponent(postId)}/moderate`,
+        { method: "PATCH", body: JSON.stringify({ moderation_status }) }
+      );
+      setTriagePosts((prev) => prev.filter((p) => p.id !== postId));
+      await loadKanban();
+    } catch (e) {
+      setActionError(
+        e instanceof ApiError && typeof e.body === "object" && e.body && "error" in e.body
+          ? String((e.body as { error: string }).error)
+          : "Moderation failed."
+      );
+    } finally {
+      setModeratingId(null);
+    }
+  }
+
+  const onKanbanDragEnd = useCallback(
+    async (result: DropResult) => {
+      const { destination, source, draggableId } = result;
+      if (!destination) return;
+      if (destination.droppableId === source.droppableId && destination.index === source.index) {
+        return;
+      }
+
+      const destCol = destination.droppableId as BoardColumnId;
+      const sourceCol = source.droppableId as BoardColumnId;
+
+      let previousSnapshot: ColumnsState | null = null;
+      setKanbanColumns((cols) => {
+        previousSnapshot = {
+          inbox: [...cols.inbox],
+          under_review: [...cols.under_review],
+          planned: [...cols.planned],
+          in_progress: [...cols.in_progress],
+          shipped: [...cols.shipped],
+        };
+
+        if (sourceCol === destCol) {
+          const reordered = reorder(cols[sourceCol], source.index, destination.index);
+          return { ...cols, [sourceCol]: reordered };
+        }
+
+        const start = [...cols[sourceCol]];
+        const finish = [...cols[destCol]];
+        const [moved] = start.splice(source.index, 1);
+        const updated: PostDTO = { ...moved, boardStatus: destCol };
+        finish.splice(destination.index, 0, updated);
+        return { ...cols, [sourceCol]: start, [destCol]: finish };
+      });
+
+      if (sourceCol === destCol) return;
+
+      if (!slug) return;
+      setStatusUpdatingId(draggableId);
+      setActionError(null);
+      try {
+        await apiFetch<{ post: PostDTO }>(
+          `/api/workspaces/${encodeURIComponent(slug)}/posts/${encodeURIComponent(draggableId)}/status`,
+          { method: "PATCH", body: JSON.stringify({ board_status: destCol }) }
+        );
+      } catch {
+        setActionError("Could not update column. Reverted.");
+        if (previousSnapshot) setKanbanColumns(previousSnapshot);
+        else void loadKanban();
+      } finally {
+        setStatusUpdatingId(null);
+      }
+    },
+    [slug, loadKanban]
+  );
+
+  const workspaceLabel = useMemo(() => {
+    if (!slug) return "";
+    const w = workspaces.find((x) => x.slug === slug);
+    return w ? w.name : slug;
+  }, [slug, workspaces]);
+
+  if (!slug) {
+    return <p className="text-muted-foreground text-sm">Missing workspace slug.</p>;
+  }
+
+  if (sessionLoading || (user && access === "unknown")) {
+    return <p className="text-muted-foreground text-sm">Loading…</p>;
+  }
+
+  if (!user || access === "no_session") {
+    return (
+      <div className="space-y-3 rounded-lg border border-border bg-card p-6">
+        <h1 className="text-lg font-semibold">Command center</h1>
+        <p className="text-muted-foreground text-sm">
+          Sign in as a workspace owner or admin to open the command center.
+        </p>
+        <Button variant="outline" size="sm" asChild>
+          <Link to="/">Back to home</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  if (!isMember) {
+    return (
+      <div className="space-y-3 rounded-lg border border-border bg-card p-6">
+        <h1 className="text-lg font-semibold">Command center</h1>
+        <p className="text-muted-foreground text-sm">You are not a member of this workspace.</p>
+        <Button variant="outline" size="sm" asChild>
+          <Link to="/">Back to home</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  if (access === "forbidden") {
+    return (
+      <div className="space-y-3 rounded-lg border border-border bg-card p-6">
+        <h1 className="text-lg font-semibold">Command center</h1>
+        <p className="text-muted-foreground text-sm" role="alert">
+          Only workspace owners and admins can use the command center.
+        </p>
+        <Button variant="outline" size="sm" asChild>
+          <Link to={`/${encodeURIComponent(slug)}`}>Back to board</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-lg font-semibold">Command center</h1>
+          <p className="text-muted-foreground text-sm">
+            <span className="font-mono text-foreground">{slug}</span>
+            {workspaceLabel ? (
+              <span className="text-foreground"> · {workspaceLabel}</span>
+            ) : null}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" size="sm" asChild>
+            <Link to={`/${encodeURIComponent(slug)}`}>View as public</Link>
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex rounded-lg border p-0.5 w-fit">
+        {(
+          [
+            ["triage", "Triage"],
+            ["kanban", "Kanban"],
+          ] as const
+        ).map(([value, label]) => (
+          <Button
+            key={value}
+            type="button"
+            variant={tab === value ? "default" : "ghost"}
+            size="sm"
+            className="h-7 rounded-md px-2.5"
+            onClick={() => setTab(value)}
+          >
+            {label}
+          </Button>
+        ))}
+      </div>
+
+      {listError ? (
+        <p className="text-destructive text-sm" role="alert">
+          {listError}
+        </p>
+      ) : null}
+      {actionError ? (
+        <p className="text-destructive text-sm" role="alert">
+          {actionError}
+        </p>
+      ) : null}
+
+      {tab === "triage" ? (
+        triageLoading ? (
+          <p className="text-muted-foreground text-sm">Loading triage…</p>
+        ) : triagePosts.length === 0 ? (
+          <p className="text-muted-foreground text-sm">No posts waiting for review.</p>
+        ) : (
+          <ul className="space-y-3">
+            {triagePosts.map((post) => (
+              <li
+                key={post.id}
+                className="rounded-lg border border-border bg-card p-4 shadow-xs"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                        {formatCategory(post.category)}
+                      </span>
+                      <Link
+                        to={`/${encodeURIComponent(slug)}/post/${encodeURIComponent(post.id)}`}
+                        className="text-sm font-medium text-primary hover:underline"
+                      >
+                        Open thread
+                      </Link>
+                    </div>
+                    <h2 className="text-base font-semibold leading-snug">{post.title}</h2>
+                    {post.description ? (
+                      <p className="text-muted-foreground line-clamp-3 text-sm whitespace-pre-wrap">
+                        {post.description}
+                      </p>
+                    ) : null}
+                    <p className="text-xs text-muted-foreground">
+                      {post.author.name} · {new Date(post.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={moderatingId === post.id}
+                      onClick={() => void moderate(post.id, "approved")}
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      disabled={moderatingId === post.id}
+                      onClick={() => void moderate(post.id, "rejected")}
+                    >
+                      Reject
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={moderatingId === post.id}
+                      onClick={() => void moderate(post.id, "spam")}
+                    >
+                      Spam
+                    </Button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )
+      ) : kanbanLoading ? (
+        <p className="text-muted-foreground text-sm">Loading Kanban…</p>
+      ) : (
+        <DragDropContext onDragEnd={(r) => void onKanbanDragEnd(r)}>
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {BOARD_COLUMNS.map((col) => (
+              <div key={col.id} className="w-64 shrink-0">
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {col.label}
+                </h3>
+                <Droppable droppableId={col.id}>
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={`min-h-[120px] rounded-lg border border-dashed p-2 transition-colors ${
+                        snapshot.isDraggingOver ? "border-primary/50 bg-primary/5" : "border-border"
+                      }`}
+                    >
+                      {kanbanColumns[col.id].map((post, index) => (
+                        <Draggable key={post.id} draggableId={post.id} index={index}>
+                          {(dragProvided, dragSnapshot) => (
+                            <div
+                              ref={dragProvided.innerRef}
+                              {...dragProvided.draggableProps}
+                              {...dragProvided.dragHandleProps}
+                              className={`mb-2 rounded-md border bg-card p-2 text-sm shadow-xs ${
+                                dragSnapshot.isDragging ? "ring-2 ring-primary/30" : ""
+                              } ${statusUpdatingId === post.id ? "opacity-60" : ""}`}
+                            >
+                              <Link
+                                to={`/${encodeURIComponent(slug)}/post/${encodeURIComponent(post.id)}`}
+                                className="font-medium text-primary hover:underline"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {post.title}
+                              </Link>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {formatCategory(post.category)} · {post.upvoteCount} upvotes
+                              </p>
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </div>
+            ))}
+          </div>
+        </DragDropContext>
+      )}
+    </div>
+  );
+}
