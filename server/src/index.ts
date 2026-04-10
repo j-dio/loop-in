@@ -16,6 +16,7 @@ import {
 } from "./middleware/rateLimit";
 import { logger } from "./lib/logger";
 import { requestCompletionLogger } from "./middleware/requestLog";
+import { startTrendingRefreshScheduler } from "./jobs/trendingRefresh";
 
 const app = express();
 
@@ -86,6 +87,7 @@ app.listen(port, async () => {
   try {
     const pong = await redis.ping();
     logger.info({ pong }, "redis ready");
+    startTrendingRefreshScheduler();
   } catch (err) {
     logger.fatal({ err }, "redis ping failed — check REDIS_URL and that Redis is running");
     process.exit(1);
