@@ -1,6 +1,9 @@
 import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { posts, upvotes, users } from "../../db/schema";
+import { redis } from "../../lib/redis";
+import { trendingRedisKey } from "../../lib/trendingKeys";
+import { logger } from "../../lib/logger";
 import type { WorkspaceRole } from "../workspaces/workspaces.service";
 
 export type PostCategory = "bug" | "feature_request" | "ui_tweak";
@@ -189,23 +192,24 @@ function topCursorWhere(upvoteCount: number, createdAt: Date, id: string) {
 
 export type ListPostsSort = "trending" | "top" | "newest";
 
-export async function listPosts(input: {
+type ListPostsCursor =
+  | { k: "newest"; createdAt: Date; id: string }
+  | { k: "top"; upvoteCount: number; createdAt: Date; id: string }
+  | { k: "trending"; id: string }
+  | null;
+
+async function listPostsDbOrdered(input: {
   workspaceId: string;
-  sort: ListPostsSort;
+  sort: "top" | "newest";
   limit: number;
-  cursor:
-    | { k: "newest"; createdAt: Date; id: string }
-    | { k: "top"; upvoteCount: number; createdAt: Date; id: string }
-    | null;
+  cursor: ListPostsCursor;
   ctx: RequesterContext;
 }): Promise<{ posts: PostPublic[]; nextCursor: string | null; upvotedPostIds: string[] }> {
-  const effectiveSort = input.sort === "trending" ? "top" : input.sort;
-
   const base = listBaseConditions(input.workspaceId);
   let cursorCond: ReturnType<typeof newestCursorWhere> | ReturnType<typeof topCursorWhere> | undefined;
-  if (input.cursor && effectiveSort === "newest" && input.cursor.k === "newest") {
+  if (input.cursor && input.sort === "newest" && input.cursor.k === "newest") {
     cursorCond = newestCursorWhere(input.cursor.createdAt, input.cursor.id);
-  } else if (input.cursor && effectiveSort === "top" && input.cursor.k === "top") {
+  } else if (input.cursor && input.sort === "top" && input.cursor.k === "top") {
     cursorCond = topCursorWhere(input.cursor.upvoteCount, input.cursor.createdAt, input.cursor.id);
   } else {
     cursorCond = undefined;
@@ -214,7 +218,7 @@ export async function listPosts(input: {
   const whereClause = cursorCond ? and(base, cursorCond) : base;
 
   const orderBy =
-    effectiveSort === "newest"
+    input.sort === "newest"
       ? [desc(posts.createdAt), desc(posts.id)]
       : [desc(posts.upvoteCount), desc(posts.createdAt), desc(posts.id)];
 
@@ -238,7 +242,7 @@ export async function listPosts(input: {
   let nextCursor: string | null = null;
   if (hasMore && last) {
     const payload =
-      effectiveSort === "newest"
+      input.sort === "newest"
         ? {
             v: 1 as const,
             k: "newest" as const,
@@ -268,6 +272,145 @@ export async function listPosts(input: {
     nextCursor,
     upvotedPostIds,
   };
+}
+
+function trendingFallbackToTop(input: {
+  workspaceId: string;
+  limit: number;
+  cursor: ListPostsCursor;
+  ctx: RequesterContext;
+  reason: string;
+}) {
+  logger.warn(
+    { workspaceId: input.workspaceId, reason: input.reason },
+    "trending feed falling back to top sort"
+  );
+  const cursor = input.cursor?.k === "trending" ? null : input.cursor;
+  return listPostsDbOrdered({
+    workspaceId: input.workspaceId,
+    sort: "top",
+    limit: input.limit,
+    cursor,
+    ctx: input.ctx,
+  });
+}
+
+async function listPostsTrending(input: {
+  workspaceId: string;
+  limit: number;
+  cursor: ListPostsCursor;
+  ctx: RequesterContext;
+}): Promise<{ posts: PostPublic[]; nextCursor: string | null; upvotedPostIds: string[] }> {
+  const key = trendingRedisKey(input.workspaceId);
+
+  try {
+    const cardinality = await redis.zcard(key);
+    if (cardinality === 0) {
+      return trendingFallbackToTop({
+        workspaceId: input.workspaceId,
+        limit: input.limit,
+        cursor: input.cursor,
+        ctx: input.ctx,
+        reason: "redis trending key empty",
+      });
+    }
+
+    let startRank = 0;
+    if (input.cursor?.k === "trending") {
+      const rank = await redis.zrevrank(key, input.cursor.id);
+      if (rank === null) {
+        return trendingFallbackToTop({
+          workspaceId: input.workspaceId,
+          limit: input.limit,
+          cursor: input.cursor,
+          ctx: input.ctx,
+          reason: "trending cursor anchor not in redis",
+        });
+      }
+      startRank = rank + 1;
+    } else if (input.cursor) {
+      return trendingFallbackToTop({
+        workspaceId: input.workspaceId,
+        limit: input.limit,
+        cursor: input.cursor,
+        ctx: input.ctx,
+        reason: "unexpected cursor kind for trending",
+      });
+    }
+
+    const windowEnd = startRank + input.limit;
+    const idWindow = await redis.zrevrange(key, startRank, windowEnd);
+    const hasMore = idWindow.length > input.limit;
+    const pageIds = hasMore ? idWindow.slice(0, input.limit) : idWindow;
+
+    if (pageIds.length === 0) {
+      return { posts: [], nextCursor: null, upvotedPostIds: [] };
+    }
+
+    const base = listBaseConditions(input.workspaceId);
+    const rowsUnordered = await db
+      .select({
+        post: posts,
+        authorId: users.id,
+        authorName: users.name,
+        authorAvatar: users.avatarUrl,
+      })
+      .from(posts)
+      .innerJoin(users, eq(posts.authorId, users.id))
+      .where(and(base, inArray(posts.id, pageIds)));
+
+    const byId = new Map(rowsUnordered.map((r) => [r.post.id, r]));
+    const page = pageIds.map((id) => byId.get(id)).filter((r): r is NonNullable<typeof r> => r !== undefined);
+
+    let nextCursor: string | null = null;
+    if (hasMore) {
+      const anchorId = pageIds[pageIds.length - 1];
+      const payload = { v: 1 as const, k: "trending" as const, id: anchorId };
+      nextCursor = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+    }
+
+    const upvotedPostIds =
+      input.ctx.userId && page.length > 0
+        ? await fetchUpvotedPostIdsForUser(
+            input.ctx.userId,
+            page.map((r) => r.post.id)
+          )
+        : [];
+
+    return {
+      posts: page.map((r) => mapRowToPublic(r, input.ctx)),
+      nextCursor,
+      upvotedPostIds,
+    };
+  } catch (err) {
+    logger.warn({ err, workspaceId: input.workspaceId }, "trending redis read failed");
+    return trendingFallbackToTop({
+      workspaceId: input.workspaceId,
+      limit: input.limit,
+      cursor: input.cursor,
+      ctx: input.ctx,
+      reason: "redis error",
+    });
+  }
+}
+
+export async function listPosts(input: {
+  workspaceId: string;
+  sort: ListPostsSort;
+  limit: number;
+  cursor: ListPostsCursor;
+  ctx: RequesterContext;
+}): Promise<{ posts: PostPublic[]; nextCursor: string | null; upvotedPostIds: string[] }> {
+  if (input.sort === "trending") {
+    return listPostsTrending(input);
+  }
+  return listPostsDbOrdered({
+    workspaceId: input.workspaceId,
+    sort: input.sort,
+    limit: input.limit,
+    cursor: input.cursor,
+    ctx: input.ctx,
+  });
 }
 
 export async function getPostById(input: {

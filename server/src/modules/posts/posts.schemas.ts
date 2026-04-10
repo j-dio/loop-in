@@ -35,7 +35,17 @@ export const TopCursorSchema = z.object({
   id: z.string().uuid(),
 });
 
-export const PostCursorSchema = z.discriminatedUnion("k", [NewestCursorSchema, TopCursorSchema]);
+export const TrendingCursorSchema = z.object({
+  v: z.literal(1),
+  k: z.literal("trending"),
+  id: z.string().uuid(),
+});
+
+export const PostCursorSchema = z.discriminatedUnion("k", [
+  NewestCursorSchema,
+  TopCursorSchema,
+  TrendingCursorSchema,
+]);
 
 export const CreatePostBodySchema = z.object({
   title: z.string().trim().min(1).max(255),

@@ -28,6 +28,7 @@ import {
 function parseCursor(raw: string | undefined, sort: ListPostsSort):
   | { k: "newest"; createdAt: Date; id: string }
   | { k: "top"; upvoteCount: number; createdAt: Date; id: string }
+  | { k: "trending"; id: string }
   | null
   | "mismatch" {
   if (!raw) return null;
@@ -36,12 +37,16 @@ function parseCursor(raw: string | undefined, sort: ListPostsSort):
     const parsed = PostCursorSchema.safeParse(json);
     if (!parsed.success) return null;
     const c = parsed.data;
-    const effectiveSort = sort === "trending" ? "top" : sort;
-    if (c.k === "newest" && effectiveSort !== "newest") return "mismatch";
-    if (c.k === "top" && effectiveSort === "newest") return "mismatch";
-    if (c.k === "newest") {
+
+    if (sort === "trending") {
+      if (c.k === "newest" || c.k === "top") return "mismatch";
+      return { k: "trending", id: c.id };
+    }
+    if (sort === "newest") {
+      if (c.k === "top" || c.k === "trending") return "mismatch";
       return { k: "newest", createdAt: new Date(c.createdAt), id: c.id };
     }
+    if (c.k === "newest" || c.k === "trending") return "mismatch";
     return {
       k: "top",
       upvoteCount: c.upvoteCount,
