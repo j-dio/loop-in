@@ -1,5 +1,6 @@
 import "./config/env";
 import "./instrument";
+import { redis } from "./lib/redis";
 import express from "express";
 import * as Sentry from "@sentry/node";
 import helmet from "helmet";
@@ -80,6 +81,13 @@ app.use((err: unknown, req: express.Request, res: express.Response, _next: expre
   res.status(500).json({ error: "Internal Server Error" });
 });
 
-app.listen(port, () => {
+app.listen(port, async () => {
   logger.info({ port }, "server listening");
+  try {
+    const pong = await redis.ping();
+    logger.info({ pong }, "redis ready");
+  } catch (err) {
+    logger.fatal({ err }, "redis ping failed — check REDIS_URL and that Redis is running");
+    process.exit(1);
+  }
 });
