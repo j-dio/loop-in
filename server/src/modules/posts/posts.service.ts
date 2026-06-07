@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { posts, upvotes, users } from "../../db/schema";
 import { redis } from "../../lib/redis";
@@ -207,9 +207,16 @@ async function listPostsDbOrdered(input: {
   sort: "top" | "newest";
   limit: number;
   cursor: ListPostsCursor;
+  q?: string;
   ctx: RequesterContext;
 }): Promise<{ posts: PostPublic[]; nextCursor: string | null; upvotedPostIds: string[] }> {
-  const base = listBaseConditions(input.workspaceId);
+  const searchTerm = input.q ? `%${input.q}%` : undefined;
+  const searchCond = searchTerm
+    ? or(ilike(posts.title, searchTerm), ilike(posts.description, searchTerm))
+    : undefined;
+  const base = searchCond
+    ? and(listBaseConditions(input.workspaceId), searchCond)
+    : listBaseConditions(input.workspaceId);
   let cursorCond: ReturnType<typeof newestCursorWhere> | ReturnType<typeof topCursorWhere> | undefined;
   if (input.cursor && input.sort === "newest" && input.cursor.k === "newest") {
     cursorCond = newestCursorWhere(input.cursor.createdAt, input.cursor.id);
@@ -403,16 +410,19 @@ export async function listPosts(input: {
   sort: ListPostsSort;
   limit: number;
   cursor: ListPostsCursor;
+  q?: string;
   ctx: RequesterContext;
 }): Promise<{ posts: PostPublic[]; nextCursor: string | null; upvotedPostIds: string[] }> {
-  if (input.sort === "trending") {
+  // Trending is served from Redis and can't be filtered — fall back to newest when searching
+  if (input.sort === "trending" && !input.q) {
     return listPostsTrending(input);
   }
   return listPostsDbOrdered({
     workspaceId: input.workspaceId,
-    sort: input.sort,
+    sort: input.sort === "trending" ? "newest" : input.sort,
     limit: input.limit,
     cursor: input.cursor,
+    q: input.q,
     ctx: input.ctx,
   });
 }

@@ -18,6 +18,7 @@ export const ListPostsQuerySchema = z.object({
   sort: PostSortSchema.optional().default("newest"),
   limit: z.coerce.number().int().min(1).max(50).optional().default(20),
   cursor: z.string().optional(),
+  q: z.string().trim().max(200).optional(),
 });
 
 export const NewestCursorSchema = z.object({

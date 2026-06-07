@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { Search, X } from "lucide-react";
 import { PostCard } from "@/components/PostCard";
 import { SubmitFeedbackDialog } from "@/components/SubmitFeedbackDialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { ApiError, apiFetch } from "@/lib/api";
 import type { PostDTO, PostSort } from "@/lib/postTypes";
@@ -14,6 +16,9 @@ export function Board() {
   const { workspaces, setActiveWorkspace, activeWorkspace, user } = useWorkspace();
 
   const [sort, setSort] = useState<PostSort>("newest");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [posts, setPosts] = useState<PostDTO[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,6 +27,18 @@ export function Board() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pendingLocal, setPendingLocal] = useState<PostDTO[]>([]);
   const [upvotedIds, setUpvotedIds] = useState<Set<string>>(() => new Set());
+
+  function handleSearchChange(value: string) {
+    setSearchInput(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setSearchQuery(value.trim()), 350);
+  }
+
+  function clearSearch() {
+    setSearchInput("");
+    setSearchQuery("");
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+  }
 
   useEffect(() => {
     if (!slug) return;
@@ -34,10 +51,11 @@ export function Board() {
   const canPost = Boolean(slug && user && workspaces.some((w) => w.slug === slug));
 
   const fetchPage = useCallback(
-    async (opts: { sort: PostSort; cursor?: string | undefined; append: boolean }) => {
+    async (opts: { sort: PostSort; cursor?: string | undefined; append: boolean; q?: string }) => {
       if (!slug) return;
       const q = new URLSearchParams({ sort: opts.sort });
       if (opts.cursor) q.set("cursor", opts.cursor);
+      if (opts.q) q.set("q", opts.q);
       const path = `/api/workspaces/${encodeURIComponent(slug)}/posts?${q.toString()}`;
       const data = await apiFetch<PostsPage>(path);
       if (opts.append) {
@@ -63,7 +81,7 @@ export function Board() {
     setError(null);
     void (async () => {
       try {
-        await fetchPage({ sort, append: false });
+        await fetchPage({ sort, append: false, q: searchQuery || undefined });
         if (!cancelled) setLoading(false);
       } catch (e) {
         if (cancelled) return;
@@ -82,14 +100,14 @@ export function Board() {
     return () => {
       cancelled = true;
     };
-  }, [slug, sort, fetchPage]);
+  }, [slug, sort, searchQuery, fetchPage]);
 
   const onLoadMore = async () => {
     if (!slug || !nextCursor || loadingMore) return;
     setLoadingMore(true);
     setError(null);
     try {
-      await fetchPage({ sort, cursor: nextCursor, append: true });
+      await fetchPage({ sort, cursor: nextCursor, append: true, q: searchQuery || undefined });
     } catch {
       setError("Could not load more posts.");
     } finally {
@@ -134,6 +152,26 @@ export function Board() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2" />
+            <Input
+              type="search"
+              placeholder="Search posts…"
+              value={searchInput}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="h-8 w-48 pl-8 pr-7 text-sm sm:w-56"
+            />
+            {searchInput ? (
+              <button
+                type="button"
+                onClick={clearSearch}
+                className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2"
+                aria-label="Clear search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </div>
           <div className="flex rounded-lg border p-0.5">
             {(
               [
@@ -187,7 +225,9 @@ export function Board() {
       {loading ? (
         <p className="text-muted-foreground text-sm">Loading posts…</p>
       ) : mergedFeed.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No posts yet. Be the first to share feedback.</p>
+        <p className="text-muted-foreground text-sm">
+          {searchQuery ? `No posts match "${searchQuery}".` : "No posts yet. Be the first to share feedback."}
+        </p>
       ) : (
         <ul className="space-y-3">
           {mergedFeed.map((post) => (

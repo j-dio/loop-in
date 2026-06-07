@@ -213,6 +213,7 @@ export async function listPostsHandler(req: Request, res: Response, next: NextFu
       sort,
       limit: queryParsed.data.limit,
       cursor,
+      q: queryParsed.data.q || undefined,
       ctx: requesterCtx(req),
     });
 
