@@ -49,6 +49,7 @@ export function Board() {
   }, [slug, workspaces, setActiveWorkspace, activeWorkspace?.id]);
 
   const canPost = Boolean(slug && user && workspaces.some((w) => w.slug === slug));
+  const isOwner = Boolean(user && activeWorkspace && activeWorkspace.slug === slug && user.id === activeWorkspace.ownerId);
 
   const fetchPage = useCallback(
     async (opts: { sort: PostSort; cursor?: string | undefined; append: boolean; q?: string }) => {
@@ -240,6 +241,7 @@ export function Board() {
                 signedIn={Boolean(user)}
                 canUpvote={canPost}
                 onUpvoteChange={onUpvoteChange}
+                showFounderBadge={isOwner && post.author.id === user?.id}
               />
             </li>
           ))}

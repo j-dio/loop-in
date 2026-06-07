@@ -41,6 +41,7 @@ type Props = {
   signedIn: boolean;
   canUpvote: boolean;
   onUpvoteChange?: (postId: string, upvoteCount: number, upvoted: boolean) => void;
+  showFounderBadge?: boolean;
 };
 
 export function PostCard({
@@ -51,6 +52,7 @@ export function PostCard({
   signedIn,
   canUpvote,
   onUpvoteChange,
+  showFounderBadge,
 }: Props) {
   const mod = post.moderationStatus;
   const modKind =
@@ -170,6 +172,11 @@ export function PostCard({
           </Button>
         </div>
         <span aria-hidden>·</span>
+        {showFounderBadge ? (
+          <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+            Founder
+          </span>
+        ) : null}
         <span>{post.author.name}</span>
         <span>·</span>
         <time dateTime={post.createdAt}>{new Date(post.createdAt).toLocaleString()}</time>

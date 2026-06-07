@@ -45,6 +45,7 @@ export function Thread() {
   const [upvoteBusy, setUpvoteBusy] = useState(false);
   const [viewerIsAdminOrOwner, setViewerIsAdminOrOwner] = useState(false);
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!slug) return;
@@ -205,6 +206,7 @@ export function Thread() {
     if (!trimmed) return;
 
     setSubmitting(true);
+    setSubmitError(null);
     try {
       await apiFetch<{ comment: CommentDTO }>(
         `/api/workspaces/${encodeURIComponent(slug)}/posts/${encodeURIComponent(postId)}/comments`,
@@ -212,8 +214,12 @@ export function Thread() {
       );
       setCommentBody("");
       await loadComments();
-    } catch {
-      /* keep draft; polling may still refresh */
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        setSubmitError("Your session expired. Please sign in again.");
+      } else {
+        setSubmitError("Failed to post comment. Please try again.");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -328,15 +334,18 @@ export function Thread() {
                   const canDelete =
                     Boolean(user) &&
                     (c.author.id === user!.id || viewerIsAdminOrOwner);
+                  const showFounderBadge =
+                    c.isOfficialReply ||
+                    (viewerIsAdminOrOwner && Boolean(user) && c.author.id === user!.id);
                   return (
                     <li key={c.id} className="group">
                       <article
                         className={`relative rounded-lg border bg-card p-4 shadow-xs ${
-                          c.isOfficialReply ? "border-l-4 border-l-primary pl-3" : ""
+                          showFounderBadge ? "border-l-4 border-l-primary pl-3" : ""
                         }`}
                       >
                         <div className="flex flex-wrap items-center gap-2 pr-10">
-                          {c.isOfficialReply ? (
+                          {showFounderBadge ? (
                             <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                               Founder
                             </span>
@@ -376,12 +385,17 @@ export function Thread() {
                 <Textarea
                   id="thread-comment"
                   value={commentBody}
-                  onChange={(e) => setCommentBody(e.target.value)}
+                  onChange={(e) => { setCommentBody(e.target.value); setSubmitError(null); }}
                   placeholder="Write a comment…"
                   rows={4}
                   maxLength={10000}
                   disabled={submitting}
                 />
+                {submitError ? (
+                  <p className="text-destructive text-sm" role="alert">
+                    {submitError}
+                  </p>
+                ) : null}
                 <Button type="submit" disabled={submitting || !commentBody.trim()}>
                   {submitting ? "Posting…" : "Post comment"}
                 </Button>

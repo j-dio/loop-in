@@ -496,7 +496,7 @@ export function Admin() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" size="sm" asChild>
-            <Link to={`/${encodeURIComponent(slug)}`}>View as public</Link>
+            <Link to={`/${encodeURIComponent(slug)}`}>← View Public Board</Link>
           </Button>
         </div>
       </div>
