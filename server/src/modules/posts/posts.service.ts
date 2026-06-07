@@ -21,6 +21,7 @@ export type PostPublic = {
   workspaceId: string;
   title: string;
   description: string | null;
+  imageUrl: string | null;
   category: PostCategory;
   moderationStatus: ModerationStatus;
   boardStatus: BoardStatus;
@@ -106,6 +107,7 @@ function mapRowToPublic(
     workspaceId: row.post.workspaceId,
     title: row.post.title,
     description: row.post.description,
+    imageUrl: row.post.imageUrl ?? null,
     category: row.post.category as PostCategory,
     moderationStatus: row.post.moderationStatus as ModerationStatus,
     boardStatus: row.post.boardStatus as BoardStatus,
@@ -123,6 +125,7 @@ export async function createPost(input: {
   description: string | null | undefined;
   category: PostCategory;
   isAnonymous: boolean;
+  imageUrl: string | null;
   requireApproval: boolean;
   ctx: RequesterContext;
 }): Promise<PostPublic> {
@@ -137,6 +140,7 @@ export async function createPost(input: {
       description: input.description ?? null,
       category: input.category,
       isAnonymous: input.isAnonymous,
+      imageUrl: input.imageUrl,
       moderationStatus,
       boardStatus: "inbox",
     })

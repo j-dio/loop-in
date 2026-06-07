@@ -10,6 +10,7 @@ import {
   PostsParentParamsSchema,
   PatchPostBodySchema,
 } from "./posts.schemas";
+import { isValidPostImageUrl } from "../uploads/uploads.service";
 import {
   createPost,
   getMyUpvoteState,
@@ -255,7 +256,13 @@ export async function createPostHandler(req: Request, res: Response, next: NextF
       return res.status(400).json({ error: "Invalid request", details: parsed.error.flatten() });
     }
 
-    const { title, description, category, is_anonymous } = parsed.data;
+    const { title, description, category, is_anonymous, image_url } = parsed.data;
+
+    if (image_url) {
+      if (!isValidPostImageUrl(image_url, req.workspace.id)) {
+        return res.status(400).json({ error: "Invalid image URL" });
+      }
+    }
 
     const post = await createPost({
       workspaceId: req.workspace.id,
@@ -264,6 +271,7 @@ export async function createPostHandler(req: Request, res: Response, next: NextF
       description: description ?? null,
       category,
       isAnonymous: is_anonymous,
+      imageUrl: image_url ?? null,
       requireApproval: req.workspace.requireApproval,
       ctx: requesterCtx(req),
     });
