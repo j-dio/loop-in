@@ -132,6 +132,16 @@ export function PostCard({
           </span>
         </div>
       </div>
+      {post.imageUrl ? (
+        <div className="mt-3 overflow-hidden rounded-md border bg-muted/30">
+          <img
+            src={post.imageUrl}
+            alt=""
+            className="max-h-40 w-full object-cover"
+            loading="lazy"
+          />
+        </div>
+      ) : null}
       {snippet(post.description) ? (
         <p className="mt-2 text-sm text-muted-foreground">{snippet(post.description)}</p>
       ) : null}

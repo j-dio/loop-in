@@ -3,6 +3,7 @@ export type PostDTO = {
   workspaceId: string;
   title: string;
   description: string | null;
+  imageUrl: string | null;
   category: "bug" | "feature_request" | "ui_tweak";
   moderationStatus: "pending" | "approved" | "spam" | "rejected";
   boardStatus: "inbox" | "under_review" | "planned" | "in_progress" | "shipped";
