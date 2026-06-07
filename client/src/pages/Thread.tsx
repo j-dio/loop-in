@@ -65,13 +65,11 @@ export function Thread() {
     let cancelled = false;
     void (async () => {
       try {
-        const data = await apiFetch<{ members: { userId: string; role: string }[] }>(
-          `/api/workspaces/${encodeURIComponent(slug)}/members`
+        const data = await apiFetch<{ role: string }>(
+          `/api/workspaces/${encodeURIComponent(slug)}/my-role`
         );
         if (cancelled) return;
-        const me = data.members.find((m) => m.userId === user.id);
-        const r = me?.role;
-        setViewerIsAdminOrOwner(r === "admin" || r === "owner");
+        setViewerIsAdminOrOwner(data.role === "admin" || data.role === "owner");
       } catch {
         if (!cancelled) setViewerIsAdminOrOwner(false);
       }
