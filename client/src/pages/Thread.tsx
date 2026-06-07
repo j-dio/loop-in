@@ -150,9 +150,8 @@ export function Thread() {
   }, [slug, postId, loading, error, refreshAll]);
 
   useEffect(() => {
-    if (!post) return;
-    setUpvoteCount(post.upvoteCount);
-  }, [post?.id, post?.upvoteCount]);
+    if (post) setUpvoteCount(post.upvoteCount);
+  }, [post]);
 
   async function handleUpvoteClick() {
     if (!slug || !postId || !post || !user || !isMember || upvoteBusy) return;
