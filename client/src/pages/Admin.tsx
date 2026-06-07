@@ -86,6 +86,30 @@ type SettingsDraft = {
   primaryColor: string;
 };
 
+type DigestItem = {
+  priority_rank: number;
+  title: string;
+  rationale: string;
+  implementation_notes: string;
+  complexity: "S" | "M" | "L";
+};
+
+type DigestData = {
+  items: DigestItem[];
+  pattern_summary: string;
+};
+
+function ComplexityBadge({ c }: { c: "S" | "M" | "L" }) {
+  const styles: Record<"S" | "M" | "L", string> = {
+    S: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+    M: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+    L: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400",
+  };
+  return (
+    <span className={`rounded px-1.5 py-0.5 text-xs font-semibold ${styles[c]}`}>{c}</span>
+  );
+}
+
 export function Admin() {
   const { slug } = useParams();
   const {
@@ -110,6 +134,11 @@ export function Admin() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [moderatingId, setModeratingId] = useState<string | null>(null);
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
+
+  const [digestData, setDigestData] = useState<DigestData | null>(null);
+  const [digestLoading, setDigestLoading] = useState(false);
+  const [digestError, setDigestError] = useState<string | null>(null);
+  const [digestOpen, setDigestOpen] = useState(true);
 
   const [settingsDraft, setSettingsDraft] = useState<SettingsDraft | null>(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -200,6 +229,34 @@ export function Admin() {
       setKanbanLoading(false);
     }
   }, [slug, access]);
+
+  const generateAiDigest = useCallback(async () => {
+    if (!slug) return;
+    setDigestLoading(true);
+    setDigestError(null);
+    try {
+      const data = await apiFetch<{ digest: DigestData }>(
+        `/api/workspaces/${encodeURIComponent(slug)}/ai/digest`,
+        { method: "POST" }
+      );
+      setDigestData(data.digest);
+      setDigestOpen(true);
+    } catch (e) {
+      if (e instanceof ApiError) {
+        const msg =
+          typeof e.body === "object" && e.body && "error" in e.body
+            ? String((e.body as { error: string }).error)
+            : e.status === 503
+              ? "AI features are not configured on this server."
+              : "Could not generate digest. Please try again.";
+        setDigestError(msg);
+      } else {
+        setDigestError("Could not generate digest. Please try again.");
+      }
+    } finally {
+      setDigestLoading(false);
+    }
+  }, [slug]);
 
   useEffect(() => {
     if (access !== "allowed" || !slug) return;
@@ -733,13 +790,85 @@ export function Admin() {
             ))}
           </ul>
         )
-      ) : kanbanLoading ? (
-        <p className="text-muted-foreground text-sm">Loading Kanban…</p>
       ) : (
+        <>
+          {/* AI Digest section */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              Generates a prioritized backlog from approved posts using AI. Once per hour.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="shrink-0"
+              disabled={digestLoading || kanbanLoading}
+              onClick={() => void generateAiDigest()}
+            >
+              {digestLoading ? "Generating…" : "Generate AI Digest"}
+            </Button>
+          </div>
+
+          {digestError ? (
+            <p className="text-destructive text-sm" role="alert">
+              {digestError}
+            </p>
+          ) : null}
+
+          {digestData ? (
+            <div className="rounded-lg border border-border bg-card shadow-xs overflow-hidden">
+              <div className="flex items-start justify-between gap-4 p-4">
+                <div className="min-w-0 space-y-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    AI Digest · Pattern Summary
+                  </p>
+                  <p className="text-sm leading-relaxed">{digestData.pattern_summary}</p>
+                </div>
+                {digestData.items.length > 0 ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="shrink-0 text-xs"
+                    onClick={() => setDigestOpen((v) => !v)}
+                  >
+                    {digestOpen ? "Collapse" : `Show ${digestData.items.length} items`}
+                  </Button>
+                ) : null}
+              </div>
+
+              {digestOpen && digestData.items.length > 0 ? (
+                <ol className="divide-y divide-border border-t border-border">
+                  {digestData.items.map((item, idx) => (
+                    <li key={idx} className="p-4 space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-xs text-muted-foreground">
+                          #{item.priority_rank}
+                        </span>
+                        <span className="text-sm font-medium">{item.title}</span>
+                        <ComplexityBadge c={item.complexity} />
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {item.rationale}
+                      </p>
+                      <p className="text-xs text-foreground/70 leading-relaxed italic">
+                        {item.implementation_notes}
+                      </p>
+                    </li>
+                  ))}
+                </ol>
+              ) : null}
+            </div>
+          ) : null}
+
+          {/* Kanban board */}
+          {kanbanLoading ? (
+            <p className="text-muted-foreground text-sm">Loading Kanban…</p>
+          ) : (
         <DragDropContext onDragEnd={(r) => void onKanbanDragEnd(r)}>
           <div className="flex gap-3 overflow-x-auto pb-2">
             {BOARD_COLUMNS.map((col) => (
-              <div key={col.id} className="w-64 shrink-0">
+              <div key={col.id} className="w-44 shrink-0">
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {col.label}
                 </h3>
@@ -784,7 +913,9 @@ export function Admin() {
               </div>
             ))}
           </div>
-        </DragDropContext>
+          </DragDropContext>
+          )}
+        </>
       )}
     </div>
   );
