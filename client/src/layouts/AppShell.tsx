@@ -4,7 +4,7 @@ import { useWorkspace } from "@/context/WorkspaceContext";
 import { apiFetch } from "@/lib/api";
 
 export function AppShell() {
-  const { activeWorkspace, user, refreshSession } = useWorkspace();
+  const { activeWorkspace, user, workspaces, refreshSession } = useWorkspace();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -64,10 +64,49 @@ export function AppShell() {
       {/* Body: sidebar + main */}
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-4 px-4 py-4 md:grid-cols-[240px_1fr]">
         <aside className="rounded-lg border p-3">
-          <div className="text-sm font-medium">Sidebar</div>
-          <div className="mt-2 text-xs text-muted-foreground">
-            Placeholder links later.
-          </div>
+          <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Workspaces
+          </p>
+          {workspaces.length > 0 ? (
+            <nav aria-label="Workspaces">
+              {workspaces.map((w) => {
+                const isActive = w.id === activeWorkspace?.id;
+                const isOwner = user && w.ownerId === user.id;
+                return (
+                  <Link
+                    key={w.id}
+                    to={`/${encodeURIComponent(w.slug)}`}
+                    className={`flex items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors ${
+                      isActive
+                        ? "bg-muted font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                    }`}
+                  >
+                    <span className="min-w-0 truncate">{w.name}</span>
+                    {isOwner ? (
+                      <span className="ml-2 shrink-0 text-xs text-muted-foreground/60">
+                        owner
+                      </span>
+                    ) : null}
+                  </Link>
+                );
+              })}
+            </nav>
+          ) : user ? (
+            <p className="px-2 text-xs text-muted-foreground">
+              No workspaces yet.{" "}
+              <Link to="/" className="underline hover:text-foreground">
+                Create one
+              </Link>
+            </p>
+          ) : (
+            <p className="px-2 text-xs text-muted-foreground">
+              <Link to="/" className="underline hover:text-foreground">
+                Sign in
+              </Link>{" "}
+              to see your workspaces.
+            </p>
+          )}
         </aside>
 
         <main className="min-h-[60dvh] min-w-0 rounded-lg border p-4">
