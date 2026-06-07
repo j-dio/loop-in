@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
+import { slidingWindowRedisHitOrFailOpen } from "../lib/rateLimitSlidingRedis";
 
-/** In-memory timestamps per composite key; sliding window prunes on each hit. Phase 2 moves this to Redis. */
-const store = new Map<string, number[]>();
+export type { RateLimitResult } from "../lib/rateLimitSlidingRedis";
 
 export type RateLimitBucket = "auth" | "createPost" | "upvote" | "comment" | "default";
 
@@ -15,14 +15,6 @@ export const RATE_LIMITS: Record<
   upvote: { limit: 30, windowMs: 60_000 },
   comment: { limit: 20, windowMs: 60_000 },
   default: { limit: 100, windowMs: 60_000 },
-};
-
-export type RateLimitResult = {
-  allowed: boolean;
-  limit: number;
-  remaining: number;
-  /** Unix timestamp in seconds when the oldest counted request in this window expires (sliding window). */
-  resetSec: number;
 };
 
 /**
@@ -46,43 +38,12 @@ export function rateLimitIdentityKey(req: Request): string {
   return `ip:${getClientIp(req)}`;
 }
 
-function pruneTimestamps(timestamps: number[], cutoff: number): number[] {
-  return timestamps.filter((t) => t > cutoff);
-}
-
-/**
- * Sliding window: keep request timestamps within `windowMs`; allow at most `limit` hits.
- */
-export function slidingWindowHit(
-  key: string,
-  limit: number,
-  windowMs: number,
-  nowMs: number = Date.now()
-): RateLimitResult {
-  const cutoff = nowMs - windowMs;
-  let stamps = pruneTimestamps(store.get(key) ?? [], cutoff);
-
-  if (stamps.length >= limit) {
-    const oldest = Math.min(...stamps);
-    const resetSec = Math.ceil((oldest + windowMs) / 1000);
-    store.set(key, stamps);
-    return { allowed: false, limit, remaining: 0, resetSec };
-  }
-
-  stamps.push(nowMs);
-  store.set(key, stamps);
-  const oldest = Math.min(...stamps);
-  const resetSec = Math.ceil((oldest + windowMs) / 1000);
-  return {
-    allowed: true,
-    limit,
-    remaining: limit - stamps.length,
-    resetSec,
-  };
-}
-
 /** Primary bucket for this response — we attach one set of headers (strictest bucket is the one we enforce). */
-export function setRateLimitHeaders(res: Response, info: Omit<RateLimitResult, "allowed">): void {
+export function setRateLimitHeaders(res: Response, info: {
+  limit: number;
+  remaining: number;
+  resetSec: number;
+}): void {
   res.setHeader("X-RateLimit-Limit", String(info.limit));
   res.setHeader("X-RateLimit-Remaining", String(Math.max(0, info.remaining)));
   res.setHeader("X-RateLimit-Reset", String(info.resetSec));
@@ -95,10 +56,10 @@ function compositeKey(bucket: RateLimitBucket, identity: string): string {
 /** 10/min on all `/auth` routes; keyed by IP so OAuth redirects and refresh are not keyed on provider profiles. */
 export function createAuthRateLimiter() {
   const { limit, windowMs } = RATE_LIMITS.auth;
-  return (req: Request, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
     const identity = `ip:${getClientIp(req)}`;
     const key = compositeKey("auth", identity);
-    const result = slidingWindowHit(key, limit, windowMs);
+    const result = await slidingWindowRedisHitOrFailOpen(key, limit, windowMs);
     setRateLimitHeaders(res, {
       limit: result.limit,
       remaining: result.remaining,
@@ -124,15 +85,15 @@ export function classifyWorkspaceRequest(method: string, path: string): RateLimi
 
 /**
  * Rate limit for everything under `/api/workspaces`. Runs after `optionalAuth` so authenticated
- * requests use `user_id` when present.
+ * requests use `user_id` when present. Backed by Redis (Phase 2) for multi-instance correctness.
  */
 export function createWorkspaceRateLimiter() {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
     const bucket = classifyWorkspaceRequest(req.method, req.path);
     const { limit, windowMs } = RATE_LIMITS[bucket];
     const identity = rateLimitIdentityKey(req);
     const key = compositeKey(bucket, identity);
-    const result = slidingWindowHit(key, limit, windowMs);
+    const result = await slidingWindowRedisHitOrFailOpen(key, limit, windowMs);
     setRateLimitHeaders(res, {
       limit: result.limit,
       remaining: result.remaining,

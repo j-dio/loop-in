@@ -3,6 +3,7 @@ import { db } from "../db";
 import { posts, workspaces } from "../db/schema";
 import { redis } from "../lib/redis";
 import { logger } from "../lib/logger";
+import { trendingRedisKey } from "../lib/trendingKeys";
 
 /** PRD §9 — higher = older posts need more votes to rank well. */
 const TRENDING_GRAVITY = 1.8;
@@ -11,11 +12,6 @@ const TRENDING_GRAVITY = 1.8;
 const TRENDING_AGE_OFFSET_HOURS = 2;
 
 const MS_PER_HOUR = 60 * 60 * 1000;
-
-/** Roadmap + PRD: one sorted set per workspace, highest score = most trending. */
-export function trendingRedisKey(workspaceId: string): string {
-  return `trending:${workspaceId}`;
-}
 
 export function computeTrendingScore(
   upvoteCount: number,

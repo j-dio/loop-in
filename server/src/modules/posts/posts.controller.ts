@@ -10,6 +10,7 @@ import {
   PostsParentParamsSchema,
   PatchPostBodySchema,
 } from "./posts.schemas";
+import { isValidPostImageUrl } from "../uploads/uploads.service";
 import {
   createPost,
   getMyUpvoteState,
@@ -28,6 +29,7 @@ import {
 function parseCursor(raw: string | undefined, sort: ListPostsSort):
   | { k: "newest"; createdAt: Date; id: string }
   | { k: "top"; upvoteCount: number; createdAt: Date; id: string }
+  | { k: "trending"; id: string }
   | null
   | "mismatch" {
   if (!raw) return null;
@@ -36,12 +38,16 @@ function parseCursor(raw: string | undefined, sort: ListPostsSort):
     const parsed = PostCursorSchema.safeParse(json);
     if (!parsed.success) return null;
     const c = parsed.data;
-    const effectiveSort = sort === "trending" ? "top" : sort;
-    if (c.k === "newest" && effectiveSort !== "newest") return "mismatch";
-    if (c.k === "top" && effectiveSort === "newest") return "mismatch";
-    if (c.k === "newest") {
+
+    if (sort === "trending") {
+      if (c.k === "newest" || c.k === "top") return "mismatch";
+      return { k: "trending", id: c.id };
+    }
+    if (sort === "newest") {
+      if (c.k === "top" || c.k === "trending") return "mismatch";
       return { k: "newest", createdAt: new Date(c.createdAt), id: c.id };
     }
+    if (c.k === "newest" || c.k === "trending") return "mismatch";
     return {
       k: "top",
       upvoteCount: c.upvoteCount,
@@ -207,6 +213,7 @@ export async function listPostsHandler(req: Request, res: Response, next: NextFu
       sort,
       limit: queryParsed.data.limit,
       cursor,
+      q: queryParsed.data.q || undefined,
       ctx: requesterCtx(req),
     });
 
@@ -250,7 +257,13 @@ export async function createPostHandler(req: Request, res: Response, next: NextF
       return res.status(400).json({ error: "Invalid request", details: parsed.error.flatten() });
     }
 
-    const { title, description, category, is_anonymous } = parsed.data;
+    const { title, description, category, is_anonymous, image_url } = parsed.data;
+
+    if (image_url) {
+      if (!isValidPostImageUrl(image_url, req.workspace.id)) {
+        return res.status(400).json({ error: "Invalid image URL" });
+      }
+    }
 
     const post = await createPost({
       workspaceId: req.workspace.id,
@@ -259,6 +272,7 @@ export async function createPostHandler(req: Request, res: Response, next: NextF
       description: description ?? null,
       category,
       isAnonymous: is_anonymous,
+      imageUrl: image_url ?? null,
       requireApproval: req.workspace.requireApproval,
       ctx: requesterCtx(req),
     });

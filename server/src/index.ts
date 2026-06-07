@@ -9,7 +9,6 @@ import cookieParser from "cookie-parser";
 import { authRouter } from "./modules/auth/auth.routes";
 import { workspacesRouter } from "./modules/workspaces/workspaces.routes";
 import {
-  createAuthRateLimiter,
   RATE_LIMITS,
   setHealthRateLimitHeaders,
   setRateLimitHeaders,
@@ -45,7 +44,7 @@ app.get("/health", (_req, res) => {
 const parsedPort = Number(process.env.PORT ?? 3001);
 const port = Number.isFinite(parsedPort) ? parsedPort : 3001;
 
-app.use("/auth", createAuthRateLimiter(), authRouter);
+app.use("/auth", authRouter);
 app.use("/api/workspaces", workspacesRouter);
 
 if (process.env.NODE_ENV !== "production") {

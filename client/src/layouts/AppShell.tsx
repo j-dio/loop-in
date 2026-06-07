@@ -26,7 +26,7 @@ export function AppShell() {
           </div>
         </aside>
 
-        <main className="min-h-[60dvh] rounded-lg border p-4">
+        <main className="min-h-[60dvh] min-w-0 rounded-lg border p-4">
           <Outlet />
         </main>
       </div>

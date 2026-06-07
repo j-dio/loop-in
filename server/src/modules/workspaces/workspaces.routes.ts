@@ -2,7 +2,9 @@ import { Router } from "express";
 import { authenticate, optionalAuth } from "../../middleware/authenticate";
 import { createWorkspaceRateLimiter } from "../../middleware/rateLimit";
 import { requireRole, requireWorkspace } from "../../middleware/workspace";
+import { createAiRouterStack } from "../ai/ai.routes";
 import { createPostsRouterStack } from "../posts/posts.routes";
+import { createUploadsRouterStack } from "../uploads/uploads.routes";
 import {
   deleteWorkspace,
   deleteWorkspaceMember,
@@ -22,6 +24,12 @@ workspacesRouter.use(createWorkspaceRateLimiter());
 // Workspace CRUD (auth required)
 workspacesRouter.post("/", authenticate, postWorkspace);
 workspacesRouter.get("/", authenticate, getWorkspaces);
+
+// AI Insight Engine (Phase 5): /api/workspaces/:slug/ai/digest
+workspacesRouter.use("/:slug/ai", createAiRouterStack());
+
+// S3 presign (Phase 2 Step 10): /api/workspaces/:slug/uploads/presign
+workspacesRouter.use("/:slug/uploads", createUploadsRouterStack());
 
 // Posts (Phase 1 Step 3): /api/workspaces/:slug/posts — before /:slug PATCH to avoid shadowing
 workspacesRouter.use("/:slug/posts", createPostsRouterStack());
