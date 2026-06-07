@@ -151,6 +151,12 @@ export async function postWorkspaceMember(req: Request, res: Response, next: Nex
   }
 }
 
+export function getMyRole(req: Request, res: Response) {
+  if (!req.user?.id) return res.status(401).json({ error: "Unauthorized" });
+  if (!req.workspaceRole) return res.status(403).json({ error: "Not a member" });
+  return res.json({ role: req.workspaceRole });
+}
+
 export async function getWorkspaceMembers(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.user?.id) return res.status(401).json({ error: "Unauthorized" });

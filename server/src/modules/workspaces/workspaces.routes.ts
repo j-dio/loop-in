@@ -8,6 +8,7 @@ import { createUploadsRouterStack } from "../uploads/uploads.routes";
 import {
   deleteWorkspace,
   deleteWorkspaceMember,
+  getMyRole,
   getWorkspaceMembers,
   getWorkspaces,
   patchWorkspace,
@@ -33,6 +34,9 @@ workspacesRouter.use("/:slug/uploads", createUploadsRouterStack());
 
 // Posts (Phase 1 Step 3): /api/workspaces/:slug/posts — before /:slug PATCH to avoid shadowing
 workspacesRouter.use("/:slug/posts", createPostsRouterStack());
+
+// My role — any authenticated member (no requireRole guard)
+workspacesRouter.get("/:slug/my-role", authenticate, requireWorkspace, getMyRole);
 
 // Members (admin or owner)
 const adminOrOwner = requireRole("admin", "owner");

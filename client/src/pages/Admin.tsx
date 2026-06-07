@@ -496,7 +496,7 @@ export function Admin() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" size="sm" asChild>
-            <Link to={`/${encodeURIComponent(slug)}`}>View as public</Link>
+            <Link to={`/${encodeURIComponent(slug)}`}>← View Public Board</Link>
           </Button>
         </div>
       </div>
@@ -877,7 +877,7 @@ export function Admin() {
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
-                      className={`min-h-[120px] rounded-lg border border-dashed p-2 transition-colors ${
+                      className={`min-h-30 rounded-lg border border-dashed p-2 transition-colors ${
                         snapshot.isDraggingOver ? "border-primary/50 bg-primary/5" : "border-border"
                       }`}
                     >

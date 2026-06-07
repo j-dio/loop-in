@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWorkspace } from "@/context/WorkspaceContext";
-import { ApiError, getApiBase } from "@/lib/api";
+import { ApiError, apiFetch, getApiBase } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 
 function slugifyName(name: string): string {
@@ -15,7 +15,7 @@ function slugifyName(name: string): string {
 
 export function Landing() {
   const navigate = useNavigate();
-  const { user, loading, workspaces, setActiveWorkspace, createWorkspace } = useWorkspace();
+  const { user, loading, workspaces, setActiveWorkspace, createWorkspace, refreshSession } = useWorkspace();
   const api = getApiBase();
 
   const [name, setName] = useState("");
@@ -24,6 +24,16 @@ export function Landing() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [selectedSlug, setSelectedSlug] = useState("");
+
+  async function handleSignOut() {
+    try {
+      await apiFetch("/auth/logout", { method: "POST" });
+    } catch {
+      // proceed with local cleanup anyway
+    }
+    await refreshSession();
+    // refreshSession sets user → null; Landing re-renders to sign-in view
+  }
 
   const onNameChange = (value: string) => {
     setName(value);
@@ -94,11 +104,16 @@ export function Landing() {
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center gap-8 px-4 py-12">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Your workspaces</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Signed in as <span className="text-foreground">{user.email}</span>
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Your workspaces</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Signed in as <span className="text-foreground">{user.email}</span>
+          </p>
+        </div>
+        <Button variant="ghost" size="sm" onClick={() => void handleSignOut()}>
+          Sign out
+        </Button>
       </div>
 
       <section className="space-y-3">
