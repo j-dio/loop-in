@@ -18,6 +18,7 @@ import {
 import { clearAuthCookies, setAuthCookies } from "./auth.cookies";
 import { requireEnv } from "../../config/env";
 import { getMe } from "./auth.me";
+import { createAuthRateLimiter } from "../../middleware/rateLimit";
 import { configureGitHubPassport, type GitHubVerifiedProfile } from "./github.strategy";
 import { db } from "../../db";
 import { users } from "../../db/schema";
@@ -32,8 +33,11 @@ export const authRouter = Router();
  * GET /auth/google
  * Redirects to Google consent screen.
  */
+const authLimiter = createAuthRateLimiter();
+
 authRouter.get(
   "/google",
+  authLimiter,
   passport.authenticate("google", {
     session: false,
     scope: ["openid", "profile", "email"],
@@ -131,6 +135,7 @@ authRouter.post("/logout", async (req, res, next) => {
 
 authRouter.get(
   "/github",
+  authLimiter,
   passport.authenticate("github", {
     session: false,
     scope: ["user:email"],
