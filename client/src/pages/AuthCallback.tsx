@@ -7,7 +7,14 @@ export function AuthCallback() {
   const { refreshSession } = useWorkspace();
 
   useEffect(() => {
-    void refreshSession().then(() => navigate("/", { replace: true }));
+    void refreshSession().then(() => {
+      const pendingToken = sessionStorage.getItem("pending-invite-token");
+      if (pendingToken) {
+        navigate(`/invite/accept?token=${encodeURIComponent(pendingToken)}`, { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
+    });
   }, [navigate, refreshSession]);
 
   return (

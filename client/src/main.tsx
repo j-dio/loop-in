@@ -9,6 +9,7 @@ import { AuthCallback } from "./pages/AuthCallback";
 import { Board } from "./pages/Board";
 import { Thread } from "./pages/Thread";
 import { Admin } from "./pages/Admin";
+import { AcceptInvite } from "./pages/AcceptInvite";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -17,6 +18,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/invite/accept" element={<AcceptInvite />} />
 
           <Route element={<AppShell />}>
             <Route path="/:slug" element={<Board />} />

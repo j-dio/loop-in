@@ -150,6 +150,11 @@ export function Admin() {
   const canInviteMembers =
     commandCenterRole === "admin" || commandCenterRole === "owner";
 
+  const [members, setMembers] = useState<MemberRow[]>([]);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [pendingInvites, setPendingInvites] = useState<{ id: string; email: string; inviterName: string; expiresAt: string }[]>([]);
+  const [cancellingInviteId, setCancellingInviteId] = useState<string | null>(null);
+
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
   const [inviteFeedback, setInviteFeedback] = useState<{ kind: "ok" | "err"; text: string } | null>(
@@ -178,7 +183,14 @@ export function Admin() {
       );
       const me = data.members.find((m) => m.userId === user.id);
       setCommandCenterRole(me?.role ?? null);
+      setMembers(data.members);
       setAccess("allowed");
+      // Fetch pending invites in parallel (non-fatal)
+      apiFetch<{ invites: { id: string; email: string; inviterName: string; expiresAt: string }[] }>(
+        `/api/workspaces/${encodeURIComponent(slug)}/invites`
+      )
+        .then((d) => setPendingInvites(d.invites))
+        .catch(() => { /* not critical */ });
     } catch (e) {
       setCommandCenterRole(null);
       if (e instanceof ApiError && (e.status === 403 || e.status === 401)) {
@@ -331,10 +343,20 @@ export function Admin() {
       if ("pending" in data && data.pending) {
         setInviteFeedback({
           kind: "ok",
-          text: "Invite saved. They'll be added automatically when they sign in to LoopIn.",
+          text: "Invite email sent. They'll join when they accept.",
         });
+        // Refresh pending invites list
+        apiFetch<{ invites: { id: string; email: string; inviterName: string; expiresAt: string }[] }>(
+          `/api/workspaces/${encodeURIComponent(slug)}/invites`
+        )
+          .then((d) => setPendingInvites(d.invites))
+          .catch(() => { /* non-fatal */ });
       } else {
         setInviteFeedback({ kind: "ok", text: "Member added successfully." });
+        const freshData = await apiFetch<{ members: MemberRow[] }>(
+          `/api/workspaces/${encodeURIComponent(slug)}/members`
+        );
+        setMembers(freshData.members);
       }
       setInviteEmail("");
     } catch (err) {
@@ -348,6 +370,39 @@ export function Admin() {
       }
     } finally {
       setInviteSubmitting(false);
+    }
+  }
+
+  async function removeMember(userId: string) {
+    if (!slug) return;
+    setRemovingId(userId);
+    try {
+      await apiFetch(`/api/workspaces/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`, {
+        method: "DELETE",
+      });
+      setMembers((prev) => prev.filter((m) => m.userId !== userId));
+    } catch (err) {
+      setInviteFeedback({
+        kind: "err",
+        text: errorTextFromApiBody(err, "Could not remove member."),
+      });
+    } finally {
+      setRemovingId(null);
+    }
+  }
+
+  async function cancelInvite(inviteId: string) {
+    if (!slug) return;
+    setCancellingInviteId(inviteId);
+    try {
+      await apiFetch(`/api/workspaces/${encodeURIComponent(slug)}/invites/${encodeURIComponent(inviteId)}`, {
+        method: "DELETE",
+      });
+      setPendingInvites((prev) => prev.filter((i) => i.id !== inviteId));
+    } catch (err) {
+      setInviteFeedback({ kind: "err", text: errorTextFromApiBody(err, "Could not cancel invite.") });
+    } finally {
+      setCancellingInviteId(null);
     }
   }
 
@@ -680,6 +735,61 @@ export function Admin() {
             <p className="text-muted-foreground text-sm">Loading workspace…</p>
           )}
         </div>
+
+        {canInviteMembers && members.length > 0 ? (
+          <div className="space-y-3 rounded-lg border border-border bg-card p-6 shadow-xs">
+            <h2 className="text-base font-semibold">Members</h2>
+            <ul className="divide-y divide-border">
+              {members.map((m) => (
+                <li key={m.userId} className="flex items-center justify-between gap-3 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{m.name ?? m.email}</p>
+                    {m.name ? <p className="truncate text-xs text-muted-foreground">{m.email}</p> : null}
+                    <p className="text-xs text-muted-foreground capitalize">{m.role}</p>
+                  </div>
+                  {m.role !== "owner" && m.userId !== user?.id ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0 text-destructive hover:text-destructive"
+                      disabled={removingId === m.userId}
+                      onClick={() => void removeMember(m.userId)}
+                    >
+                      {removingId === m.userId ? "Removing…" : "Remove"}
+                    </Button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {canInviteMembers && pendingInvites.length > 0 ? (
+          <div className="space-y-3 rounded-lg border border-border bg-card p-6 shadow-xs">
+            <h2 className="text-base font-semibold">Pending Invites</h2>
+            <ul className="divide-y divide-border">
+              {pendingInvites.map((inv) => (
+                <li key={inv.id} className="flex items-center justify-between gap-3 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{inv.email}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Expires {new Date(inv.expiresAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="shrink-0 text-destructive hover:text-destructive"
+                    disabled={cancellingInviteId === inv.id}
+                    onClick={() => void cancelInvite(inv.id)}
+                  >
+                    {cancellingInviteId === inv.id ? "Cancelling…" : "Cancel"}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         {canInviteMembers ? (
           <div className="space-y-4 rounded-lg border border-border bg-card p-6 shadow-xs">
