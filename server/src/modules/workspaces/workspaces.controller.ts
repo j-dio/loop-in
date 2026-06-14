@@ -11,9 +11,13 @@ import {
   WorkspaceMembersParamsSchema,
 } from "./workspaces.schemas";
 import {
+  acceptInviteByToken,
+  cancelPendingInvite,
   createWorkspaceWithOwnerMembership,
   deleteWorkspaceBySlug,
+  getInviteByToken,
   inviteUserAsMember,
+  listPendingInvites,
   listWorkspaceMembers,
   listWorkspacesForUser,
   removeWorkspaceMember,
@@ -169,6 +173,76 @@ export async function getWorkspaceMembers(req: Request, res: Response, next: Nex
 
     const members = await listWorkspaceMembers(req.workspace.id);
     return res.json({ members });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getPendingInvites(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });
+    const invites = await listPendingInvites(req.workspace.id);
+    return res.json({ invites });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteInvite(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });
+    const inviteId = (req.params.inviteId as string | undefined)?.trim();
+    if (!inviteId) return res.status(400).json({ error: "inviteId is required" });
+
+    const result = await cancelPendingInvite({ inviteId, workspaceId: req.workspace.id });
+    if (result === "not_found") return res.status(404).json({ error: "Invite not found" });
+    return res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getInviteInfo(req: Request, res: Response, next: NextFunction) {
+  try {
+    const token = (req.params.token as string | undefined)?.trim();
+    if (!token) return res.status(400).json({ error: "Token is required" });
+
+    const result = await getInviteByToken(token);
+
+    if (result === "not_found") return res.status(404).json({ error: "Invite not found" });
+    if (result === "expired") return res.status(410).json({ error: "This invite has expired" });
+
+    return res.json({ invite: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function postAcceptInvite(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user?.id || !req.user.email) {
+      return res.status(401).json({ error: "You must be signed in to accept an invite" });
+    }
+
+    const token = req.body?.token?.trim();
+    if (!token) return res.status(400).json({ error: "Token is required" });
+
+    const result = await acceptInviteByToken({
+      token,
+      userId: req.user.id,
+      userEmail: req.user.email,
+    });
+
+    if (result === "not_found") return res.status(404).json({ error: "Invite not found or already used" });
+    if (result === "expired") return res.status(410).json({ error: "This invite has expired" });
+    if (result === "email_mismatch") {
+      return res.status(403).json({ error: "This invite was sent to a different email address" });
+    }
+    if (result === "already_member") {
+      return res.status(409).json({ error: "You are already a member of this workspace" });
+    }
+
+    return res.json({ workspaceSlug: result.workspaceSlug, workspaceName: result.workspaceName });
   } catch (err) {
     next(err);
   }

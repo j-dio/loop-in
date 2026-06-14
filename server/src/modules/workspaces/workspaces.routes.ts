@@ -6,12 +6,16 @@ import { createAiRouterStack } from "../ai/ai.routes";
 import { createPostsRouterStack } from "../posts/posts.routes";
 import { createUploadsRouterStack } from "../uploads/uploads.routes";
 import {
+  deleteInvite,
   deleteWorkspace,
   deleteWorkspaceMember,
+  getInviteInfo,
   getMyRole,
+  getPendingInvites,
   getWorkspaceMembers,
   getWorkspaces,
   patchWorkspace,
+  postAcceptInvite,
   postWorkspace,
   postWorkspaceMember,
 } from "./workspaces.controller";
@@ -25,6 +29,10 @@ workspacesRouter.use(createWorkspaceRateLimiter());
 // Workspace CRUD (auth required)
 workspacesRouter.post("/", authenticate, postWorkspace);
 workspacesRouter.get("/", authenticate, getWorkspaces);
+
+// Invite accept flow — must be before /:slug routes to avoid shadowing
+workspacesRouter.get("/invites/:token", getInviteInfo);            // public — shows invite info
+workspacesRouter.post("/invites/accept", authenticate, postAcceptInvite); // auth required
 
 // AI Insight Engine (Phase 5): /api/workspaces/:slug/ai/digest
 workspacesRouter.use("/:slug/ai", createAiRouterStack());
@@ -60,6 +68,22 @@ workspacesRouter.delete(
   requireWorkspace,
   adminOrOwner,
   deleteWorkspaceMember
+);
+
+// Pending invites (admin or owner)
+workspacesRouter.get(
+  "/:slug/invites",
+  authenticate,
+  requireWorkspace,
+  adminOrOwner,
+  getPendingInvites
+);
+workspacesRouter.delete(
+  "/:slug/invites/:inviteId",
+  authenticate,
+  requireWorkspace,
+  adminOrOwner,
+  deleteInvite
 );
 
 // Owner-only settings + delete

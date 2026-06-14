@@ -1,7 +1,8 @@
 import { randomBytes } from "node:crypto";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, gt, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { pendingInvites, users, workspaceMembers, workspaces } from "../../db/schema";
+import { sendAddedToWorkspaceEmail, sendPendingInviteEmail } from "../email/email.service";
 
 export type WorkspaceVisibility = "public" | "invite_only";
 export type WorkspaceRole = "owner" | "admin" | "member";
@@ -188,7 +189,8 @@ async function addExistingUserAsMember(input: {
 }
 
 /**
- * Invite by email: if the user exists, add membership; otherwise store a pending invite (7-day expiry).
+ * Invite by email: if the user exists, add membership directly; otherwise store a pending invite (7-day expiry).
+ * Sends an email notification either way (non-fatal — invite is still created if email fails).
  */
 export async function inviteUserAsMember(input: {
   workspaceId: string;
@@ -199,12 +201,38 @@ export async function inviteUserAsMember(input: {
 > {
   const normalizedEmail = input.email.trim().toLowerCase();
 
+  const [workspace] = await db
+    .select({ name: workspaces.name, slug: workspaces.slug })
+    .from(workspaces)
+    .where(eq(workspaces.id, input.workspaceId))
+    .limit(1);
+
+  const [inviter] = await db
+    .select({ name: users.name, email: users.email })
+    .from(users)
+    .where(eq(users.id, input.invitedByUserId))
+    .limit(1);
+
+  const inviterName = inviter?.name ?? inviter?.email ?? "Someone";
+  const workspaceName = workspace?.name ?? "a workspace";
+  const workspaceSlug = workspace?.slug ?? "";
+  const clientUrl = process.env.CLIENT_URL ?? "";
+
   const invitedUser = await findUserByEmailCaseInsensitive(input.email);
   if (invitedUser) {
-    return addExistingUserAsMember({
+    const result = await addExistingUserAsMember({
       workspaceId: input.workspaceId,
       userId: invitedUser.id,
     });
+    if (result !== "already_member") {
+      await sendAddedToWorkspaceEmail({
+        to: normalizedEmail,
+        workspaceName,
+        inviterName,
+        workspaceUrl: `${clientUrl}/${workspaceSlug}`,
+      });
+    }
+    return result;
   }
 
   const [existingPending] = await db
@@ -232,7 +260,135 @@ export async function inviteUserAsMember(input: {
     expiresAt,
   });
 
+  await sendPendingInviteEmail({
+    to: normalizedEmail,
+    workspaceName,
+    inviterName,
+    acceptUrl: `${clientUrl}/invite/accept?token=${token}`,
+  });
+
   return { pending: true, email: normalizedEmail };
+}
+
+export type PendingInviteRow = {
+  id: string;
+  email: string;
+  inviterName: string;
+  expiresAt: Date;
+};
+
+export async function listPendingInvites(workspaceId: string): Promise<PendingInviteRow[]> {
+  const rows = await db
+    .select({
+      id: pendingInvites.id,
+      email: pendingInvites.email,
+      expiresAt: pendingInvites.expiresAt,
+      inviterName: users.name,
+      inviterEmail: users.email,
+    })
+    .from(pendingInvites)
+    .innerJoin(users, eq(pendingInvites.invitedBy, users.id))
+    .where(and(eq(pendingInvites.workspaceId, workspaceId), gt(pendingInvites.expiresAt, new Date())));
+
+  return rows.map((r) => ({
+    id: r.id,
+    email: r.email,
+    expiresAt: r.expiresAt,
+    inviterName: r.inviterName ?? r.inviterEmail,
+  }));
+}
+
+export async function cancelPendingInvite(input: {
+  inviteId: string;
+  workspaceId: string;
+}): Promise<"ok" | "not_found"> {
+  const [deleted] = await db
+    .delete(pendingInvites)
+    .where(and(eq(pendingInvites.id, input.inviteId), eq(pendingInvites.workspaceId, input.workspaceId)))
+    .returning();
+  return deleted ? "ok" : "not_found";
+}
+
+export type InviteInfo = {
+  workspaceName: string;
+  workspaceSlug: string;
+  inviterName: string;
+  email: string;
+  expiresAt: Date;
+};
+
+export async function getInviteByToken(
+  token: string
+): Promise<InviteInfo | "not_found" | "expired"> {
+  const [row] = await db
+    .select({
+      email: pendingInvites.email,
+      expiresAt: pendingInvites.expiresAt,
+      workspaceName: workspaces.name,
+      workspaceSlug: workspaces.slug,
+      inviterName: users.name,
+      inviterEmail: users.email,
+    })
+    .from(pendingInvites)
+    .innerJoin(workspaces, eq(pendingInvites.workspaceId, workspaces.id))
+    .innerJoin(users, eq(pendingInvites.invitedBy, users.id))
+    .where(eq(pendingInvites.token, token))
+    .limit(1);
+
+  if (!row) return "not_found";
+  if (row.expiresAt < new Date()) return "expired";
+
+  return {
+    workspaceName: row.workspaceName,
+    workspaceSlug: row.workspaceSlug,
+    inviterName: row.inviterName ?? row.inviterEmail,
+    email: row.email,
+    expiresAt: row.expiresAt,
+  };
+}
+
+export async function acceptInviteByToken(input: {
+  token: string;
+  userId: string;
+  userEmail: string;
+}): Promise<
+  | { ok: true; workspaceSlug: string; workspaceName: string }
+  | "not_found"
+  | "expired"
+  | "email_mismatch"
+  | "already_member"
+> {
+  const [row] = await db
+    .select({
+      id: pendingInvites.id,
+      workspaceId: pendingInvites.workspaceId,
+      email: pendingInvites.email,
+      expiresAt: pendingInvites.expiresAt,
+      workspaceName: workspaces.name,
+      workspaceSlug: workspaces.slug,
+    })
+    .from(pendingInvites)
+    .innerJoin(workspaces, eq(pendingInvites.workspaceId, workspaces.id))
+    .where(
+      and(eq(pendingInvites.token, input.token), gt(pendingInvites.expiresAt, new Date()))
+    )
+    .limit(1);
+
+  if (!row) return "not_found";
+  if (row.expiresAt < new Date()) return "expired";
+
+  if (row.email.toLowerCase() !== input.userEmail.toLowerCase()) return "email_mismatch";
+
+  const result = await addExistingUserAsMember({
+    workspaceId: row.workspaceId,
+    userId: input.userId,
+  });
+
+  if (result === "already_member") return "already_member";
+
+  await db.delete(pendingInvites).where(eq(pendingInvites.id, row.id));
+
+  return { ok: true, workspaceSlug: row.workspaceSlug, workspaceName: row.workspaceName };
 }
 
 export async function listWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberPublic[]> {
