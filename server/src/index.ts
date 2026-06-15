@@ -2,6 +2,7 @@ import "./config/env";
 import "./instrument";
 import { redis } from "./lib/redis";
 import express from "express";
+import path from "path";
 import * as Sentry from "@sentry/node";
 import helmet from "helmet";
 import cors from "cors";
@@ -50,6 +51,14 @@ app.use("/api/workspaces", workspacesRouter);
 if (process.env.NODE_ENV !== "production") {
   app.get("/debug/sentry-test", (_req, _res, next) => {
     next(new Error("Sentry test error (intentional)"));
+  });
+}
+
+if (process.env.NODE_ENV === "production") {
+  const clientDist = path.join(__dirname, "../../client/dist");
+  app.use(express.static(clientDist));
+  app.get(/.*/, (_req, res) => {
+    res.sendFile(path.join(clientDist, "index.html"));
   });
 }
 
