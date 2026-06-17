@@ -106,7 +106,7 @@ export function AcceptInvite() {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-background px-4 py-12">
       <Logo size="lg" />
-      <div className="w-full max-w-md space-y-4 rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+      <div className="w-full max-w-md space-y-4 rounded-xl border border-border bg-card p-8 text-center">
         {state.status === "loading" && (
           <p className="text-sm text-muted-foreground">Loading invite…</p>
         )}
@@ -114,7 +114,7 @@ export function AcceptInvite() {
         {state.status === "loaded" && (
           <>
             <div className="space-y-2">
-              <h1 className="font-serif text-2xl font-medium tracking-tight">You're invited!</h1>
+              <h1 className="font-display font-semibold text-2xl tracking-tight">You're invited!</h1>
               <p className="text-sm text-muted-foreground">
                 <span className="font-medium text-foreground">{state.info.inviterName}</span> invited
                 you to join{" "}
@@ -160,7 +160,7 @@ export function AcceptInvite() {
 
         {state.status === "done" && (
           <>
-            <h1 className="font-serif text-2xl font-medium tracking-tight">You're in!</h1>
+            <h1 className="font-display font-semibold text-2xl tracking-tight">You're in!</h1>
             <p className="text-sm text-muted-foreground">
               Welcome to {state.workspaceName}. Redirecting…
             </p>
@@ -169,7 +169,7 @@ export function AcceptInvite() {
 
         {state.status === "already_member" && (
           <>
-            <h1 className="font-serif text-xl font-medium tracking-tight">Already a member</h1>
+            <h1 className="font-display font-semibold text-xl tracking-tight">Already a member</h1>
             <p className="text-sm text-muted-foreground">You're already in this workspace.</p>
             {state.workspaceSlug && (
               <Button variant="brand" onClick={() => navigate(`/${state.workspaceSlug}`)} className="w-full">
@@ -181,7 +181,7 @@ export function AcceptInvite() {
 
         {state.status === "not_found" && (
           <>
-            <h1 className="font-serif text-xl font-medium tracking-tight">Invite not found</h1>
+            <h1 className="font-display font-semibold text-xl tracking-tight">Invite not found</h1>
             <p className="text-sm text-muted-foreground">
               This invite link is invalid or has already been used.
             </p>
@@ -193,7 +193,7 @@ export function AcceptInvite() {
 
         {state.status === "expired" && (
           <>
-            <h1 className="font-serif text-xl font-medium tracking-tight">Invite expired</h1>
+            <h1 className="font-display font-semibold text-xl tracking-tight">Invite expired</h1>
             <p className="text-sm text-muted-foreground">
               This invite link has expired. Ask the workspace admin to send a new one.
             </p>
@@ -205,7 +205,7 @@ export function AcceptInvite() {
 
         {state.status === "error" && (
           <>
-            <h1 className="font-serif text-xl font-medium tracking-tight">Something went wrong</h1>
+            <h1 className="font-display font-semibold text-xl tracking-tight">Something went wrong</h1>
             <p className="text-sm text-muted-foreground">{state.message}</p>
             <Button variant="outline" onClick={() => navigate("/")} className="w-full">
               Go home

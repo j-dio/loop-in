@@ -1,6 +1,6 @@
 docs/
 graphify-out/
-
+.impeccable.md
 
 .env
 node_modules/

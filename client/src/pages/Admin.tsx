@@ -96,13 +96,18 @@ type DigestData = {
 };
 
 function ComplexityBadge({ c }: { c: "S" | "M" | "L" }) {
+  // Stark: monochrome scale, amber only for the middle "watch this" tier.
   const styles: Record<"S" | "M" | "L", string> = {
-    S: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-    M: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-    L: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400",
+    S: "border-border text-muted-foreground",
+    M: "border-brand/30 bg-brand-bright/15 text-brand",
+    L: "border-destructive/30 bg-destructive/10 text-destructive",
   };
   return (
-    <span className={`rounded px-1.5 py-0.5 text-xs font-semibold ${styles[c]}`}>{c}</span>
+    <span
+      className={`rounded-full border px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-wide ${styles[c]}`}
+    >
+      {c}
+    </span>
   );
 }
 
@@ -535,12 +540,17 @@ export function Admin() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="font-serif text-3xl font-medium tracking-tight">Command center</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="font-mono text-xs tracking-[0.22em] text-brand uppercase">
+            Workspace admin
+          </p>
+          <h1 className="font-display mt-2 text-4xl font-semibold tracking-tight sm:text-5xl">
+            Command center
+          </h1>
+          <p className="mt-2 font-mono text-xs tracking-wide text-muted-foreground">
             {workspaceLabel ? <span className="text-foreground">{workspaceLabel}</span> : null}
-            <span className="font-mono"> /{slug}</span>
+            <span> · /{slug}</span>
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -586,7 +596,7 @@ export function Admin() {
 
       {tab === "settings" ? (
         <div className="max-w-md space-y-6">
-        <div className="space-y-6 rounded-lg border border-border bg-card p-6 shadow-xs">
+        <div className="space-y-6 rounded-lg border border-border bg-card p-6">
           <div>
             <h2 className="text-base font-semibold">Workspace settings</h2>
             <p className="mt-1 text-muted-foreground text-sm">
@@ -633,7 +643,7 @@ export function Admin() {
                 <Label htmlFor="ws-visibility">Visibility</Label>
                 <select
                   id="ws-visibility"
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                   value={settingsDraft.visibility}
                   onChange={(e) =>
                     setSettingsDraft((d) =>
@@ -714,7 +724,7 @@ export function Admin() {
                 <p
                   className={
                     settingsFeedback.kind === "ok"
-                      ? "text-sm text-emerald-600 dark:text-emerald-400"
+                      ? "text-brand text-sm"
                       : "text-destructive text-sm"
                   }
                   role={settingsFeedback.kind === "err" ? "alert" : "status"}
@@ -733,7 +743,7 @@ export function Admin() {
         </div>
 
         {canInviteMembers && members.length > 0 ? (
-          <div className="space-y-3 rounded-lg border border-border bg-card p-6 shadow-xs">
+          <div className="space-y-3 rounded-lg border border-border bg-card p-6">
             <h2 className="text-base font-semibold">Members</h2>
             <ul className="divide-y divide-border">
               {members.map((m) => (
@@ -761,7 +771,7 @@ export function Admin() {
         ) : null}
 
         {canInviteMembers && pendingInvites.length > 0 ? (
-          <div className="space-y-3 rounded-lg border border-border bg-card p-6 shadow-xs">
+          <div className="space-y-3 rounded-lg border border-border bg-card p-6">
             <h2 className="text-base font-semibold">Pending Invites</h2>
             <ul className="divide-y divide-border">
               {pendingInvites.map((inv) => (
@@ -788,7 +798,7 @@ export function Admin() {
         ) : null}
 
         {canInviteMembers ? (
-          <div className="space-y-4 rounded-lg border border-border bg-card p-6 shadow-xs">
+          <div className="space-y-4 rounded-lg border border-border bg-card p-6">
             <div>
               <h2 className="text-base font-semibold">Invite member</h2>
               <p className="mt-1 text-muted-foreground text-sm">
@@ -813,7 +823,7 @@ export function Admin() {
                 <p
                   className={
                     inviteFeedback.kind === "ok"
-                      ? "text-sm text-emerald-600 dark:text-emerald-400"
+                      ? "text-brand text-sm"
                       : "text-destructive text-sm"
                   }
                   role={inviteFeedback.kind === "err" ? "alert" : "status"}
@@ -838,7 +848,7 @@ export function Admin() {
             {triagePosts.map((post) => (
               <li
                 key={post.id}
-                className="rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-5"
+                className="rounded-2xl border border-border bg-card p-4 sm:p-5"
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0 flex-1 space-y-1.5">
@@ -921,10 +931,10 @@ export function Admin() {
           ) : null}
 
           {digestData ? (
-            <div className="rounded-lg border border-border bg-card shadow-xs overflow-hidden">
+            <div className="rounded-lg border border-border bg-card overflow-hidden">
               <div className="flex items-start justify-between gap-4 p-4">
                 <div className="min-w-0 space-y-1">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="font-mono text-xs tracking-[0.18em] text-brand uppercase">
                     AI Digest · Pattern Summary
                   </p>
                   <p className="text-sm leading-relaxed">{digestData.pattern_summary}</p>
@@ -974,7 +984,7 @@ export function Admin() {
           <div className="flex gap-3 overflow-x-auto pb-2">
             {BOARD_COLUMNS.map((col) => (
               <div key={col.id} className="w-44 shrink-0">
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <h3 className="mb-2 font-mono text-xs tracking-[0.16em] text-muted-foreground uppercase">
                   {col.label}
                 </h3>
                 <Droppable droppableId={col.id}>
@@ -993,7 +1003,7 @@ export function Admin() {
                               ref={dragProvided.innerRef}
                               {...dragProvided.draggableProps}
                               {...dragProvided.dragHandleProps}
-                              className={`mb-2 rounded-lg border border-border bg-card p-2.5 text-sm shadow-xs transition-shadow hover:shadow-md ${
+                              className={`mb-2 rounded-lg border border-border bg-card p-2.5 text-sm transition-colors hover:border-brand/40 ${
                                 dragSnapshot.isDragging ? "ring-2 ring-brand/40" : ""
                               } ${statusUpdatingId === post.id ? "opacity-60" : ""}`}
                             >

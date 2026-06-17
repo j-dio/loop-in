@@ -8,8 +8,6 @@ export const buttonVariants = cva(
         default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
         brand:
           "bg-brand-bright text-brand-foreground shadow-xs hover:bg-brand-bright/90 [a]:hover:bg-brand-bright/90",
-        terra:
-          "bg-terra text-terra-foreground shadow-xs hover:bg-terra/90 [a]:hover:bg-terra/90",
         outline:
           "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:

@@ -214,7 +214,9 @@ export function SubmitFeedbackDialog({ workspaceSlug, open, onOpenChange, onCrea
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md" showClose>
         <form onSubmit={handleSubmit} className="space-y-4">
           <DialogHeader>
-            <DialogTitle>Submit feedback</DialogTitle>
+            <DialogTitle className="font-display text-xl font-semibold tracking-tight">
+              Submit feedback
+            </DialogTitle>
             <DialogDescription>
               Your post starts as pending until a moderator approves it for the public board.
             </DialogDescription>

@@ -11,9 +11,9 @@ export function categoryLabel(c: PostDTO["category"]): string {
 }
 
 export function categoryTone(c: PostDTO["category"]): Tone {
+  // Stark: categories are monochrome mono tags — bugs keep a functional red.
   if (c === "bug") return "danger";
-  if (c === "feature_request") return "info";
-  return "terra";
+  return "outline";
 }
 
 export function moderationLabel(s: PostDTO["moderationStatus"]): string {
@@ -21,7 +21,6 @@ export function moderationLabel(s: PostDTO["moderationStatus"]): string {
 }
 
 export function moderationTone(s: PostDTO["moderationStatus"]): Tone {
-  if (s === "approved") return "success";
   if (s === "pending") return "brand";
   if (s === "spam") return "danger";
   return "neutral";
@@ -40,9 +39,8 @@ export function boardLabel(s: PostDTO["boardStatus"]): string {
 }
 
 export function boardTone(s: PostDTO["boardStatus"]): Tone {
-  if (s === "shipped") return "success";
-  if (s === "in_progress") return "terra";
-  if (s === "planned") return "brand";
-  if (s === "under_review") return "info";
-  return "neutral";
+  // Shipped is the win — it gets the amber signal. Everything else is monochrome.
+  if (s === "shipped") return "brand";
+  if (s === "inbox") return "neutral";
+  return "outline";
 }

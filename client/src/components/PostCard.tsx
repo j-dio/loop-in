@@ -97,7 +97,7 @@ export function PostCard({
   return (
     <article
       className={cn(
-        "group flex gap-3 rounded-2xl border border-border bg-card p-4 transition-all hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-md sm:gap-4 sm:p-5",
+        "group flex gap-3 rounded-xl border border-border bg-card p-4 transition-all hover:-translate-y-0.5 hover:border-brand/40 sm:gap-4 sm:p-5",
         pendingHighlight && "border-brand/40 ring-1 ring-brand/15"
       )}
     >

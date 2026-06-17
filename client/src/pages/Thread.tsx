@@ -286,7 +286,7 @@ export function Thread() {
         <p className="text-muted-foreground text-sm">Loading thread…</p>
       ) : post ? (
         <>
-          <article className="rounded-2xl border border-border bg-card p-5 shadow-xs sm:p-6">
+          <article className="rounded-xl border border-border bg-card p-5 sm:p-6">
             <div className="flex gap-4">
               <button
                 type="button"
@@ -311,7 +311,7 @@ export function Thread() {
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <h1 className="text-2xl font-medium tracking-tight">{post.title}</h1>
+                  <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{post.title}</h1>
                   <div className="flex flex-wrap gap-1.5">
                     <Badge tone={categoryTone(post.category)}>{categoryLabel(post.category)}</Badge>
                     {post.moderationStatus !== "approved" ? (
@@ -365,7 +365,7 @@ export function Thread() {
                 <ul className="space-y-3">
                   {updates.map((u) => (
                     <li key={u.id}>
-                      <article className="rounded-2xl border border-brand/30 bg-brand-bright/8 p-4 shadow-xs">
+                      <article className="rounded-xl border border-brand/30 bg-brand-bright/8 p-4">
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge tone="brand">
                             <Megaphone className="size-3" />
@@ -427,7 +427,7 @@ export function Thread() {
                   return (
                     <li key={c.id} className="group">
                       <article
-                        className={`relative rounded-2xl border border-border bg-card p-4 shadow-xs ${
+                        className={`relative rounded-xl border border-border bg-card p-4 ${
                           showFounderBadge ? "border-l-4 border-l-brand pl-3" : ""
                         }`}
                       >

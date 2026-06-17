@@ -3,62 +3,63 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/geist-mono";
-@import "@fontsource-variable/fraunces";
 @import "@fontsource-variable/space-grotesk";
 
 @custom-variant dark (&:is(.dark *));
 
 /*
-  Loop In — "Signal" identity
-  Warm paper + ink, amber energy, terracotta accent. Palette sourced from the
-  user's reference: Palladian / Oatmeal / Blue Fantastic / Burning Flame /
-  Truffle Trouble / Abyssal. Light = paper, dark = abyssal navy.
+  Loop In — "Signal Stark" identity (global as of 2026-06-17)
+  Stark monochrome canvas — near-white #F4F4F1 / near-black #0B0B0C, neutral
+  grays — with amber as the SINGLE accent. The gold→slate-blue gradient is
+  reserved for the logo mark (--logo-grad-*). Bold grotesque display, mono
+  labels, hairline rules. Light + dark are class-based (`.dark` on <html>).
 */
 
 :root {
-  /* shadcn surface tokens — LIGHT (paper) */
-  --background: #eee9df; /* Palladian */
-  --foreground: #1b2632; /* Abyssal ink */
-  --card: #f6f3ec;
-  --card-foreground: #1b2632;
-  --popover: #f6f3ec;
-  --popover-foreground: #1b2632;
-  --primary: #1b2632; /* ink button */
-  --primary-foreground: #f4f1e9;
-  --secondary: #e4ddcd;
-  --secondary-foreground: #2c3b4d; /* Blue Fantastic */
-  --muted: #e6dfd0;
-  --muted-foreground: #6c6354;
-  --accent: #e4ddcd; /* subtle surface for ghost/hover */
-  --accent-foreground: #1b2632;
+  /* shadcn surface tokens — LIGHT (stark near-white) */
+  --background: #f4f4f1;
+  --foreground: #111113;
+  --card: #fbfbf9;
+  --card-foreground: #111113;
+  --popover: #fbfbf9;
+  --popover-foreground: #111113;
+  --primary: #111113; /* ink button */
+  --primary-foreground: #f6f6f3;
+  --secondary: #eceae5;
+  --secondary-foreground: #111113;
+  --muted: #ebeae5;
+  --muted-foreground: #6c6c66;
+  --accent: #eceae5;
+  --accent-foreground: #111113;
   --destructive: #b23b2e;
-  --border: #dcd4c4;
-  --input: #dcd4c4;
+  --border: #e2e1da;
+  --input: #e2e1da;
   --ring: #d98324; /* amber focus ring */
 
-  /* brand tokens */
-  --brand: #d98324; /* amber, contrast-safe on paper */
-  --brand-bright: #ffb162; /* Burning Flame — fills, glow, upvote */
-  --brand-foreground: #1b2632;
-  --terra: #a35139; /* Truffle Trouble */
-  --terra-foreground: #f4f1e9;
-  --slate: #2c3b4d; /* Blue Fantastic */
+  /* brand tokens — amber is the only accent */
+  --brand: #cf7a1f; /* amber, contrast-safe on near-white */
+  --brand-bright: #ff9d3d; /* fills, glow, upvote */
+  --brand-foreground: #111113;
+  /* Logo mark gradient — gold dominant, slate-blue accent at the tail (mark only) */
+  --logo-grad-from: #e89a35;
+  --logo-grad-mid: #d98324;
+  --logo-grad-to: #2c3b4d;
 
-  --chart-1: #d98324;
-  --chart-2: #a35139;
-  --chart-3: #2c3b4d;
-  --chart-4: #8a9a5b;
-  --chart-5: #c9c1b1;
+  --chart-1: #cf7a1f;
+  --chart-2: #111113;
+  --chart-3: #6c6c66;
+  --chart-4: #9a9a92;
+  --chart-5: #cfcec7;
 
-  --radius: 0.7rem;
+  --radius: 0.5rem;
 
-  --sidebar: #f0ebe1;
-  --sidebar-foreground: #1b2632;
-  --sidebar-primary: #1b2632;
-  --sidebar-primary-foreground: #f4f1e9;
-  --sidebar-accent: #e4ddcd;
-  --sidebar-accent-foreground: #1b2632;
-  --sidebar-border: #dcd4c4;
+  --sidebar: #efeee9;
+  --sidebar-foreground: #111113;
+  --sidebar-primary: #111113;
+  --sidebar-primary-foreground: #f6f6f3;
+  --sidebar-accent: #eceae5;
+  --sidebar-accent-foreground: #111113;
+  --sidebar-border: #e2e1da;
   --sidebar-ring: #d98324;
 
   color-scheme: light;
@@ -69,82 +70,7 @@
 }
 
 .dark {
-  /* shadcn surface tokens — DARK (abyssal navy) */
-  --background: #141c25;
-  --foreground: #eee9df; /* Palladian */
-  --card: #1b2632; /* Abyssal */
-  --card-foreground: #eee9df;
-  --popover: #1b2632;
-  --popover-foreground: #eee9df;
-  --primary: #eee9df;
-  --primary-foreground: #1b2632;
-  --secondary: #243140;
-  --secondary-foreground: #eee9df;
-  --muted: #243140;
-  --muted-foreground: #9ba6b3;
-  --accent: #243140;
-  --accent-foreground: #eee9df;
-  --destructive: #e5705f;
-  --border: oklch(0.95 0.01 90 / 10%);
-  --input: oklch(0.95 0.01 90 / 14%);
-  --ring: #ffb162;
-
-  --brand: #ffb162;
-  --brand-bright: #ffb162;
-  --brand-foreground: #1b2632;
-  --terra: #c8694c;
-  --terra-foreground: #1b2632;
-  --slate: #c9c1b1;
-
-  --chart-1: #ffb162;
-  --chart-2: #c8694c;
-  --chart-3: #8aa0bf;
-  --chart-4: #a7b56f;
-  --chart-5: #c9c1b1;
-
-  --sidebar: #161f29;
-  --sidebar-foreground: #eee9df;
-  --sidebar-primary: #ffb162;
-  --sidebar-primary-foreground: #1b2632;
-  --sidebar-accent: #243140;
-  --sidebar-accent-foreground: #eee9df;
-  --sidebar-border: oklch(0.95 0.01 90 / 10%);
-  --sidebar-ring: #ffb162;
-
-  color-scheme: dark;
-}
-
-/*
-  Landing-scoped "stark" theme. The marketing page adopts a qclay-inspired
-  monochrome canvas (near-white / near-black, neutral grays) with amber as the
-  ONLY accent — distinct from the warm-paper identity the app chrome keeps.
-  CSS custom properties cascade, so every `bg-background` / `text-foreground`
-  utility inside `.landing` resolves to these values automatically.
-*/
-.landing {
-  --background: #f4f4f1;
-  --foreground: #111113;
-  --card: #fbfbf9;
-  --card-foreground: #111113;
-  --popover: #fbfbf9;
-  --popover-foreground: #111113;
-  --primary: #111113;
-  --primary-foreground: #f6f6f3;
-  --secondary: #eceae5;
-  --secondary-foreground: #111113;
-  --muted: #ebeae5;
-  --muted-foreground: #6c6c66;
-  --accent: #eceae5;
-  --accent-foreground: #111113;
-  --border: #e2e1da;
-  --input: #e2e1da;
-  --ring: #d98324;
-  --brand: #cf7a1f; /* amber, contrast-safe on near-white */
-  --brand-bright: #ff9d3d;
-  --brand-foreground: #111113;
-}
-
-.dark .landing {
+  /* shadcn surface tokens — DARK (stark near-black) */
   --background: #0b0b0c;
   --foreground: #f3f3f0;
   --card: #141416;
@@ -159,28 +85,52 @@
   --muted-foreground: #8d8d87;
   --accent: #18181a;
   --accent-foreground: #f3f3f0;
+  --destructive: #e5705f;
   --border: oklch(0.97 0 0 / 11%);
   --input: oklch(0.97 0 0 / 14%);
   --ring: #ffb162;
+
   --brand: #ffb162;
   --brand-bright: #ffb162;
   --brand-foreground: #0b0b0c;
+  /* Logo mark gradient — gold dominant, lighter slate-blue accent (visible on dark) */
+  --logo-grad-from: #ffc488;
+  --logo-grad-mid: #ffb162;
+  --logo-grad-to: #7d95b8;
+
+  --chart-1: #ffb162;
+  --chart-2: #f3f3f0;
+  --chart-3: #8d8d87;
+  --chart-4: #5a5a55;
+  --chart-5: #2a2a2c;
+
+  --sidebar: #111113;
+  --sidebar-foreground: #f3f3f0;
+  --sidebar-primary: #ffb162;
+  --sidebar-primary-foreground: #0b0b0c;
+  --sidebar-accent: #18181a;
+  --sidebar-accent-foreground: #f3f3f0;
+  --sidebar-border: oklch(0.97 0 0 / 11%);
+  --sidebar-ring: #ffb162;
+
+  color-scheme: dark;
 }
+
+/*
+  `.landing` is retired as a theme scope — stark is now the global base theme.
+  The class remains as a harmless hook on the marketing wrapper so the
+  interactive cursor (CursorFollower + `.landing.cursor-active`) keeps working.
+*/
 
 @theme inline {
   --font-sans: "Geist Variable", system-ui, sans-serif;
-  --font-serif: "Fraunces Variable", Georgia, serif;
   --font-mono: "Geist Mono Variable", ui-monospace, monospace;
-  /* Display grotesque — the landing's oversized headline voice (qclay-inspired) */
+  /* Display grotesque — the global oversized headline voice (Signal Stark) */
   --font-display: "Space Grotesk Variable", "Geist Variable", system-ui, sans-serif;
-  --font-heading: var(--font-serif);
 
   --color-brand: var(--brand);
   --color-brand-bright: var(--brand-bright);
   --color-brand-foreground: var(--brand-foreground);
-  --color-terra: var(--terra);
-  --color-terra-foreground: var(--terra-foreground);
-  --color-slate-brand: var(--slate);
 
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -231,12 +181,11 @@
     @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: "ss01", "cv01";
   }
-  /* Editorial display headings */
+  /* Display headings — bold grotesque (Signal Stark) */
   h1,
   h2,
   h3 {
-    @apply font-serif tracking-tight;
-    font-optical-sizing: auto;
+    @apply font-display tracking-tight;
   }
   /* Respect reduced-motion globally */
   @media (prefers-reduced-motion: reduce) {
@@ -252,12 +201,6 @@
 }
 
 @layer utilities {
-  /* Warm amber sunrise gradient — the signature hero surface */
-  .bg-sunrise {
-    background:
-      radial-gradient(120% 80% at 50% 120%, #ffb162 0%, #d98324 22%, transparent 60%),
-      linear-gradient(180deg, #141c25 0%, #1b2632 60%, #243140 100%);
-  }
   .text-balance {
     text-wrap: balance;
   }

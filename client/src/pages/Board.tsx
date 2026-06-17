@@ -166,14 +166,19 @@ export function Board() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border pb-5">
           <div>
-            <h1 className="font-serif text-3xl font-medium tracking-tight">Feedback</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="font-mono text-xs tracking-[0.22em] text-brand uppercase">
+              Feedback board
+            </p>
+            <h1 className="font-display mt-2 text-4xl font-semibold tracking-tight sm:text-5xl">
+              Feedback
+            </h1>
+            <p className="mt-2 font-mono text-xs tracking-wide text-muted-foreground">
               {activeWorkspace && activeWorkspace.slug === slug
-                ? activeWorkspace.name
+                ? `${activeWorkspace.name} · `
                 : null}
-              <span className="font-mono"> /{slug}</span>
+              /{slug}
             </p>
           </div>
           {canPost ? (

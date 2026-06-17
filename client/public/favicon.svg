@@ -1,6 +1,13 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="loopgrad" x1="14" y1="20" x2="50" y2="46" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFC488"/>
+      <stop offset="55%" stop-color="#FFB162"/>
+      <stop offset="100%" stop-color="#7D95B8"/>
+    </linearGradient>
+  </defs>
   <rect width="64" height="64" rx="15" fill="#1B2632"/>
-  <g stroke="#FFB162" stroke-width="6" stroke-linecap="round" fill="none">
+  <g stroke="url(#loopgrad)" stroke-width="6" stroke-linecap="round" fill="none">
     <circle cx="25.5" cy="32" r="12"/>
     <circle cx="38.5" cy="32" r="12"/>
   </g>

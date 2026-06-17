@@ -39,7 +39,7 @@ export function AppShell() {
               <span className="text-border" aria-hidden>
                 /
               </span>
-              <span className="truncate text-sm font-medium text-muted-foreground">
+              <span className="truncate font-mono text-xs tracking-wide text-muted-foreground">
                 {activeWorkspace.name}
               </span>
             </>
