@@ -10,7 +10,7 @@ import {
   uniqueIndex,
   index,
 } from 'drizzle-orm/pg-core';
-import { desc } from 'drizzle-orm';
+import { desc, sql } from 'drizzle-orm';
 
 export const workspaceVisibility = pgEnum('workspace_visibility', [
   'public',
@@ -112,6 +112,8 @@ export const workspaces = pgTable('workspaces', {
 }, (table) => ({
   slugUnique: uniqueIndex('workspaces_slug_unique').on(table.slug),
   ownerIdIdx: index('workspaces_owner_id_idx').on(table.ownerId),
+  // Public-discovery (explore) lists workspaces by visibility.
+  visibilityIdx: index('workspaces_visibility_idx').on(table.visibility),
 }));
 
 export const workspaceMembers = pgTable('workspace_members', {
@@ -224,6 +226,18 @@ export const posts = pgTable('posts', {
     table.workspaceId,
     desc(table.createdAt),
   ),
+  // Hot path: per-workspace "newest" public feed (approved + not deleted), ordered by created_at desc.
+  feedNewestIdx: index('posts_feed_newest_idx')
+    .on(table.workspaceId, desc(table.createdAt), desc(table.id))
+    .where(sql`moderation_status = 'approved' AND deleted_at IS NULL`),
+  // Hot path: per-workspace "top" public feed, ordered by upvote_count desc.
+  feedTopIdx: index('posts_feed_top_idx')
+    .on(table.workspaceId, desc(table.upvoteCount), desc(table.createdAt), desc(table.id))
+    .where(sql`moderation_status = 'approved' AND deleted_at IS NULL`),
+  // Cross-workspace explore feed: newest approved posts across all (public) workspaces.
+  publicFeedIdx: index('posts_public_feed_idx')
+    .on(desc(table.createdAt), desc(table.id))
+    .where(sql`moderation_status = 'approved' AND deleted_at IS NULL`),
 }));
 
 export const upvotes = pgTable('upvotes', {
