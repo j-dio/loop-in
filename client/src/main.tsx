@@ -1,9 +1,6 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./index.css";
-import { ThemeProvider } from "./lib/theme";
-import { WorkspaceProvider } from "./context/WorkspaceContext";
+import { ViteReactSSG } from "vite-react-ssg";
+import { Providers } from "./components/Providers";
 import { AppShell } from "./layouts/AppShell";
 import { Landing } from "./pages/Landing";
 import { AuthCallback } from "./pages/AuthCallback";
@@ -12,24 +9,22 @@ import { Thread } from "./pages/Thread";
 import { Admin } from "./pages/Admin";
 import { AcceptInvite } from "./pages/AcceptInvite";
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <BrowserRouter>
-      <ThemeProvider>
-      <WorkspaceProvider>
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/auth/callback" element={<AuthCallback />} />
-          <Route path="/invite/accept" element={<AcceptInvite />} />
-
-          <Route element={<AppShell />}>
-            <Route path="/:slug" element={<Board />} />
-            <Route path="/:slug/post/:id" element={<Thread />} />
-            <Route path="/:slug/admin" element={<Admin />} />
-          </Route>
-        </Routes>
-      </WorkspaceProvider>
-      </ThemeProvider>
-    </BrowserRouter>
-  </React.StrictMode>
+export const createRoot = ViteReactSSG(
+  {
+    routes: [
+      { index: true, element: <Providers><Landing /></Providers> },
+      { path: "auth/callback", element: <Providers><AuthCallback /></Providers> },
+      { path: "invite/accept", element: <Providers><AcceptInvite /></Providers> },
+      {
+        element: <Providers><AppShell /></Providers>,
+        children: [
+          { path: ":slug", element: <Board /> },
+          { path: ":slug/post/:id", element: <Thread /> },
+          { path: ":slug/admin", element: <Admin /> },
+        ],
+      },
+    ],
+  },
+  // optional setup fn — unused
+  undefined,
 );

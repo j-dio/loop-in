@@ -48,6 +48,7 @@ type WorkspaceContextValue = {
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
 function readStoredWorkspace(): Workspace | null {
+  if (typeof window === "undefined") return null;
   const raw = sessionStorage.getItem(STORAGE_KEY);
   if (!raw) return null;
   try {
