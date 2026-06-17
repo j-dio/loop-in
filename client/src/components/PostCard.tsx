@@ -150,9 +150,14 @@ export function PostCard({
           <div className="mt-3 overflow-hidden rounded-xl border border-border bg-muted/30">
             <img
               src={post.imageUrl}
-              alt=""
+              alt={post.title}
               className="max-h-40 w-full object-cover"
               loading="lazy"
+              onError={(e) => {
+                // Hide the container if the image fails to load (deleted object, expired host, etc.)
+                const wrap = e.currentTarget.parentElement;
+                if (wrap) wrap.style.display = "none";
+              }}
             />
           </div>
         ) : null}

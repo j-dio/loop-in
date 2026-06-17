@@ -11,6 +11,7 @@ import { Board } from "./pages/Board";
 import { Thread } from "./pages/Thread";
 import { Admin } from "./pages/Admin";
 import { AcceptInvite } from "./pages/AcceptInvite";
+import { NotFound } from "./pages/NotFound";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -27,6 +28,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="/:slug/post/:id" element={<Thread />} />
             <Route path="/:slug/admin" element={<Admin />} />
           </Route>
+
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </WorkspaceProvider>
       </ThemeProvider>

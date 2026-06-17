@@ -15,11 +15,34 @@ import {
 } from "@/lib/postDisplay";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { ApiError, apiFetch } from "@/lib/api";
+import { setReturnTo } from "@/lib/returnTo";
 import type { CommentDTO } from "@/lib/commentTypes";
 import type { PostDTO } from "@/lib/postTypes";
 import type { PostUpdateDTO } from "@/lib/postUpdateTypes";
 
 const POLL_MS = 30_000;
+
+function ThreadSkeleton() {
+  return (
+    <div className="space-y-6" aria-hidden>
+      <div className="rounded-xl border border-border bg-card p-5 sm:p-6">
+        <div className="flex gap-4">
+          <div className="h-16 w-12 shrink-0 animate-pulse rounded-xl bg-muted" />
+          <div className="flex-1 space-y-3 py-1">
+            <div className="h-6 w-2/3 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-full animate-pulse rounded bg-muted" />
+            <div className="h-3 w-5/6 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
+          </div>
+        </div>
+      </div>
+      <div className="space-y-3">
+        <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+        <div className="h-20 w-full animate-pulse rounded-xl bg-muted" />
+      </div>
+    </div>
+  );
+}
 
 export function Thread() {
   const { slug, id: postId } = useParams();
@@ -147,7 +170,8 @@ export function Thread() {
   useEffect(() => {
     if (!slug || !postId || loading || error) return;
     const t = window.setInterval(() => {
-      void refreshAll();
+      // Don't poll a backgrounded tab — saves needless requests until the user returns.
+      if (document.visibilityState === "visible") void refreshAll();
     }, POLL_MS);
     return () => window.clearInterval(t);
   }, [slug, postId, loading, error, refreshAll]);
@@ -284,7 +308,7 @@ export function Thread() {
         ) : null}
 
         {loading ? (
-          <p className="text-muted-foreground text-sm">Loading thread…</p>
+          <ThreadSkeleton />
         ) : post ? (
         <>
           <article className="rounded-xl border border-border bg-card p-5 sm:p-6">
@@ -328,9 +352,13 @@ export function Thread() {
                   <div className="mt-4 overflow-hidden rounded-xl border border-border bg-muted/30">
                     <img
                       src={post.imageUrl}
-                      alt=""
+                      alt={post.title}
                       className="max-h-[min(70vh,520px)] w-full object-contain"
                       loading="lazy"
+                      onError={(e) => {
+                        const wrap = e.currentTarget.parentElement;
+                        if (wrap) wrap.style.display = "none";
+                      }}
                     />
                   </div>
                 ) : null}
@@ -491,7 +519,12 @@ export function Thread() {
             ) : (
               <p className="text-muted-foreground text-sm">
                 <Button variant="link" className="h-auto p-0" asChild>
-                  <Link to="/">Sign in</Link>
+                  <Link
+                    to="/"
+                    onClick={() => setReturnTo(window.location.pathname + window.location.search)}
+                  >
+                    Sign in
+                  </Link>
                 </Button>{" "}
                 and join the workspace to comment.
               </p>

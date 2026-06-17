@@ -593,7 +593,7 @@ export async function moderatePost(input: {
   postId: string;
   moderationStatus: Exclude<ModerationStatus, "pending">;
   ctx: RequesterContext;
-}): Promise<PostPublic | "not_found" | "invalid_transition"> {
+}): Promise<{ post: PostPublic; previousStatus: ModerationStatus } | "not_found" | "no_change"> {
   const [row] = await db
     .select()
     .from(posts)
@@ -601,7 +601,11 @@ export async function moderatePost(input: {
     .limit(1);
 
   if (!row || row.deletedAt) return "not_found";
-  if (row.moderationStatus !== "pending") return "invalid_transition";
+
+  const previousStatus = row.moderationStatus as ModerationStatus;
+  // Admins can re-moderate freely (e.g. restore an accidentally-rejected post), but a no-op is a
+  // no-op — don't churn the row or re-fire notifications.
+  if (previousStatus === input.moderationStatus) return "no_change";
 
   const [updated] = await db
     .update(posts)
@@ -625,7 +629,7 @@ export async function moderatePost(input: {
 
   if (!joined) return "not_found";
 
-  return mapRowToPublic(joined, input.ctx);
+  return { post: mapRowToPublic(joined, input.ctx), previousStatus };
 }
 
 export async function updatePostBoardStatus(input: {

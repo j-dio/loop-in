@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { LoopMark } from "@/components/brand/Logo";
+import { consumeReturnTo } from "@/lib/returnTo";
 
 export function AuthCallback() {
   const navigate = useNavigate();
@@ -14,7 +15,8 @@ export function AuthCallback() {
       if (pendingToken) {
         navigate(`/invite/accept?token=${encodeURIComponent(pendingToken)}`, { replace: true });
       } else {
-        navigate("/", { replace: true });
+        // Return the visitor to wherever they were before sign-in (e.g. a public board).
+        navigate(consumeReturnTo(), { replace: true });
       }
     });
   }, [navigate, refreshSession]);

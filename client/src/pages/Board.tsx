@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { fadeUp, staggerContainer } from "@/lib/motion";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { ApiError, apiFetch } from "@/lib/api";
+import { setReturnTo } from "@/lib/returnTo";
 import type { PostDTO, PostSort } from "@/lib/postTypes";
 
 function FeedSkeleton() {
@@ -192,7 +193,12 @@ export function Board() {
             </Button>
           ) : (
             <Button type="button" variant="brand" asChild>
-              <Link to="/">Sign in to submit</Link>
+              <Link
+                to="/"
+                onClick={() => setReturnTo(window.location.pathname + window.location.search)}
+              >
+                Sign in to submit
+              </Link>
             </Button>
           )
         }
@@ -242,6 +248,7 @@ export function Board() {
                 <button
                   key={val}
                   type="button"
+                  aria-pressed={categoryFilter === val}
                   onClick={() => setCategoryFilter(val as typeof categoryFilter)}
                   className={cn(
                     "rounded-full border px-2.5 py-0.5 font-mono text-[10px] tracking-[0.12em] uppercase transition-colors",

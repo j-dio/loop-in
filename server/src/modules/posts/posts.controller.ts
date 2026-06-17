@@ -138,19 +138,23 @@ export async function moderatePostHandler(req: Request, res: Response, next: Nex
       return res.status(400).json({ error: "Invalid request", details: bodyParsed.error.flatten() });
     }
 
-    const updated = await moderatePost({
+    const result = await moderatePost({
       workspaceId: req.workspace.id,
       postId: paramsParsed.data.postId,
       moderationStatus: bodyParsed.data.moderation_status,
       ctx: requesterCtx(req),
     });
 
-    if (updated === "not_found") return res.status(404).json({ error: "Post not found" });
-    if (updated === "invalid_transition") {
-      return res.status(400).json({ error: "Moderation can only be set from pending" });
+    if (result === "not_found") return res.status(404).json({ error: "Post not found" });
+    if (result === "no_change") {
+      return res.status(409).json({ error: "Post already has that moderation status" });
     }
 
-    if (bodyParsed.data.moderation_status === "approved") {
+    // Only email the author on the first approval (pending → approved), not on later re-moderation.
+    if (
+      bodyParsed.data.moderation_status === "approved" &&
+      result.previousStatus === "pending"
+    ) {
       notifyPostApproved({
         postId: paramsParsed.data.postId,
         workspaceSlug: req.workspace.slug,
@@ -158,7 +162,7 @@ export async function moderatePostHandler(req: Request, res: Response, next: Nex
       });
     }
 
-    return res.json({ post: updated });
+    return res.json({ post: result.post });
   } catch (err) {
     next(err);
   }

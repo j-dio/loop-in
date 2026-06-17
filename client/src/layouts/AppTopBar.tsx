@@ -6,6 +6,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { WorkspaceSwitcher } from "@/components/WorkspaceSwitcher";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { apiFetch } from "@/lib/api";
+import { setReturnTo } from "@/lib/returnTo";
 
 export function AppTopBar({ onToggleMobileNav }: { onToggleMobileNav: () => void }) {
   const { user, activeWorkspace, refreshSession } = useWorkspace();
@@ -58,7 +59,12 @@ export function AppTopBar({ onToggleMobileNav }: { onToggleMobileNav: () => void
             </>
           ) : (
             <Button type="button" variant="brand" size="sm" asChild>
-              <Link to="/">Sign in</Link>
+              <Link
+                to="/"
+                onClick={() => setReturnTo(window.location.pathname + window.location.search)}
+              >
+                Sign in
+              </Link>
             </Button>
           )}
         </div>
