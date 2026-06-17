@@ -1,5 +1,6 @@
 docs/
-graphify/out
+graphify-out/
+
 
 .env
 node_modules/
