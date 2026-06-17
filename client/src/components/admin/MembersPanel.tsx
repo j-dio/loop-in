@@ -2,6 +2,7 @@ import type { FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Section } from "@/components/admin/Section";
 
 type WorkspaceRole = "owner" | "admin" | "member";
 
@@ -19,15 +20,6 @@ type Invite = {
   inviterName: string;
   expiresAt: string;
 };
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="border-t border-border py-6 first:border-t-0 first:pt-0">
-      <h2 className="mb-4 font-mono text-xs tracking-[0.18em] text-brand uppercase">{title}</h2>
-      <div className="space-y-5">{children}</div>
-    </section>
-  );
-}
 
 export function MembersPanel({
   members,

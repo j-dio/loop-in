@@ -529,7 +529,7 @@ export function Admin() {
       ) : null}
 
       {tab === "settings" ? (
-        <div className="max-w-2xl space-y-2">
+        <div className="max-w-2xl space-y-8">
           <WorkspaceSettings
             draft={settingsDraft}
             slug={slug}

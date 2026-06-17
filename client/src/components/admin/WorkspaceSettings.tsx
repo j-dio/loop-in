@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Section } from "@/components/admin/Section";
 
 export type SettingsDraft = {
   name: string;
@@ -9,15 +10,6 @@ export type SettingsDraft = {
 };
 
 type Feedback = { kind: "ok" | "err"; text: string } | null;
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="border-t border-border py-6 first:border-t-0 first:pt-0">
-      <h2 className="mb-4 font-mono text-xs tracking-[0.18em] text-brand uppercase">{title}</h2>
-      <div className="space-y-5">{children}</div>
-    </section>
-  );
-}
 
 export function WorkspaceSettings({
   draft,
@@ -71,7 +63,7 @@ export function WorkspaceSettings({
           <Label htmlFor="ws-visibility">Visibility</Label>
           <select
             id="ws-visibility"
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
             value={draft.visibility}
             onChange={(e) => onChange({ visibility: e.target.value as SettingsDraft["visibility"] })}
             disabled={!canEdit}
