@@ -266,7 +266,7 @@ export function Thread() {
           : null;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
         <Button variant="ghost" size="sm" className="-ml-2" asChild>
           <Link to={`/${encodeURIComponent(slug)}`}>
@@ -276,15 +276,16 @@ export function Thread() {
         </Button>
       </div>
 
-      {error ? (
-        <p className="text-destructive text-sm" role="alert">
-          {error}
-        </p>
-      ) : null}
+      <div className="mx-auto w-full max-w-3xl space-y-8">
+        {error ? (
+          <p className="text-destructive text-sm" role="alert">
+            {error}
+          </p>
+        ) : null}
 
-      {loading ? (
-        <p className="text-muted-foreground text-sm">Loading thread…</p>
-      ) : post ? (
+        {loading ? (
+          <p className="text-muted-foreground text-sm">Loading thread…</p>
+        ) : post ? (
         <>
           <article className="rounded-xl border border-border bg-card p-5 sm:p-6">
             <div className="flex gap-4">
@@ -498,6 +499,7 @@ export function Thread() {
           </section>
         </>
       ) : null}
+      </div>
     </div>
   );
 }
