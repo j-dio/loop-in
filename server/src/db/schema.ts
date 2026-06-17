@@ -249,6 +249,31 @@ export const upvotes = pgTable('upvotes', {
   userIdIdx: index('upvotes_user_id_idx').on(table.userId),
 }));
 
+export const postUpdates = pgTable('post_updates', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  postId: uuid('post_id')
+    .notNull()
+    .references(() => posts.id, { onDelete: 'cascade' }),
+
+  workspaceId: uuid('workspace_id')
+    .notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+
+  authorId: uuid('author_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'restrict' }),
+
+  content: text('content').notNull(),
+
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+}, (table) => ({
+  postIdIdx: index('post_updates_post_id_idx').on(table.postId),
+  workspaceIdIdx: index('post_updates_workspace_id_idx').on(table.workspaceId),
+}));
+
 export const comments = pgTable('comments', {
   id: uuid('id').primaryKey().defaultRandom(),
 
