@@ -85,6 +85,135 @@ export async function sendPendingInviteEmail(input: {
   }
 }
 
+export async function sendPostApprovedEmail(input: {
+  to: string;
+  authorName: string;
+  postTitle: string;
+  postUrl: string;
+}): Promise<void> {
+  if (!isEmailConfigured()) {
+    logger.warn({ to: input.to }, "Email not configured — skipping post-approved email");
+    return;
+  }
+
+  const subject = `Your post has been approved — "${input.postTitle}"`;
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+      <h2 style="margin-bottom:8px">Your post was approved</h2>
+      <p style="color:#374151">Hi ${input.authorName},</p>
+      <p style="color:#374151">Your post <strong>"${input.postTitle}"</strong> has been approved and is now visible on the feedback board.</p>
+      <a href="${input.postUrl}"
+         style="display:inline-block;margin-top:16px;padding:12px 24px;background:#0F172A;color:#fff;text-decoration:none;border-radius:6px;font-weight:600">
+        View Post
+      </a>
+      <p style="margin-top:24px;color:#6B7280;font-size:13px">
+        You're receiving this because you submitted feedback. If you have questions, reply to this email.
+      </p>
+    </div>
+  `;
+
+  const text =
+    `Hi ${input.authorName},\n\n` +
+    `Your post "${input.postTitle}" has been approved and is now visible on the feedback board.\n\n` +
+    `View it here: ${input.postUrl}`;
+
+  try {
+    await sendEmail({ to: input.to, subject, html, text });
+    logger.info({ to: input.to }, "Post-approved email sent");
+  } catch (err) {
+    logger.error({ err, to: input.to }, "Failed to send post-approved email");
+  }
+}
+
+export async function sendPostShippedEmail(input: {
+  to: string;
+  authorName: string;
+  postTitle: string;
+  postUrl: string;
+}): Promise<void> {
+  if (!isEmailConfigured()) {
+    logger.warn({ to: input.to }, "Email not configured — skipping post-shipped email");
+    return;
+  }
+
+  const subject = `Your feedback has shipped — "${input.postTitle}"`;
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+      <h2 style="margin-bottom:8px">Your feedback shipped 🚀</h2>
+      <p style="color:#374151">Hi ${input.authorName},</p>
+      <p style="color:#374151">Great news! The request you submitted — <strong>"${input.postTitle}"</strong> — has been shipped.</p>
+      <a href="${input.postUrl}"
+         style="display:inline-block;margin-top:16px;padding:12px 24px;background:#0F172A;color:#fff;text-decoration:none;border-radius:6px;font-weight:600">
+        View Post
+      </a>
+      <p style="margin-top:24px;color:#6B7280;font-size:13px">
+        Thank you for your feedback — it helps us build a better product.
+      </p>
+    </div>
+  `;
+
+  const text =
+    `Hi ${input.authorName},\n\n` +
+    `Great news! The request you submitted — "${input.postTitle}" — has been shipped.\n\n` +
+    `View it here: ${input.postUrl}\n\n` +
+    `Thank you for your feedback.`;
+
+  try {
+    await sendEmail({ to: input.to, subject, html, text });
+    logger.info({ to: input.to }, "Post-shipped email sent");
+  } catch (err) {
+    logger.error({ err, to: input.to }, "Failed to send post-shipped email");
+  }
+}
+
+export async function sendPostUpdateEmail(input: {
+  to: string;
+  authorName: string;
+  postTitle: string;
+  updateContent: string;
+  postUrl: string;
+}): Promise<void> {
+  if (!isEmailConfigured()) {
+    logger.warn({ to: input.to }, "Email not configured — skipping post-update email");
+    return;
+  }
+
+  const subject = `New update on "${input.postTitle}"`;
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+      <h2 style="margin-bottom:8px">New update on your post</h2>
+      <p style="color:#374151">Hi ${input.authorName},</p>
+      <p style="color:#374151">The team posted an official update on <strong>"${input.postTitle}"</strong>:</p>
+      <blockquote style="margin:16px 0;padding:12px 16px;border-left:3px solid #0F172A;background:#F8FAFC;color:#374151;border-radius:0 4px 4px 0">
+        ${input.updateContent}
+      </blockquote>
+      <a href="${input.postUrl}"
+         style="display:inline-block;margin-top:16px;padding:12px 24px;background:#0F172A;color:#fff;text-decoration:none;border-radius:6px;font-weight:600">
+        View Post
+      </a>
+      <p style="margin-top:24px;color:#6B7280;font-size:13px">
+        You're receiving this because you submitted feedback on this post.
+      </p>
+    </div>
+  `;
+
+  const text =
+    `Hi ${input.authorName},\n\n` +
+    `The team posted an update on "${input.postTitle}":\n\n` +
+    `${input.updateContent}\n\n` +
+    `View it here: ${input.postUrl}`;
+
+  try {
+    await sendEmail({ to: input.to, subject, html, text });
+    logger.info({ to: input.to }, "Post-update email sent");
+  } catch (err) {
+    logger.error({ err, to: input.to }, "Failed to send post-update email");
+  }
+}
+
 export async function sendAddedToWorkspaceEmail(input: {
   to: string;
   workspaceName: string;
