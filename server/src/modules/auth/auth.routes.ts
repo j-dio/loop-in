@@ -85,7 +85,12 @@ authRouter.post("/refresh", async (req, res, next) => {
 
     const refreshHash = hashRefreshToken(refreshToken);
     const session = await findSessionByRefreshTokenHash(refreshHash);
-    if (!session) return res.status(401).json({ ok: false });
+    if (!session) {
+      // Token doesn't match any session (rotated, revoked, or forged) — clear the stale cookie so
+      // the client stops retrying with a dead token.
+      clearAuthCookies(res);
+      return res.status(401).json({ ok: false });
+    }
 
     if (new Date(session.expiresAt) <= new Date()) {
       await deleteSessionById(session.id);

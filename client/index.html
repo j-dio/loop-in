@@ -30,17 +30,8 @@
       content="A feedback board where nobody shouts into the void. Collect, upvote, and ship what your users actually want."
     />
     <meta name="twitter:image" content="/favicon.svg" />
-    <script>
-      // Set theme before paint to avoid a flash of the wrong mode.
-      (function () {
-        try {
-          var stored = localStorage.getItem("loopin-theme");
-          var system = window.matchMedia("(prefers-color-scheme: dark)").matches;
-          var dark = stored ? stored === "dark" : system;
-          if (dark) document.documentElement.classList.add("dark");
-        } catch (e) {}
-      })();
-    </script>
+    <!-- Set theme before paint (external so a strict CSP `script-src 'self'` allows it). -->
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>

@@ -3,7 +3,7 @@ import { slidingWindowRedisHitOrFailOpen } from "../lib/rateLimitSlidingRedis";
 
 export type { RateLimitResult } from "../lib/rateLimitSlidingRedis";
 
-export type RateLimitBucket = "auth" | "createPost" | "upvote" | "comment" | "default";
+export type RateLimitBucket = "auth" | "createPost" | "upvote" | "comment" | "upload" | "default";
 
 /** Per roadmap Step 7 / PRD — single source of truth for limits. */
 export const RATE_LIMITS: Record<
@@ -14,6 +14,8 @@ export const RATE_LIMITS: Record<
   createPost: { limit: 5, windowMs: 3_600_000 },
   upvote: { limit: 30, windowMs: 60_000 },
   comment: { limit: 20, windowMs: 60_000 },
+  // Presigned-upload minting: tighter than default so a user can't mint a flood of PUT URLs.
+  upload: { limit: 20, windowMs: 60_000 },
   default: { limit: 100, windowMs: 60_000 },
 };
 
@@ -80,6 +82,7 @@ export function classifyWorkspaceRequest(method: string, path: string): RateLimi
   if (method === "POST" && /^\/[^/]+\/posts\/?$/.test(path)) return "createPost";
   if (method === "POST" && /^\/[^/]+\/posts\/[^/]+\/upvote\/?$/.test(path)) return "upvote";
   if (method === "POST" && /^\/[^/]+\/posts\/[^/]+\/comments\/?$/.test(path)) return "comment";
+  if (method === "POST" && /^\/[^/]+\/uploads\/presign\/?$/.test(path)) return "upload";
   return "default";
 }
 
