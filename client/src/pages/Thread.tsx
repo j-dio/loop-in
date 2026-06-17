@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowBigUp, Trash2 } from "lucide-react";
+import { ArrowBigUp, Megaphone, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { ApiError, apiFetch } from "@/lib/api";
 import type { CommentDTO } from "@/lib/commentTypes";
 import type { PostDTO } from "@/lib/postTypes";
+import type { PostUpdateDTO } from "@/lib/postUpdateTypes";
 
 const POLL_MS = 30_000;
 
@@ -36,10 +37,14 @@ export function Thread() {
 
   const [post, setPost] = useState<PostDTO | null>(null);
   const [comments, setComments] = useState<CommentDTO[]>([]);
+  const [updates, setUpdates] = useState<PostUpdateDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [commentBody, setCommentBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [updateBody, setUpdateBody] = useState("");
+  const [submittingUpdate, setSubmittingUpdate] = useState(false);
+  const [updateSubmitError, setUpdateSubmitError] = useState<string | null>(null);
   const [upvoted, setUpvoted] = useState(false);
   const [upvoteCount, setUpvoteCount] = useState(0);
   const [upvoteBusy, setUpvoteBusy] = useState(false);
@@ -108,10 +113,18 @@ export function Thread() {
     setComments(data.comments);
   }, [slug, postId]);
 
+  const loadUpdates = useCallback(async () => {
+    if (!slug || !postId) return;
+    const data = await apiFetch<{ updates: PostUpdateDTO[] }>(
+      `/api/workspaces/${encodeURIComponent(slug)}/posts/${encodeURIComponent(postId)}/updates`
+    );
+    setUpdates(data.updates);
+  }, [slug, postId]);
+
   const refreshAll = useCallback(async () => {
     if (!slug || !postId) return;
-    await Promise.all([loadPost(), loadComments(), loadUpvoteState()]);
-  }, [slug, postId, loadPost, loadComments, loadUpvoteState]);
+    await Promise.all([loadPost(), loadComments(), loadUpvoteState(), loadUpdates()]);
+  }, [slug, postId, loadPost, loadComments, loadUpvoteState, loadUpdates]);
 
   useEffect(() => {
     if (!slug || !postId) return;
@@ -193,6 +206,32 @@ export function Thread() {
       /* keep comment; user can retry */
     } finally {
       setDeletingCommentId(null);
+    }
+  }
+
+  async function handleSubmitUpdate(e: FormEvent) {
+    e.preventDefault();
+    if (!slug || !postId || !viewerIsAdminOrOwner || submittingUpdate) return;
+    const trimmed = updateBody.trim();
+    if (!trimmed) return;
+
+    setSubmittingUpdate(true);
+    setUpdateSubmitError(null);
+    try {
+      await apiFetch<{ update: PostUpdateDTO }>(
+        `/api/workspaces/${encodeURIComponent(slug)}/posts/${encodeURIComponent(postId)}/updates`,
+        { method: "POST", body: JSON.stringify({ content: trimmed }) }
+      );
+      setUpdateBody("");
+      await loadUpdates();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        setUpdateSubmitError("Your session expired. Please sign in again.");
+      } else {
+        setUpdateSubmitError("Failed to post update. Please try again.");
+      }
+    } finally {
+      setSubmittingUpdate(false);
     }
   }
 
@@ -318,6 +357,61 @@ export function Thread() {
               <time dateTime={post.createdAt}>{new Date(post.createdAt).toLocaleString()}</time>
             </div>
           </article>
+
+          {(updates.length > 0 || viewerIsAdminOrOwner) && (
+            <section className="space-y-3" aria-labelledby="updates-heading">
+              <h2 id="updates-heading" className="flex items-center gap-2 text-lg font-semibold">
+                <Megaphone className="size-4 shrink-0 text-primary" aria-hidden />
+                Status Updates
+              </h2>
+              {updates.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No updates yet.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {updates.map((u) => (
+                    <li key={u.id}>
+                      <article className="rounded-lg border border-primary/30 bg-primary/5 p-4 shadow-xs">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                            Official Update
+                          </span>
+                          <span className="text-sm font-medium">{u.author.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            <time dateTime={u.createdAt}>{new Date(u.createdAt).toLocaleString()}</time>
+                          </span>
+                        </div>
+                        <p className="mt-2 whitespace-pre-wrap text-sm">{u.content}</p>
+                      </article>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {viewerIsAdminOrOwner && (
+                <form onSubmit={(e) => void handleSubmitUpdate(e)} className="space-y-3 pt-1">
+                  <label htmlFor="thread-update" className="text-sm font-medium">
+                    Post an official update
+                  </label>
+                  <Textarea
+                    id="thread-update"
+                    value={updateBody}
+                    onChange={(e) => { setUpdateBody(e.target.value); setUpdateSubmitError(null); }}
+                    placeholder="Share a status update with your users…"
+                    rows={3}
+                    maxLength={10000}
+                    disabled={submittingUpdate}
+                  />
+                  {updateSubmitError ? (
+                    <p className="text-destructive text-sm" role="alert">
+                      {updateSubmitError}
+                    </p>
+                  ) : null}
+                  <Button type="submit" disabled={submittingUpdate || !updateBody.trim()}>
+                    {submittingUpdate ? "Posting…" : "Post update"}
+                  </Button>
+                </form>
+              )}
+            </section>
+          )}
 
           <section className="space-y-3" aria-labelledby="comments-heading">
             <h2 id="comments-heading" className="text-lg font-semibold">

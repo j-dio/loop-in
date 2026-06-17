@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowBigUp } from "lucide-react";
+import { ArrowBigUp, Megaphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ApiError, apiFetch } from "@/lib/api";
 import type { PostDTO } from "@/lib/postTypes";
@@ -146,6 +146,12 @@ export function PostCard({
       ) : null}
       {snippet(post.description) ? (
         <p className="mt-2 text-sm text-muted-foreground">{snippet(post.description)}</p>
+      ) : null}
+      {post.latestUpdate ? (
+        <div className="mt-2 flex items-start gap-1.5 rounded-md border border-primary/20 bg-primary/5 px-2.5 py-1.5">
+          <Megaphone className="mt-0.5 size-3 shrink-0 text-primary" aria-hidden />
+          <p className="text-xs text-primary/80">{snippet(post.latestUpdate.content, 120)}</p>
+        </div>
       ) : null}
       <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <div className="flex items-center gap-1">

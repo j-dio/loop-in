@@ -11,6 +11,7 @@ export type PostDTO = {
   upvoteCount: number;
   createdAt: string;
   author: { id?: string; name: string; avatarUrl: string | null };
+  latestUpdate: { content: string; createdAt: string } | null;
 };
 
 export type PostSort = "trending" | "top" | "newest";
