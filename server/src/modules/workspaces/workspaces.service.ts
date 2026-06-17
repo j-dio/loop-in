@@ -74,14 +74,16 @@ export async function findWorkspaceBySlug(slug: string): Promise<Workspace | nul
   return row ? mapWorkspaceRow(row) : null;
 }
 
-export async function listWorkspacesForUser(userId: string): Promise<Workspace[]> {
+export async function listWorkspacesForUser(
+  userId: string
+): Promise<(Workspace & { role: WorkspaceRole })[]> {
   const rows = await db
-    .select({ workspace: workspaces })
+    .select({ workspace: workspaces, role: workspaceMembers.role })
     .from(workspaceMembers)
     .innerJoin(workspaces, eq(workspaceMembers.workspaceId, workspaces.id))
     .where(eq(workspaceMembers.userId, userId));
 
-  return rows.map((r) => mapWorkspaceRow(r.workspace));
+  return rows.map((r) => ({ ...mapWorkspaceRow(r.workspace), role: r.role as WorkspaceRole }));
 }
 
 export async function getUserRoleInWorkspace(input: {

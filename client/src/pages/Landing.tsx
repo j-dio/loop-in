@@ -1,12 +1,20 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, MotionConfig } from "framer-motion";
-import { ArrowRight, LogOut } from "lucide-react";
-import { useWorkspace } from "@/context/WorkspaceContext";
+import { ArrowRight, LogOut, Plus } from "lucide-react";
+import { useWorkspace, type Workspace } from "@/context/WorkspaceContext";
 import { ApiError, apiFetch, getApiBase } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Logo, LoopMark } from "@/components/brand/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Hero } from "@/components/landing/Hero";
@@ -38,6 +46,21 @@ function slugifyName(name: string): string {
     .slice(0, 100);
 }
 
+function roleOf(w: Workspace, userId: string): "Owner" | "Admin" | "Member" {
+  const r = w.role ?? (w.ownerId === userId ? "owner" : "member");
+  return (r.charAt(0).toUpperCase() + r.slice(1)) as "Owner" | "Admin" | "Member";
+}
+
+const visibilityLabel = (w: Workspace) =>
+  w.visibility === "public" ? "Public" : "Invite-only";
+
+function sinceLabel(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? ""
+    : `Since ${d.toLocaleDateString(undefined, { month: "short", year: "numeric" })}`;
+}
+
 export function Landing() {
   const navigate = useNavigate();
   const { user, loading, workspaces, setActiveWorkspace, createWorkspace, refreshSession } =
@@ -49,6 +72,7 @@ export function Landing() {
   const [slugTouched, setSlugTouched] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   async function handleSignOut() {
     try {

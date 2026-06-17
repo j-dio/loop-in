@@ -26,6 +26,8 @@ export type Workspace = {
   visibility: "public" | "invite_only";
   requireApproval: boolean;
   createdAt: string;
+  /** The current user's role in this workspace. Present on the list endpoint. */
+  role?: "owner" | "admin" | "member";
 };
 
 type WorkspaceContextValue = {
