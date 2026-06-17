@@ -8,11 +8,20 @@ The app is a progressive web app: a public **board** per workspace (`/:slug`) fo
 
 ## What it looks like
 
-- **Landing / workspace picker** after sign-in: choose a workspace or create one.
-- **Public board**: sortable feed of feedback cards (title, category, status), submit modal, thread view with comments.
-- **Admin**: Triage inbox (approve / reject / spam), Kanban (Inbox → Shipped), Settings (name, visibility, require approval, primary color), member invites.
+LoopIn ships with a custom design system — the **"Signal"** identity: a warm paper-and-ink
+palette with an amber signal accent, Fraunces (serif display) + Geist (UI), full light/dark
+mode, and motion that literally loops. See [`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md).
 
-*(No screenshot is bundled in-repo; run locally to see the UI.)*
+- **Landing**: a cinematic marketing page (GSAP hero with a draw-on loop mark + scroll
+  parallax, Framer Motion scroll reveals) for logged-out visitors; a branded workspace
+  picker once you're signed in.
+- **Public board**: serif header, branded search + segmented sort, skeleton loaders, a
+  staggered feed of feedback cards (upvote rail, category/status badges), submit modal,
+  and a threaded post view with comments and official updates.
+- **Admin command center**: triage inbox (approve / reject / spam), drag-and-drop Kanban
+  (Inbox → Shipped, amber drop targets), AI digest, settings, and member invites.
+
+*(No screenshot is bundled in-repo; run `cd client && npm run dev` to see the UI.)*
 
 ---
 
@@ -132,6 +141,8 @@ Aligned with the product spec:
 - Product requirements: [`docs/Polished-PRD.md`](docs/Polished-PRD.md)
 - Build roadmap and milestone checklist: [`docs/The-Long-And-Winding-Road.md`](docs/The-Long-And-Winding-Road.md)
 - Phase 1.5 polish notes: [`docs/PHASE-1.5-POLISH-AND-INTEGRATION.md`](docs/PHASE-1.5-POLISH-AND-INTEGRATION.md)
+- Design system ("Signal" identity): [`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md)
+- Polish notes & suggested improvements: [`docs/POLISH-NOTES.md`](docs/POLISH-NOTES.md)
 
 ---
 
