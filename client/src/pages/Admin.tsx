@@ -1,16 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
-import {
-  DragDropContext,
-  Draggable,
-  Droppable,
-  type DropResult,
-} from "@hello-pangea/dnd";
+import { type DropResult } from "@hello-pangea/dnd";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TriageInbox } from "@/components/admin/TriageInbox";
-import { categoryLabel } from "@/lib/postDisplay";
+import { KanbanBoard, type ColumnsState, type BoardColumnId } from "@/components/admin/KanbanBoard";
+import { AiDigestPanel, type DigestData } from "@/components/admin/AiDigestPanel";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { ApiError, apiFetch, updateWorkspace } from "@/lib/api";
 import type { PostDTO } from "@/lib/postTypes";
@@ -24,18 +20,6 @@ type MemberRow = {
   role: WorkspaceRole;
   joinedAt: string;
 };
-
-const BOARD_COLUMNS = [
-  { id: "inbox" as const, label: "Inbox" },
-  { id: "under_review" as const, label: "Under Review" },
-  { id: "planned" as const, label: "Planned" },
-  { id: "in_progress" as const, label: "In Progress" },
-  { id: "shipped" as const, label: "Shipped" },
-];
-
-type BoardColumnId = (typeof BOARD_COLUMNS)[number]["id"];
-
-type ColumnsState = Record<BoardColumnId, PostDTO[]>;
 
 function emptyColumns(): ColumnsState {
   return {
@@ -82,35 +66,6 @@ type SettingsDraft = {
   primaryColor: string;
 };
 
-type DigestItem = {
-  priority_rank: number;
-  title: string;
-  rationale: string;
-  implementation_notes: string;
-  complexity: "S" | "M" | "L";
-};
-
-type DigestData = {
-  items: DigestItem[];
-  pattern_summary: string;
-};
-
-function ComplexityBadge({ c }: { c: "S" | "M" | "L" }) {
-  // Stark: monochrome scale, amber only for the middle "watch this" tier.
-  const styles: Record<"S" | "M" | "L", string> = {
-    S: "border-border text-muted-foreground",
-    M: "border-brand/30 bg-brand-bright/15 text-brand",
-    L: "border-destructive/30 bg-destructive/10 text-destructive",
-  };
-  return (
-    <span
-      className={`rounded-full border px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-wide ${styles[c]}`}
-    >
-      {c}
-    </span>
-  );
-}
-
 export function Admin() {
   const { slug } = useParams();
   const {
@@ -139,7 +94,6 @@ export function Admin() {
   const [digestData, setDigestData] = useState<DigestData | null>(null);
   const [digestLoading, setDigestLoading] = useState(false);
   const [digestError, setDigestError] = useState<string | null>(null);
-  const [digestOpen, setDigestOpen] = useState(true);
 
   const [settingsDraft, setSettingsDraft] = useState<SettingsDraft | null>(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -253,7 +207,6 @@ export function Admin() {
         { method: "POST" }
       );
       setDigestData(data.digest);
-      setDigestOpen(true);
     } catch (e) {
       if (e instanceof ApiError) {
         const msg =
@@ -847,131 +800,22 @@ export function Admin() {
           onModerate={moderate}
         />
       ) : (
-        <>
-          {/* AI Digest section */}
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs text-muted-foreground">
-              Generates a prioritized backlog from approved posts using AI. Once per hour.
-            </p>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="shrink-0"
-              disabled={digestLoading || kanbanLoading}
-              onClick={() => void generateAiDigest()}
-            >
-              {digestLoading ? "Generating…" : "Generate AI Digest"}
-            </Button>
-          </div>
-
-          {digestError ? (
-            <p className="text-destructive text-sm" role="alert">
-              {digestError}
-            </p>
-          ) : null}
-
-          {digestData ? (
-            <div className="rounded-lg border border-border bg-card overflow-hidden">
-              <div className="flex items-start justify-between gap-4 p-4">
-                <div className="min-w-0 space-y-1">
-                  <p className="font-mono text-xs tracking-[0.18em] text-brand uppercase">
-                    AI Digest · Pattern Summary
-                  </p>
-                  <p className="text-sm leading-relaxed">{digestData.pattern_summary}</p>
-                </div>
-                {digestData.items.length > 0 ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="shrink-0 text-xs"
-                    onClick={() => setDigestOpen((v) => !v)}
-                  >
-                    {digestOpen ? "Collapse" : `Show ${digestData.items.length} items`}
-                  </Button>
-                ) : null}
-              </div>
-
-              {digestOpen && digestData.items.length > 0 ? (
-                <ol className="divide-y divide-border border-t border-border">
-                  {digestData.items.map((item, idx) => (
-                    <li key={idx} className="p-4 space-y-1.5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-xs text-muted-foreground">
-                          #{item.priority_rank}
-                        </span>
-                        <span className="text-sm font-medium">{item.title}</span>
-                        <ComplexityBadge c={item.complexity} />
-                      </div>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        {item.rationale}
-                      </p>
-                      <p className="text-xs text-foreground/70 leading-relaxed italic">
-                        {item.implementation_notes}
-                      </p>
-                    </li>
-                  ))}
-                </ol>
-              ) : null}
-            </div>
-          ) : null}
-
-          {/* Kanban board */}
-          {kanbanLoading ? (
-            <p className="text-muted-foreground text-sm">Loading Kanban…</p>
-          ) : (
-        <DragDropContext onDragEnd={(r) => void onKanbanDragEnd(r)}>
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {BOARD_COLUMNS.map((col) => (
-              <div key={col.id} className="w-44 shrink-0">
-                <h3 className="mb-2 font-mono text-xs tracking-[0.16em] text-muted-foreground uppercase">
-                  {col.label}
-                </h3>
-                <Droppable droppableId={col.id}>
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={`min-h-30 rounded-xl border border-dashed p-2 transition-colors ${
-                        snapshot.isDraggingOver ? "border-brand/50 bg-brand-bright/10" : "border-border"
-                      }`}
-                    >
-                      {kanbanColumns[col.id].map((post, index) => (
-                        <Draggable key={post.id} draggableId={post.id} index={index}>
-                          {(dragProvided, dragSnapshot) => (
-                            <div
-                              ref={dragProvided.innerRef}
-                              {...dragProvided.draggableProps}
-                              {...dragProvided.dragHandleProps}
-                              className={`mb-2 rounded-lg border border-border bg-card p-2.5 text-sm transition-colors hover:border-brand/40 ${
-                                dragSnapshot.isDragging ? "ring-2 ring-brand/40" : ""
-                              } ${statusUpdatingId === post.id ? "opacity-60" : ""}`}
-                            >
-                              <Link
-                                to={`/${encodeURIComponent(slug)}/post/${encodeURIComponent(post.id)}`}
-                                className="font-medium hover:text-brand hover:underline"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {post.title}
-                              </Link>
-                              <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                                {categoryLabel(post.category)} · {post.upvoteCount} upvotes
-                              </p>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              </div>
-            ))}
-          </div>
-          </DragDropContext>
-          )}
-        </>
+        <div className="space-y-4">
+          <AiDigestPanel
+            digest={digestData}
+            loading={digestLoading}
+            error={digestError}
+            disabled={kanbanLoading}
+            onGenerate={() => void generateAiDigest()}
+          />
+          <KanbanBoard
+            columns={kanbanColumns}
+            slug={slug}
+            loading={kanbanLoading}
+            statusUpdatingId={statusUpdatingId}
+            onDragEnd={(r) => void onKanbanDragEnd(r)}
+          />
+        </div>
       )}
     </div>
   );
