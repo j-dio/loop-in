@@ -7,6 +7,10 @@ import {
   listCommentsHandler,
 } from "./comments.controller";
 import {
+  createPostUpdateHandler,
+  listPostUpdatesHandler,
+} from "./postUpdates.controller";
+import {
   createPostHandler,
   deletePostHandler,
   getPostHandler,
@@ -32,6 +36,8 @@ postsScopedRouter.get("/admin/triage", ...adminOnly, listAdminTriageHandler);
 postsScopedRouter.get("/admin/kanban", ...adminOnly, listAdminKanbanHandler);
 postsScopedRouter.get("/:postId/upvote", getUpvoteHandler);
 postsScopedRouter.post("/:postId/upvote", authenticate, postToggleUpvoteHandler);
+postsScopedRouter.get("/:postId/updates", listPostUpdatesHandler);
+postsScopedRouter.post("/:postId/updates", ...adminOnly, createPostUpdateHandler);
 postsScopedRouter.get("/:postId/comments", listCommentsHandler);
 postsScopedRouter.post("/:postId/comments", authenticate, createCommentHandler);
 postsScopedRouter.delete("/:postId/comments/:commentId", authenticate, deleteCommentHandler);

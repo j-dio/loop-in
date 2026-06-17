@@ -5,6 +5,11 @@ import { redis } from "../../lib/redis";
 import { trendingRedisKey } from "../../lib/trendingKeys";
 import { logger } from "../../lib/logger";
 import type { WorkspaceRole } from "../workspaces/workspaces.service";
+import { fetchLatestUpdatesForPosts, type PostUpdateLatest } from "./postUpdates.service";
+import { isAdminOrOwner, viewerCanSeePost, type RequesterContext } from "./posts.helpers";
+
+export type { RequesterContext } from "./posts.helpers";
+export { viewerCanSeePost } from "./posts.helpers";
 
 export type PostCategory = "bug" | "feature_request" | "ui_tweak";
 export type ModerationStatus = "pending" | "approved" | "spam" | "rejected";
@@ -29,28 +34,8 @@ export type PostPublic = {
   upvoteCount: number;
   createdAt: Date;
   author: PostAuthorPublic;
+  latestUpdate: PostUpdateLatest | null;
 };
-
-export type RequesterContext = {
-  userId: string | undefined;
-  workspaceRole: WorkspaceRole | undefined;
-};
-
-function isAdminOrOwner(role: WorkspaceRole | undefined): boolean {
-  return role === "admin" || role === "owner";
-}
-
-/** Post visible for detail / comments / upvote: approved for all viewers; else author or staff. Not soft-deleted. */
-export function viewerCanSeePost(
-  p: { moderationStatus: string; authorId: string; deletedAt: Date | null },
-  ctx: RequesterContext
-): boolean {
-  if (p.deletedAt) return false;
-  const canViewApproved = p.moderationStatus === "approved";
-  const isAuthor = ctx.userId !== undefined && p.authorId === ctx.userId;
-  const staff = isAdminOrOwner(ctx.workspaceRole);
-  return canViewApproved || isAuthor || staff;
-}
 
 /** Same visibility as getPostById: upvote read/toggle only on posts the user could open. */
 function canAccessPostForUpvote(
@@ -95,7 +80,8 @@ function mapRowToPublic(
     authorName: string | null;
     authorAvatar: string | null;
   },
-  ctx: RequesterContext
+  ctx: RequesterContext,
+  latestUpdate: PostUpdateLatest | null = null
 ): PostPublic {
   const author = {
     id: row.authorId,
@@ -115,6 +101,7 @@ function mapRowToPublic(
     upvoteCount: row.post.upvoteCount,
     createdAt: row.post.createdAt,
     author: serializeAuthorForPost(author, { isAnonymous: row.post.isAnonymous }, ctx),
+    latestUpdate,
   };
 }
 
@@ -270,16 +257,17 @@ async function listPostsDbOrdered(input: {
     nextCursor = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
   }
 
-  const upvotedPostIds =
+  const pageIds = page.map((r) => r.post.id);
+
+  const [upvotedPostIds, latestUpdatesMap] = await Promise.all([
     input.ctx.userId && page.length > 0
-      ? await fetchUpvotedPostIdsForUser(
-          input.ctx.userId,
-          page.map((r) => r.post.id)
-        )
-      : [];
+      ? fetchUpvotedPostIdsForUser(input.ctx.userId, pageIds)
+      : Promise.resolve([]),
+    fetchLatestUpdatesForPosts(pageIds),
+  ]);
 
   return {
-    posts: page.map((r) => mapRowToPublic(r, input.ctx)),
+    posts: page.map((r) => mapRowToPublic(r, input.ctx, latestUpdatesMap.get(r.post.id) ?? null)),
     nextCursor,
     upvotedPostIds,
   };
@@ -380,16 +368,17 @@ async function listPostsTrending(input: {
       nextCursor = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
     }
 
-    const upvotedPostIds =
+    const trendingPageIds = page.map((r) => r.post.id);
+
+    const [upvotedPostIds, latestUpdatesMap] = await Promise.all([
       input.ctx.userId && page.length > 0
-        ? await fetchUpvotedPostIdsForUser(
-            input.ctx.userId,
-            page.map((r) => r.post.id)
-          )
-        : [];
+        ? fetchUpvotedPostIdsForUser(input.ctx.userId, trendingPageIds)
+        : Promise.resolve([]),
+      fetchLatestUpdatesForPosts(trendingPageIds),
+    ]);
 
     return {
-      posts: page.map((r) => mapRowToPublic(r, input.ctx)),
+      posts: page.map((r) => mapRowToPublic(r, input.ctx, latestUpdatesMap.get(r.post.id) ?? null)),
       nextCursor,
       upvotedPostIds,
     };
