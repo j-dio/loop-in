@@ -4,8 +4,10 @@ import { motion } from "framer-motion";
 import { MessageSquarePlus, Search, X } from "lucide-react";
 import { PostCard } from "@/components/PostCard";
 import { SubmitFeedbackDialog } from "@/components/SubmitFeedbackDialog";
+import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Segmented } from "@/components/ui/segmented";
 import { cn } from "@/lib/utils";
 import { fadeUp, staggerContainer } from "@/lib/motion";
 import { useWorkspace } from "@/context/WorkspaceContext";
@@ -50,6 +52,7 @@ export function Board() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pendingLocal, setPendingLocal] = useState<PostDTO[]>([]);
   const [upvotedIds, setUpvotedIds] = useState<Set<string>>(() => new Set());
+  const [categoryFilter, setCategoryFilter] = useState<PostDTO["category"] | "all">("all");
 
   function handleSearchChange(value: string) {
     setSearchInput(value);
@@ -159,29 +162,25 @@ export function Board() {
     return [...extras, ...posts];
   }, [posts, pendingLocal]);
 
+  const visibleFeed = categoryFilter === "all" ? mergedFeed : mergedFeed.filter((p) => p.category === categoryFilter);
+
   if (!slug) {
     return <p className="text-sm text-muted-foreground">Missing workspace slug.</p>;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border pb-5">
-          <div>
-            <p className="font-mono text-xs tracking-[0.22em] text-brand uppercase">
-              Feedback board
-            </p>
-            <h1 className="font-display mt-2 text-4xl font-semibold tracking-tight sm:text-5xl">
-              Feedback
-            </h1>
-            <p className="mt-2 font-mono text-xs tracking-wide text-muted-foreground">
-              {activeWorkspace && activeWorkspace.slug === slug
-                ? `${activeWorkspace.name} · `
-                : null}
-              /{slug}
-            </p>
-          </div>
-          {canPost ? (
+      <PageHeader
+        eyebrow="Feedback board"
+        title="Feedback"
+        meta={
+          <>
+            {activeWorkspace && activeWorkspace.slug === slug ? `${activeWorkspace.name} · ` : null}
+            /{slug}
+          </>
+        }
+        actions={
+          canPost ? (
             <Button type="button" variant="brand" onClick={() => setDialogOpen(true)}>
               <MessageSquarePlus className="size-4" />
               Submit feedback
@@ -195,56 +194,9 @@ export function Board() {
             <Button type="button" variant="brand" asChild>
               <Link to="/">Sign in to submit</Link>
             </Button>
-          )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-0 flex-1 sm:max-w-xs">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search posts…"
-              value={searchInput}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="h-9 pl-9 pr-8"
-            />
-            {searchInput ? (
-              <button
-                type="button"
-                onClick={clearSearch}
-                className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                aria-label="Clear search"
-              >
-                <X className="size-4" />
-              </button>
-            ) : null}
-          </div>
-          <div className="flex rounded-xl border border-border bg-card p-0.5">
-            {(
-              [
-                ["trending", "Trending"],
-                ["top", "Top"],
-                ["newest", "Newest"],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setSort(value)}
-                disabled={loading}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-60",
-                  sort === value
-                    ? "bg-brand-bright/15 text-brand"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+          )
+        }
+      />
 
       <SubmitFeedbackDialog
         workspaceSlug={slug}
@@ -253,54 +205,107 @@ export function Board() {
         onCreated={onCreated}
       />
 
-      {error ? (
-        <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      {loading ? (
-        <FeedSkeleton />
-      ) : mergedFeed.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border py-16 text-center">
-          <Search className="mx-auto size-7 text-muted-foreground/50" />
-          <p className="mt-4 text-sm text-muted-foreground">
-            {searchQuery
-              ? `No posts match "${searchQuery}".`
-              : "No posts yet. Be the first to share feedback."}
-          </p>
-        </div>
-      ) : (
-        <motion.ul
-          className="space-y-3"
-          initial="hidden"
-          animate="show"
-          variants={staggerContainer(0.05)}
-        >
-          {mergedFeed.map((post) => (
-            <motion.li key={post.id} variants={fadeUp}>
-              <PostCard
-                post={post}
-                workspaceSlug={slug}
-                pendingHighlight={post.moderationStatus === "pending"}
-                upvoted={upvotedIds.has(post.id)}
-                signedIn={Boolean(user)}
-                canUpvote={canPost}
-                onUpvoteChange={onUpvoteChange}
-                showFounderBadge={isOwner && post.author.id === user?.id}
+      <div className="mx-auto mt-6 w-full max-w-3xl space-y-6">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-0 flex-1 sm:max-w-xs">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search posts…"
+                value={searchInput}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="h-9 pl-9 pr-8"
               />
-            </motion.li>
-          ))}
-        </motion.ul>
-      )}
+              {searchInput ? (
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="Clear search"
+                >
+                  <X className="size-4" />
+                </button>
+              ) : null}
+            </div>
+            <Segmented
+              options={[["trending", "Trending"], ["top", "Top"], ["newest", "Newest"]] as const}
+              value={sort}
+              onChange={(v) => setSort(v as PostSort)}
+              disabled={loading}
+            />
+          </div>
 
-      {nextCursor && !loading ? (
-        <div className="flex justify-center pt-2">
-          <Button type="button" variant="outline" onClick={onLoadMore} disabled={loadingMore}>
-            {loadingMore ? "Loading…" : "Load more"}
-          </Button>
+          <div className="flex flex-wrap gap-1.5">
+            {([["all", "All"], ["bug", "Bug"], ["feature_request", "Feature"], ["ui_tweak", "UI"]] as const).map(
+              ([val, label]) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setCategoryFilter(val as typeof categoryFilter)}
+                  className={cn(
+                    "rounded-full border px-2.5 py-0.5 font-mono text-[10px] tracking-[0.12em] uppercase transition-colors",
+                    categoryFilter === val
+                      ? "border-brand/40 bg-brand-bright/15 text-brand"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {label}
+                </button>
+              )
+            )}
+          </div>
         </div>
-      ) : null}
+
+        {error ? (
+          <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
+            {error}
+          </p>
+        ) : null}
+
+        {loading ? (
+          <FeedSkeleton />
+        ) : visibleFeed.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border py-16 text-center">
+            <Search className="mx-auto size-7 text-muted-foreground/50" />
+            <p className="mt-4 text-sm text-muted-foreground">
+              {searchQuery
+                ? `No posts match "${searchQuery}".`
+                : "No posts yet. Be the first to share feedback."}
+            </p>
+          </div>
+        ) : (
+          <motion.ul
+            className="space-y-3"
+            initial="hidden"
+            animate="show"
+            variants={staggerContainer(0.05)}
+          >
+            {visibleFeed.map((post) => (
+              <motion.li key={post.id} variants={fadeUp}>
+                <PostCard
+                  post={post}
+                  workspaceSlug={slug}
+                  pendingHighlight={post.moderationStatus === "pending"}
+                  upvoted={upvotedIds.has(post.id)}
+                  signedIn={Boolean(user)}
+                  canUpvote={canPost}
+                  onUpvoteChange={onUpvoteChange}
+                  showFounderBadge={isOwner && post.author.id === user?.id}
+                />
+              </motion.li>
+            ))}
+          </motion.ul>
+        )}
+
+        {nextCursor && !loading ? (
+          <div className="flex justify-center pt-2">
+            <Button type="button" variant="outline" onClick={onLoadMore} disabled={loadingMore}>
+              {loadingMore ? "Loading…" : "Load more"}
+            </Button>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
