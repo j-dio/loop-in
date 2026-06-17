@@ -9,8 +9,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { categoryLabel, categoryTone } from "@/lib/postDisplay";
+import { TriageInbox } from "@/components/admin/TriageInbox";
+import { categoryLabel } from "@/lib/postDisplay";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { ApiError, apiFetch, updateWorkspace } from "@/lib/api";
 import type { PostDTO } from "@/lib/postTypes";
@@ -839,72 +839,13 @@ export function Admin() {
         ) : null}
         </div>
       ) : tab === "triage" ? (
-        triageLoading ? (
-          <p className="text-muted-foreground text-sm">Loading triage…</p>
-        ) : triagePosts.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No posts waiting for review.</p>
-        ) : (
-          <ul className="space-y-3">
-            {triagePosts.map((post) => (
-              <li
-                key={post.id}
-                className="rounded-2xl border border-border bg-card p-4 sm:p-5"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge tone={categoryTone(post.category)}>{categoryLabel(post.category)}</Badge>
-                      <Link
-                        to={`/${encodeURIComponent(slug)}/post/${encodeURIComponent(post.id)}`}
-                        className="text-sm font-medium text-brand hover:underline"
-                      >
-                        Open thread →
-                      </Link>
-                    </div>
-                    <h2 className="text-base font-semibold leading-snug">{post.title}</h2>
-                    {post.description ? (
-                      <p className="text-muted-foreground line-clamp-3 text-sm whitespace-pre-wrap">
-                        {post.description}
-                      </p>
-                    ) : null}
-                    <p className="text-xs text-muted-foreground">
-                      {post.author.name} · {new Date(post.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      variant="brand"
-                      size="sm"
-                      disabled={moderatingId === post.id}
-                      onClick={() => void moderate(post.id, "approved")}
-                    >
-                      Approve
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      disabled={moderatingId === post.id}
-                      onClick={() => void moderate(post.id, "rejected")}
-                    >
-                      Reject
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={moderatingId === post.id}
-                      onClick={() => void moderate(post.id, "spam")}
-                    >
-                      Spam
-                    </Button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )
+        <TriageInbox
+          posts={triagePosts}
+          slug={slug}
+          loading={triageLoading}
+          moderatingId={moderatingId}
+          onModerate={moderate}
+        />
       ) : (
         <>
           {/* AI Digest section */}
