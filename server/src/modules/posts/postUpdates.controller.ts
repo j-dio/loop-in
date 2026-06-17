@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { CreatePostUpdateBodySchema, PostUpdateParamsSchema } from "./postUpdates.schemas";
 import { createPostUpdate, listPostUpdates } from "./postUpdates.service";
 import type { RequesterContext } from "./posts.service";
+import { notifyPostUpdate } from "./notifications.service";
 
 function requesterCtx(req: Request): RequesterContext {
   return {
@@ -59,6 +60,13 @@ export async function createPostUpdateHandler(req: Request, res: Response, next:
 
     if (update === "not_found") return res.status(404).json({ error: "Post not found" });
     if (update === "forbidden") return res.status(403).json({ error: "Forbidden" });
+
+    notifyPostUpdate({
+      postId: paramsParsed.data.postId,
+      workspaceSlug: req.workspace.slug,
+      actorId: req.user.id,
+      updateContent: bodyParsed.data.content,
+    });
 
     return res.status(201).json({ update });
   } catch (err) {
