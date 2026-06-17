@@ -352,7 +352,7 @@ export function SubmitFeedbackDialog({ workspaceSlug, open, onOpenChange, onCrea
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={submitting || imageUploading}>
+            <Button type="submit" variant="brand" disabled={submitting || imageUploading}>
               {submitting ? "Submitting…" : imageUploading ? "Uploading image…" : "Submit"}
             </Button>
           </DialogFooter>

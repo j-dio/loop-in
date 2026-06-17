@@ -1,29 +1,18 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowBigUp, Megaphone } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { ApiError, apiFetch } from "@/lib/api";
+import { Badge } from "@/components/ui/badge";
+import {
+  boardLabel,
+  boardTone,
+  categoryLabel,
+  categoryTone,
+  moderationLabel,
+  moderationTone,
+} from "@/lib/postDisplay";
+import { cn } from "@/lib/utils";
 import type { PostDTO } from "@/lib/postTypes";
-
-function badgeClass(kind: "muted" | "accent" | "warn") {
-  if (kind === "accent") return "bg-primary/10 text-primary border-primary/20";
-  if (kind === "warn") return "bg-amber-500/10 text-amber-900 dark:text-amber-200 border-amber-500/25";
-  return "bg-muted text-muted-foreground border-border";
-}
-
-function formatCategory(c: PostDTO["category"]) {
-  if (c === "bug") return "Bug";
-  if (c === "feature_request") return "Feature";
-  return "UI";
-}
-
-function formatBoard(s: PostDTO["boardStatus"]) {
-  return s.replace(/_/g, " ");
-}
-
-function formatModeration(s: PostDTO["moderationStatus"]) {
-  return s.replace(/_/g, " ");
-}
 
 function snippet(text: string | null, max = 180) {
   if (!text) return null;
@@ -54,10 +43,6 @@ export function PostCard({
   onUpvoteChange,
   showFounderBadge,
 }: Props) {
-  const mod = post.moderationStatus;
-  const modKind =
-    mod === "approved" ? "accent" : mod === "pending" ? "warn" : ("muted" as const);
-
   const [localUpvoted, setLocalUpvoted] = useState(upvoted);
   const [localCount, setLocalCount] = useState(post.upvoteCount);
   const [upvoteBusy, setUpvoteBusy] = useState(false);
@@ -111,81 +96,93 @@ export function PostCard({
 
   return (
     <article
-      className={`rounded-lg border bg-card p-4 shadow-xs transition-colors ${
-        pendingHighlight ? "border-amber-500/40 ring-1 ring-amber-500/20" : ""
-      }`}
+      className={cn(
+        "group flex gap-3 rounded-2xl border border-border bg-card p-4 transition-all hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-md sm:gap-4 sm:p-5",
+        pendingHighlight && "border-brand/40 ring-1 ring-brand/15"
+      )}
     >
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <Link
-          to={`/${encodeURIComponent(workspaceSlug)}/post/${post.id}`}
-          className="text-base font-semibold hover:underline"
-        >
-          {post.title}
-        </Link>
-        <div className="flex flex-wrap gap-1.5">
-          <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${badgeClass("muted")}`}>
-            {formatCategory(post.category)}
-          </span>
-          <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${badgeClass(modKind)}`}>
-            {formatModeration(mod)}
-          </span>
-          <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${badgeClass("muted")}`}>
-            {formatBoard(post.boardStatus)}
-          </span>
-        </div>
-      </div>
-      {post.imageUrl ? (
-        <div className="mt-3 overflow-hidden rounded-md border bg-muted/30">
-          <img
-            src={post.imageUrl}
-            alt=""
-            className="max-h-40 w-full object-cover"
-            loading="lazy"
-          />
-        </div>
-      ) : null}
-      {snippet(post.description) ? (
-        <p className="mt-2 text-sm text-muted-foreground">{snippet(post.description)}</p>
-      ) : null}
-      {post.latestUpdate ? (
-        <div className="mt-2 flex items-start gap-1.5 rounded-md border border-primary/20 bg-primary/5 px-2.5 py-1.5">
-          <Megaphone className="mt-0.5 size-3 shrink-0 text-primary" aria-hidden />
-          <p className="text-xs text-primary/80">{snippet(post.latestUpdate.content, 120)}</p>
-        </div>
-      ) : null}
-      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={Boolean(upvoteDisabledReason) || upvoteBusy}
-            title={upvoteDisabledReason ?? (localUpvoted ? "Remove upvote" : "Upvote")}
-            className={`h-8 gap-1 px-2 font-normal ${
-              localUpvoted
-                ? "text-primary bg-primary/10 hover:bg-primary/15"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-            onClick={handleUpvoteClick}
-            aria-pressed={localUpvoted}
+      {/* Upvote rail */}
+      <button
+        type="button"
+        disabled={Boolean(upvoteDisabledReason) || upvoteBusy}
+        title={upvoteDisabledReason ?? (localUpvoted ? "Remove upvote" : "Upvote")}
+        onClick={handleUpvoteClick}
+        aria-pressed={localUpvoted}
+        className={cn(
+          "flex h-fit min-w-12 shrink-0 flex-col items-center gap-0.5 rounded-xl border px-2 py-2 text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60",
+          localUpvoted
+            ? "border-brand/40 bg-brand-bright/15 text-brand"
+            : "border-border text-muted-foreground hover:border-brand/30 hover:text-brand"
+        )}
+      >
+        <ArrowBigUp
+          className={cn(
+            "size-5 transition-transform",
+            localUpvoted ? "fill-current" : "group-hover:-translate-y-0.5"
+          )}
+          strokeWidth={2}
+          aria-hidden
+        />
+        <span className="tabular-nums">{localCount}</span>
+      </button>
+
+      {/* Body */}
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <Link
+            to={`/${encodeURIComponent(workspaceSlug)}/post/${post.id}`}
+            className="text-base font-semibold tracking-tight decoration-brand/40 underline-offset-4 hover:underline"
           >
-            <ArrowBigUp
-              className={`size-4 shrink-0 ${localUpvoted ? "fill-current" : ""}`}
-              strokeWidth={2}
-              aria-hidden
-            />
-            <span className="tabular-nums">{localCount}</span>
-          </Button>
+            {post.title}
+          </Link>
+          <div className="flex flex-wrap gap-1.5">
+            <Badge tone={categoryTone(post.category)}>{categoryLabel(post.category)}</Badge>
+            {post.moderationStatus !== "approved" ? (
+              <Badge tone={moderationTone(post.moderationStatus)}>
+                {moderationLabel(post.moderationStatus)}
+              </Badge>
+            ) : null}
+            <Badge tone={boardTone(post.boardStatus)}>{boardLabel(post.boardStatus)}</Badge>
+          </div>
         </div>
-        <span aria-hidden>·</span>
-        {showFounderBadge ? (
-          <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-            Founder
-          </span>
+
+        {post.imageUrl ? (
+          <div className="mt-3 overflow-hidden rounded-xl border border-border bg-muted/30">
+            <img
+              src={post.imageUrl}
+              alt=""
+              className="max-h-40 w-full object-cover"
+              loading="lazy"
+            />
+          </div>
         ) : null}
-        <span>{post.author.name}</span>
-        <span>·</span>
-        <time dateTime={post.createdAt}>{new Date(post.createdAt).toLocaleString()}</time>
+
+        {snippet(post.description) ? (
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            {snippet(post.description)}
+          </p>
+        ) : null}
+
+        {post.latestUpdate ? (
+          <div className="mt-3 flex items-start gap-2 rounded-xl border border-brand/20 bg-brand-bright/10 px-3 py-2">
+            <Megaphone className="mt-0.5 size-3.5 shrink-0 text-brand" aria-hidden />
+            <p className="text-xs leading-relaxed text-brand/90">
+              {snippet(post.latestUpdate.content, 120)}
+            </p>
+          </div>
+        ) : null}
+
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          {showFounderBadge ? <Badge tone="brand">Founder</Badge> : null}
+          <span>{post.author.name}</span>
+          <span aria-hidden>·</span>
+          <time dateTime={post.createdAt}>
+            {new Date(post.createdAt).toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+            })}
+          </time>
+        </div>
       </div>
     </article>
   );
