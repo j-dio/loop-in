@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./index.css";
+import { ThemeProvider } from "./lib/theme";
 import { WorkspaceProvider } from "./context/WorkspaceContext";
 import { AppShell } from "./layouts/AppShell";
 import { Landing } from "./pages/Landing";
@@ -14,6 +15,7 @@ import { AcceptInvite } from "./pages/AcceptInvite";
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
+      <ThemeProvider>
       <WorkspaceProvider>
         <Routes>
           <Route path="/" element={<Landing />} />
@@ -27,6 +29,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           </Route>
         </Routes>
       </WorkspaceProvider>
+      </ThemeProvider>
     </BrowserRouter>
   </React.StrictMode>
 );

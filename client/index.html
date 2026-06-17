@@ -4,7 +4,24 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>client</title>
+    <meta
+      name="description"
+      content="Loop In — a feedback board where nobody shouts into the void. Collect, upvote, and ship what your users actually want."
+    />
+    <meta name="theme-color" content="#eee9df" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#141c25" media="(prefers-color-scheme: dark)" />
+    <title>Loop In — Close the loop with your users</title>
+    <script>
+      // Set theme before paint to avoid a flash of the wrong mode.
+      (function () {
+        try {
+          var stored = localStorage.getItem("loopin-theme");
+          var system = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          var dark = stored ? stored === "dark" : system;
+          if (dark) document.documentElement.classList.add("dark");
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -2,184 +2,186 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+@import "@fontsource-variable/fraunces";
+@import "@fontsource-variable/space-grotesk";
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+  Loop In — "Signal" identity
+  Warm paper + ink, amber energy, terracotta accent. Palette sourced from the
+  user's reference: Palladian / Oatmeal / Blue Fantastic / Burning Flame /
+  Truffle Trouble / Abyssal. Light = paper, dark = abyssal navy.
+*/
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: oklch(0.922 0 0);
-  --code-bg: #f4f3ec;
-  --accent: oklch(0.97 0 0);
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  /* shadcn surface tokens — LIGHT (paper) */
+  --background: #eee9df; /* Palladian */
+  --foreground: #1b2632; /* Abyssal ink */
+  --card: #f6f3ec;
+  --card-foreground: #1b2632;
+  --popover: #f6f3ec;
+  --popover-foreground: #1b2632;
+  --primary: #1b2632; /* ink button */
+  --primary-foreground: #f4f1e9;
+  --secondary: #e4ddcd;
+  --secondary-foreground: #2c3b4d; /* Blue Fantastic */
+  --muted: #e6dfd0;
+  --muted-foreground: #6c6354;
+  --accent: #e4ddcd; /* subtle surface for ghost/hover */
+  --accent-foreground: #1b2632;
+  --destructive: #b23b2e;
+  --border: #dcd4c4;
+  --input: #dcd4c4;
+  --ring: #d98324; /* amber focus ring */
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* brand tokens */
+  --brand: #d98324; /* amber, contrast-safe on paper */
+  --brand-bright: #ffb162; /* Burning Flame — fills, glow, upvote */
+  --brand-foreground: #1b2632;
+  --terra: #a35139; /* Truffle Trouble */
+  --terra-foreground: #f4f1e9;
+  --slate: #2c3b4d; /* Blue Fantastic */
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
+  --chart-1: #d98324;
+  --chart-2: #a35139;
+  --chart-3: #2c3b4d;
+  --chart-4: #8a9a5b;
+  --chart-5: #c9c1b1;
+
+  --radius: 0.7rem;
+
+  --sidebar: #f0ebe1;
+  --sidebar-foreground: #1b2632;
+  --sidebar-primary: #1b2632;
+  --sidebar-primary-foreground: #f4f1e9;
+  --sidebar-accent: #e4ddcd;
+  --sidebar-accent-foreground: #1b2632;
+  --sidebar-border: #dcd4c4;
+  --sidebar-ring: #d98324;
+
+  color-scheme: light;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
-
-  --background: oklch(1 0 0);
-
-  --foreground: oklch(0.145 0 0);
-
-  --card: oklch(1 0 0);
-
-  --card-foreground: oklch(0.145 0 0);
-
-  --popover: oklch(1 0 0);
-
-  --popover-foreground: oklch(0.145 0 0);
-
-  --primary: oklch(0.205 0 0);
-
-  --primary-foreground: oklch(0.985 0 0);
-
-  --secondary: oklch(0.97 0 0);
-
-  --secondary-foreground: oklch(0.205 0 0);
-
-  --muted: oklch(0.97 0 0);
-
-  --muted-foreground: oklch(0.556 0 0);
-
-  --accent-foreground: oklch(0.205 0 0);
-
-  --destructive: oklch(0.577 0.245 27.325);
-
-  --input: oklch(0.922 0 0);
-
-  --ring: oklch(0.708 0 0);
-
-  --chart-1: oklch(0.87 0 0);
-
-  --chart-2: oklch(0.556 0 0);
-
-  --chart-3: oklch(0.439 0 0);
-
-  --chart-4: oklch(0.371 0 0);
-
-  --chart-5: oklch(0.269 0 0);
-
-  --radius: 0.625rem;
-
-  --sidebar: oklch(0.985 0 0);
-
-  --sidebar-foreground: oklch(0.145 0 0);
-
-  --sidebar-primary: oklch(0.205 0 0);
-
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-
-  --sidebar-accent: oklch(0.97 0 0);
-
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-
-  --sidebar-border: oklch(0.922 0 0);
-
-  --sidebar-ring: oklch(0.708 0 0)
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+.dark {
+  /* shadcn surface tokens — DARK (abyssal navy) */
+  --background: #141c25;
+  --foreground: #eee9df; /* Palladian */
+  --card: #1b2632; /* Abyssal */
+  --card-foreground: #eee9df;
+  --popover: #1b2632;
+  --popover-foreground: #eee9df;
+  --primary: #eee9df;
+  --primary-foreground: #1b2632;
+  --secondary: #243140;
+  --secondary-foreground: #eee9df;
+  --muted: #243140;
+  --muted-foreground: #9ba6b3;
+  --accent: #243140;
+  --accent-foreground: #eee9df;
+  --destructive: #e5705f;
+  --border: oklch(0.95 0.01 90 / 10%);
+  --input: oklch(0.95 0.01 90 / 14%);
+  --ring: #ffb162;
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
+  --brand: #ffb162;
+  --brand-bright: #ffb162;
+  --brand-foreground: #1b2632;
+  --terra: #c8694c;
+  --terra-foreground: #1b2632;
+  --slate: #c9c1b1;
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
+  --chart-1: #ffb162;
+  --chart-2: #c8694c;
+  --chart-3: #8aa0bf;
+  --chart-4: #a7b56f;
+  --chart-5: #c9c1b1;
 
-body {
-  margin: 0;
-}
+  --sidebar: #161f29;
+  --sidebar-foreground: #eee9df;
+  --sidebar-primary: #ffb162;
+  --sidebar-primary-foreground: #1b2632;
+  --sidebar-accent: #243140;
+  --sidebar-accent-foreground: #eee9df;
+  --sidebar-border: oklch(0.95 0.01 90 / 10%);
+  --sidebar-ring: #ffb162;
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
+  color-scheme: dark;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+/*
+  Landing-scoped "stark" theme. The marketing page adopts a qclay-inspired
+  monochrome canvas (near-white / near-black, neutral grays) with amber as the
+  ONLY accent — distinct from the warm-paper identity the app chrome keeps.
+  CSS custom properties cascade, so every `bg-background` / `text-foreground`
+  utility inside `.landing` resolves to these values automatically.
+*/
+.landing {
+  --background: #f4f4f1;
+  --foreground: #111113;
+  --card: #fbfbf9;
+  --card-foreground: #111113;
+  --popover: #fbfbf9;
+  --popover-foreground: #111113;
+  --primary: #111113;
+  --primary-foreground: #f6f6f3;
+  --secondary: #eceae5;
+  --secondary-foreground: #111113;
+  --muted: #ebeae5;
+  --muted-foreground: #6c6c66;
+  --accent: #eceae5;
+  --accent-foreground: #111113;
+  --border: #e2e1da;
+  --input: #e2e1da;
+  --ring: #d98324;
+  --brand: #cf7a1f; /* amber, contrast-safe on near-white */
+  --brand-bright: #ff9d3d;
+  --brand-foreground: #111113;
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+.dark .landing {
+  --background: #0b0b0c;
+  --foreground: #f3f3f0;
+  --card: #141416;
+  --card-foreground: #f3f3f0;
+  --popover: #141416;
+  --popover-foreground: #f3f3f0;
+  --primary: #f3f3f0;
+  --primary-foreground: #0b0b0c;
+  --secondary: #18181a;
+  --secondary-foreground: #f3f3f0;
+  --muted: #18181a;
+  --muted-foreground: #8d8d87;
+  --accent: #18181a;
+  --accent-foreground: #f3f3f0;
+  --border: oklch(0.97 0 0 / 11%);
+  --input: oklch(0.97 0 0 / 14%);
+  --ring: #ffb162;
+  --brand: #ffb162;
+  --brand-bright: #ffb162;
+  --brand-foreground: #0b0b0c;
 }
 
 @theme inline {
-  --font-heading: var(--font-sans);
-  --font-sans: 'Geist Variable', sans-serif;
+  --font-sans: "Geist Variable", system-ui, sans-serif;
+  --font-serif: "Fraunces Variable", Georgia, serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+  /* Display grotesque — the landing's oversized headline voice (qclay-inspired) */
+  --font-display: "Space Grotesk Variable", "Geist Variable", system-ui, sans-serif;
+  --font-heading: var(--font-serif);
+
+  --color-brand: var(--brand);
+  --color-brand-bright: var(--brand-bright);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-terra: var(--terra);
+  --color-terra-foreground: var(--terra-foreground);
+  --color-slate-brand: var(--slate);
+
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -211,6 +213,7 @@ code {
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -220,44 +223,123 @@ code {
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-}
-
 @layer base {
   * {
-    @apply border-border outline-ring/50;}
+    @apply border-border outline-ring/50;
+  }
   body {
-    @apply bg-background text-foreground;}
-  html {
-    @apply font-sans;}}
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "ss01", "cv01";
+  }
+  /* Editorial display headings */
+  h1,
+  h2,
+  h3 {
+    @apply font-serif tracking-tight;
+    font-optical-sizing: auto;
+  }
+  /* Respect reduced-motion globally */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Warm amber sunrise gradient — the signature hero surface */
+  .bg-sunrise {
+    background:
+      radial-gradient(120% 80% at 50% 120%, #ffb162 0%, #d98324 22%, transparent 60%),
+      linear-gradient(180deg, #141c25 0%, #1b2632 60%, #243140 100%);
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+  /* Editorial ticker / marquee */
+  @keyframes loop-marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+  .animate-marquee {
+    animation: loop-marquee 28s linear infinite;
+  }
+  .animate-marquee-slow {
+    animation: loop-marquee 48s linear infinite;
+  }
+  /* Interactive cursor (qclay-style) — see components/landing/CursorFollower */
+  .loop-cursor-ring,
+  .loop-cursor-dot {
+    position: fixed;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 90;
+    border-radius: 9999px;
+    will-change: transform;
+  }
+  .loop-cursor-ring {
+    height: 36px;
+    width: 36px;
+    border: 1.5px solid var(--brand);
+  }
+  .loop-cursor-dot {
+    height: 6px;
+    width: 6px;
+    background: var(--brand);
+  }
+  .landing.cursor-active,
+  .landing.cursor-active a,
+  .landing.cursor-active button {
+    cursor: none;
+  }
+  @media (pointer: coarse) {
+    .loop-cursor-ring,
+    .loop-cursor-dot {
+      display: none;
+    }
+  }
+
+  /* Rotating "sticker" badge in the hero (qclay-style circular caption) */
+  @keyframes spin-slow {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  .animate-spin-slow {
+    animation: spin-slow 24s linear infinite;
+  }
+  /* Oversized outline "ghost" numbers that sit behind content */
+  .text-ghost {
+    color: transparent;
+    -webkit-text-stroke: 1.5px var(--border);
+    text-stroke: 1.5px var(--border);
+  }
+  /* Faint engineering grid (backdrop for the product figure) */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, var(--border) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+  .grain {
+    position: relative;
+  }
+  .grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.04;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+}
