@@ -9,6 +9,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { categoryLabel, categoryTone } from "@/lib/postDisplay";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { ApiError, apiFetch, updateWorkspace } from "@/lib/api";
 import type { PostDTO } from "@/lib/postTypes";
@@ -60,12 +62,6 @@ function reorder<T>(list: T[], startIndex: number, endIndex: number): T[] {
   const [removed] = result.splice(startIndex, 1);
   result.splice(endIndex, 0, removed);
   return result;
-}
-
-function formatCategory(c: PostDTO["category"]) {
-  if (c === "bug") return "Bug";
-  if (c === "feature_request") return "Feature";
-  return "UI";
 }
 
 function errorTextFromApiBody(e: unknown, fallback: string): string {
@@ -541,22 +537,20 @@ export function Admin() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-lg font-semibold">Command center</h1>
-          <p className="text-muted-foreground text-sm">
-            <span className="font-mono text-foreground">{slug}</span>
-            {workspaceLabel ? (
-              <span className="text-foreground"> · {workspaceLabel}</span>
-            ) : null}
+          <h1 className="font-serif text-3xl font-medium tracking-tight">Command center</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {workspaceLabel ? <span className="text-foreground">{workspaceLabel}</span> : null}
+            <span className="font-mono"> /{slug}</span>
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" size="sm" asChild>
-            <Link to={`/${encodeURIComponent(slug)}`}>← View Public Board</Link>
+            <Link to={`/${encodeURIComponent(slug)}`}>View public board</Link>
           </Button>
         </div>
       </div>
 
-      <div className="flex rounded-lg border p-0.5 w-fit flex-wrap gap-0.5">
+      <div className="flex w-fit flex-wrap gap-0.5 rounded-xl border border-border bg-card p-0.5">
         {(
           [
             ["triage", "Triage"],
@@ -564,16 +558,18 @@ export function Admin() {
             ["settings", "Settings"],
           ] as const
         ).map(([value, label]) => (
-          <Button
+          <button
             key={value}
             type="button"
-            variant={tab === value ? "default" : "ghost"}
-            size="sm"
-            className="h-7 rounded-md px-2.5"
             onClick={() => setTab(value)}
+            className={
+              tab === value
+                ? "rounded-lg bg-brand-bright/15 px-3.5 py-1.5 text-sm font-medium text-brand"
+                : "rounded-lg px-3.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            }
           >
             {label}
-          </Button>
+          </button>
         ))}
       </div>
 
@@ -842,19 +838,17 @@ export function Admin() {
             {triagePosts.map((post) => (
               <li
                 key={post.id}
-                className="rounded-lg border border-border bg-card p-4 shadow-xs"
+                className="rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-5"
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 flex-1 space-y-1">
+                  <div className="min-w-0 flex-1 space-y-1.5">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                        {formatCategory(post.category)}
-                      </span>
+                      <Badge tone={categoryTone(post.category)}>{categoryLabel(post.category)}</Badge>
                       <Link
                         to={`/${encodeURIComponent(slug)}/post/${encodeURIComponent(post.id)}`}
-                        className="text-sm font-medium text-primary hover:underline"
+                        className="text-sm font-medium text-brand hover:underline"
                       >
-                        Open thread
+                        Open thread →
                       </Link>
                     </div>
                     <h2 className="text-base font-semibold leading-snug">{post.title}</h2>
@@ -870,6 +864,7 @@ export function Admin() {
                   <div className="flex shrink-0 flex-wrap gap-2">
                     <Button
                       type="button"
+                      variant="brand"
                       size="sm"
                       disabled={moderatingId === post.id}
                       onClick={() => void moderate(post.id, "approved")}
@@ -987,8 +982,8 @@ export function Admin() {
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
-                      className={`min-h-30 rounded-lg border border-dashed p-2 transition-colors ${
-                        snapshot.isDraggingOver ? "border-primary/50 bg-primary/5" : "border-border"
+                      className={`min-h-30 rounded-xl border border-dashed p-2 transition-colors ${
+                        snapshot.isDraggingOver ? "border-brand/50 bg-brand-bright/10" : "border-border"
                       }`}
                     >
                       {kanbanColumns[col.id].map((post, index) => (
@@ -998,19 +993,19 @@ export function Admin() {
                               ref={dragProvided.innerRef}
                               {...dragProvided.draggableProps}
                               {...dragProvided.dragHandleProps}
-                              className={`mb-2 rounded-md border bg-card p-2 text-sm shadow-xs ${
-                                dragSnapshot.isDragging ? "ring-2 ring-primary/30" : ""
+                              className={`mb-2 rounded-lg border border-border bg-card p-2.5 text-sm shadow-xs transition-shadow hover:shadow-md ${
+                                dragSnapshot.isDragging ? "ring-2 ring-brand/40" : ""
                               } ${statusUpdatingId === post.id ? "opacity-60" : ""}`}
                             >
                               <Link
                                 to={`/${encodeURIComponent(slug)}/post/${encodeURIComponent(post.id)}`}
-                                className="font-medium text-primary hover:underline"
+                                className="font-medium hover:text-brand hover:underline"
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 {post.title}
                               </Link>
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                {formatCategory(post.category)} · {post.upvoteCount} upvotes
+                              <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                                {categoryLabel(post.category)} · {post.upvoteCount} upvotes
                               </p>
                             </div>
                           )}

@@ -1,8 +1,33 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion, MotionConfig } from "framer-motion";
+import { ArrowRight, LogOut } from "lucide-react";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { ApiError, apiFetch, getApiBase } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Logo, LoopMark } from "@/components/brand/Logo";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { Hero } from "@/components/landing/Hero";
+import { LandingMarketing } from "@/components/landing/LandingMarketing";
+import { CursorFollower } from "@/components/landing/CursorFollower";
+import { SmoothScrollProvider, useSmoothScroll } from "@/lib/lenis";
+import { fadeUp, staggerContainer } from "@/lib/motion";
+
+/**
+ * Logged-out marketing site. Lives inside SmoothScrollProvider so the hero CTAs
+ * and nav anchors scroll through Lenis (momentum) rather than jumping.
+ */
+function LoggedOutMarketing({ api }: { api: string }) {
+  const scrollTo = useSmoothScroll();
+  return (
+    <>
+      <Hero onPrimary={() => scrollTo("#start")} />
+      <LandingMarketing googleHref={`${api}/auth/google`} githubHref={`${api}/auth/github`} />
+    </>
+  );
+}
 
 function slugifyName(name: string): string {
   return name
@@ -15,7 +40,8 @@ function slugifyName(name: string): string {
 
 export function Landing() {
   const navigate = useNavigate();
-  const { user, loading, workspaces, setActiveWorkspace, createWorkspace, refreshSession } = useWorkspace();
+  const { user, loading, workspaces, setActiveWorkspace, createWorkspace, refreshSession } =
+    useWorkspace();
   const api = getApiBase();
 
   const [name, setName] = useState("");
@@ -23,16 +49,14 @@ export function Landing() {
   const [slugTouched, setSlugTouched] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
-  const [selectedSlug, setSelectedSlug] = useState("");
 
   async function handleSignOut() {
     try {
       await apiFetch("/auth/logout", { method: "POST" });
     } catch {
-      // proceed with local cleanup anyway
+      /* proceed with local cleanup anyway */
     }
     await refreshSession();
-    // refreshSession sets user → null; Landing re-renders to sign-in view
   }
 
   const onNameChange = (value: string) => {
@@ -40,11 +64,11 @@ export function Landing() {
     if (!slugTouched) setSlug(slugifyName(value));
   };
 
-  const handleSelectWorkspace = () => {
-    const w = workspaces.find((x) => x.slug === selectedSlug);
+  const openWorkspace = (s: string) => {
+    const w = workspaces.find((x) => x.slug === s);
     if (!w) return;
     setActiveWorkspace(w);
-    navigate(`/${w.slug}`, { replace: false });
+    navigate(`/${w.slug}`);
   };
 
   const handleCreateWorkspace = async (e: React.FormEvent) => {
@@ -60,7 +84,7 @@ export function Landing() {
     try {
       const w = await createWorkspace({ name: n, slug: s });
       setActiveWorkspace(w);
-      navigate(`/${w.slug}`, { replace: false });
+      navigate(`/${w.slug}`);
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         setCreateError("That slug is already taken. Try another.");
@@ -75,107 +99,162 @@ export function Landing() {
     }
   };
 
+  // ---- Loading ---------------------------------------------------------------
   if (loading) {
     return (
-      <div className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center px-4">
-        <p className="text-sm text-muted-foreground">Loading…</p>
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+        >
+          <LoopMark className="size-9" />
+        </motion.div>
+        <p className="font-mono text-xs tracking-widest text-muted-foreground uppercase">
+          Loading…
+        </p>
       </div>
     );
   }
 
+  // ---- Logged out: marketing site -------------------------------------------
   if (!user) {
     return (
-      <div className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center gap-6 px-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">LoopIn</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Sign in to open your workspaces.</p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button asChild variant="default">
-            <a href={`${api}/auth/google`}>Continue with Google</a>
-          </Button>
-          <Button asChild variant="outline">
-            <a href={`${api}/auth/github`}>Continue with GitHub</a>
-          </Button>
-        </div>
-      </div>
+      <MotionConfig reducedMotion="user">
+        <SmoothScrollProvider>
+          {/* `.landing` scopes the stark monochrome theme to the marketing page */}
+          <div className="landing min-h-dvh bg-background">
+            <CursorFollower />
+            <LoggedOutMarketing api={api} />
+          </div>
+        </SmoothScrollProvider>
+      </MotionConfig>
     );
   }
 
+  // ---- Logged in: workspace home --------------------------------------------
   return (
-    <div className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center gap-8 px-4 py-12">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Your workspaces</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Signed in as <span className="text-foreground">{user.email}</span>
-          </p>
-        </div>
-        <Button variant="ghost" size="sm" onClick={() => void handleSignOut()}>
-          Sign out
-        </Button>
-      </div>
-
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium">Open a workspace</h2>
-        {workspaces.length === 0 ? (
-          <p className="text-sm text-muted-foreground">You are not in any workspace yet. Create one below.</p>
-        ) : (
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-            <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
-              <span className="text-muted-foreground">Workspace</span>
-              <select
-                className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                value={selectedSlug}
-                onChange={(e) => setSelectedSlug(e.target.value)}
-              >
-                <option value="">Select…</option>
-                {workspaces.map((w) => (
-                  <option key={w.id} value={w.slug}>
-                    {w.name} ({w.slug})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Button type="button" disabled={!selectedSlug} onClick={handleSelectWorkspace}>
-              Go
-            </Button>
-          </div>
-        )}
-      </section>
-
-      <section className="space-y-3 border-t pt-6">
-        <h2 className="text-sm font-medium">Create workspace</h2>
-        <form onSubmit={handleCreateWorkspace} className="space-y-3">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-muted-foreground">Name</span>
-            <input
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              value={name}
-              onChange={(e) => onNameChange(e.target.value)}
-              placeholder="Acme Feedback"
-              autoComplete="organization"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-muted-foreground">Slug (URL)</span>
-            <input
-              className="h-9 rounded-md border border-input bg-background px-3 font-mono text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              value={slug}
-              onChange={(e) => {
-                setSlugTouched(true);
-                setSlug(e.target.value);
-              }}
-              placeholder="acme-feedback"
-              spellCheck={false}
-            />
-          </label>
-          {createError ? <p className="text-sm text-destructive">{createError}</p> : null}
-          <Button type="submit" disabled={creating}>
-            {creating ? "Creating…" : "Create workspace"}
+    <div className="min-h-dvh bg-background text-foreground">
+      <header className="mx-auto flex max-w-5xl items-center justify-between px-5 py-5 sm:px-8">
+        <Logo />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <span className="hidden max-w-[180px] truncate text-sm text-muted-foreground sm:block">
+            {user.email}
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => void handleSignOut()}>
+            <LogOut className="size-4" />
+            Sign out
           </Button>
-        </form>
-      </section>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-5xl px-5 py-10 sm:px-8 sm:py-16">
+        <motion.div initial="hidden" animate="show" variants={staggerContainer(0.08)}>
+          <motion.p
+            variants={fadeUp}
+            className="font-mono text-xs tracking-widest text-brand uppercase"
+          >
+            Your workspaces
+          </motion.p>
+          <motion.h1
+            variants={fadeUp}
+            className="mt-3 font-serif text-4xl font-medium tracking-tight"
+          >
+            Welcome back.
+          </motion.h1>
+
+          <div className="mt-10 grid gap-8 lg:grid-cols-[1.4fr_1fr]">
+            {/* Workspace list */}
+            <motion.div variants={fadeUp}>
+              {workspaces.length === 0 ? (
+                <div className="border border-dashed border-border p-10 text-center">
+                  <LoopMark className="mx-auto size-8 opacity-60" />
+                  <p className="mt-4 text-sm text-muted-foreground">
+                    You're not in any workspace yet. Create your first one →
+                  </p>
+                </div>
+              ) : (
+                <ul className="border-t border-border">
+                  {workspaces.map((w, i) => {
+                    const isOwner = w.ownerId === user.id;
+                    return (
+                      <li key={w.id}>
+                        <button
+                          type="button"
+                          onClick={() => openWorkspace(w.slug)}
+                          className="group grid w-full grid-cols-[auto_1fr_auto] items-center gap-4 border-b border-border py-5 text-left transition-colors hover:bg-secondary/40"
+                        >
+                          <span className="font-mono text-sm text-muted-foreground">
+                            0{i + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate text-lg font-medium tracking-tight transition-colors group-hover:text-brand">
+                              {w.name}
+                            </p>
+                            <p className="truncate font-mono text-xs text-muted-foreground">
+                              /{w.slug} · {isOwner ? "Owner" : "Member"}
+                            </p>
+                          </div>
+                          <ArrowRight className="size-5 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-brand" />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </motion.div>
+
+            {/* Create workspace */}
+            <motion.div variants={fadeUp}>
+              <div className="border border-border bg-card p-6">
+                <p className="font-mono text-[11px] tracking-widest text-brand uppercase">
+                  New
+                </p>
+                <h2 className="mt-2 font-serif text-2xl font-medium tracking-tight">
+                  Create a workspace
+                </h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Spin up a fresh feedback board with its own public URL.
+                </p>
+                <form onSubmit={handleCreateWorkspace} className="mt-5 space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="ws-name">Name</Label>
+                    <Input
+                      id="ws-name"
+                      value={name}
+                      onChange={(e) => onNameChange(e.target.value)}
+                      placeholder="Acme Feedback"
+                      autoComplete="organization"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ws-slug">Slug (URL)</Label>
+                    <Input
+                      id="ws-slug"
+                      value={slug}
+                      onChange={(e) => {
+                        setSlugTouched(true);
+                        setSlug(e.target.value);
+                      }}
+                      placeholder="acme-feedback"
+                      spellCheck={false}
+                      className="font-mono"
+                    />
+                  </div>
+                  {createError ? (
+                    <p className="text-sm text-destructive" role="alert">
+                      {createError}
+                    </p>
+                  ) : null}
+                  <Button type="submit" variant="brand" disabled={creating} className="w-full rounded-none">
+                    {creating ? "Creating…" : "Create workspace"}
+                  </Button>
+                </form>
+              </div>
+            </motion.div>
+          </div>
+        </motion.div>
+      </main>
     </div>
   );
 }

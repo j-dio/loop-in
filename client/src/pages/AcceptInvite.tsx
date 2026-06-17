@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError, apiFetch, getApiBase } from "@/lib/api";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/brand/Logo";
+import { GoogleIcon, GithubIcon } from "@/components/brand/AuthIcons";
 
 type InviteInfo = {
   workspaceName: string;
@@ -102,43 +104,50 @@ export function AcceptInvite() {
   }, [user, token]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="bg-white rounded-xl shadow-md p-8 max-width-sm w-full max-w-md text-center space-y-4">
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-background px-4 py-12">
+      <Logo size="lg" />
+      <div className="w-full max-w-md space-y-4 rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
         {state.status === "loading" && (
-          <p className="text-gray-500">Loading invite...</p>
+          <p className="text-sm text-muted-foreground">Loading invite…</p>
         )}
 
         {state.status === "loaded" && (
           <>
-            <div className="space-y-1">
-              <h1 className="text-2xl font-bold text-gray-900">You're invited!</h1>
-              <p className="text-gray-600">
-                <span className="font-medium">{state.info.inviterName}</span> invited you to join{" "}
-                <span className="font-medium">{state.info.workspaceName}</span>.
+            <div className="space-y-2">
+              <h1 className="font-serif text-2xl font-medium tracking-tight">You're invited!</h1>
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">{state.info.inviterName}</span> invited
+                you to join{" "}
+                <span className="font-medium text-foreground">{state.info.workspaceName}</span>.
               </p>
               {user && user.email !== state.info.email && (
-                <p className="text-sm text-amber-600 mt-2">
-                  Note: This invite was sent to <strong>{state.info.email}</strong>, but you're signed in as <strong>{user.email}</strong>. Accepting will fail if the emails don't match.
+                <p className="mt-2 rounded-lg border border-brand/30 bg-brand-bright/10 p-2 text-xs text-brand">
+                  This invite was sent to <strong>{state.info.email}</strong>, but you're signed in as{" "}
+                  <strong>{user.email}</strong>. Accepting will fail if the emails don't match.
                 </p>
               )}
             </div>
 
             {user ? (
-              <Button onClick={handleAccept} className="w-full">
+              <Button variant="brand" onClick={handleAccept} className="w-full">
                 Join {state.info.workspaceName}
               </Button>
             ) : (
               <div className="space-y-2">
-                <p className="text-sm text-gray-500">Sign in to accept this invite.</p>
-                <Button onClick={handleSignIn} className="w-full">
-                  Sign in with Google
+                <p className="text-sm text-muted-foreground">Sign in to accept this invite.</p>
+                <Button variant="brand" onClick={handleSignIn} className="w-full">
+                  <GoogleIcon className="size-4" />
+                  Continue with Google
                 </Button>
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => { window.location.href = `${api}/auth/github`; }}
+                  onClick={() => {
+                    window.location.href = `${api}/auth/github`;
+                  }}
                 >
-                  Sign in with GitHub
+                  <GithubIcon className="size-4" />
+                  Continue with GitHub
                 </Button>
               </div>
             )}
@@ -146,23 +155,25 @@ export function AcceptInvite() {
         )}
 
         {state.status === "accepting" && (
-          <p className="text-gray-500">Joining workspace...</p>
+          <p className="text-sm text-muted-foreground">Joining workspace…</p>
         )}
 
         {state.status === "done" && (
           <>
-            <h1 className="text-2xl font-bold text-gray-900">You're in!</h1>
-            <p className="text-gray-600">Welcome to {state.workspaceName}. Redirecting...</p>
+            <h1 className="font-serif text-2xl font-medium tracking-tight">You're in!</h1>
+            <p className="text-sm text-muted-foreground">
+              Welcome to {state.workspaceName}. Redirecting…
+            </p>
           </>
         )}
 
         {state.status === "already_member" && (
           <>
-            <h1 className="text-xl font-bold text-gray-900">Already a member</h1>
-            <p className="text-gray-600">You're already in this workspace.</p>
+            <h1 className="font-serif text-xl font-medium tracking-tight">Already a member</h1>
+            <p className="text-sm text-muted-foreground">You're already in this workspace.</p>
             {state.workspaceSlug && (
-              <Button onClick={() => navigate(`/${state.workspaceSlug}`)} className="w-full">
-                Go to Workspace
+              <Button variant="brand" onClick={() => navigate(`/${state.workspaceSlug}`)} className="w-full">
+                Go to workspace
               </Button>
             )}
           </>
@@ -170,30 +181,34 @@ export function AcceptInvite() {
 
         {state.status === "not_found" && (
           <>
-            <h1 className="text-xl font-bold text-gray-900">Invite not found</h1>
-            <p className="text-gray-600">This invite link is invalid or has already been used.</p>
+            <h1 className="font-serif text-xl font-medium tracking-tight">Invite not found</h1>
+            <p className="text-sm text-muted-foreground">
+              This invite link is invalid or has already been used.
+            </p>
             <Button variant="outline" onClick={() => navigate("/")} className="w-full">
-              Go Home
+              Go home
             </Button>
           </>
         )}
 
         {state.status === "expired" && (
           <>
-            <h1 className="text-xl font-bold text-gray-900">Invite expired</h1>
-            <p className="text-gray-600">This invite link has expired. Ask the workspace admin to send a new one.</p>
+            <h1 className="font-serif text-xl font-medium tracking-tight">Invite expired</h1>
+            <p className="text-sm text-muted-foreground">
+              This invite link has expired. Ask the workspace admin to send a new one.
+            </p>
             <Button variant="outline" onClick={() => navigate("/")} className="w-full">
-              Go Home
+              Go home
             </Button>
           </>
         )}
 
         {state.status === "error" && (
           <>
-            <h1 className="text-xl font-bold text-gray-900">Something went wrong</h1>
-            <p className="text-gray-600">{state.message}</p>
+            <h1 className="font-serif text-xl font-medium tracking-tight">Something went wrong</h1>
+            <p className="text-sm text-muted-foreground">{state.message}</p>
             <Button variant="outline" onClick={() => navigate("/")} className="w-full">
-              Go Home
+              Go home
             </Button>
           </>
         )}

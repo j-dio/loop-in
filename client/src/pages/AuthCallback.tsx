@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { useWorkspace } from "@/context/WorkspaceContext";
+import { LoopMark } from "@/components/brand/Logo";
 
 export function AuthCallback() {
   const navigate = useNavigate();
@@ -18,8 +20,16 @@ export function AuthCallback() {
   }, [navigate, refreshSession]);
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-lg items-center justify-center px-4">
-      <p className="text-sm text-muted-foreground">Finishing sign-in…</p>
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background px-4">
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+      >
+        <LoopMark className="size-9" />
+      </motion.div>
+      <p className="font-mono text-xs tracking-widest text-muted-foreground uppercase">
+        Finishing sign-in…
+      </p>
     </div>
   );
 }

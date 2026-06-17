@@ -1,13 +1,36 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Search, X } from "lucide-react";
+import { motion } from "framer-motion";
+import { MessageSquarePlus, Search, X } from "lucide-react";
 import { PostCard } from "@/components/PostCard";
 import { SubmitFeedbackDialog } from "@/components/SubmitFeedbackDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import { fadeUp, staggerContainer } from "@/lib/motion";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { ApiError, apiFetch } from "@/lib/api";
 import type { PostDTO, PostSort } from "@/lib/postTypes";
+
+function FeedSkeleton() {
+  return (
+    <ul className="space-y-3" aria-hidden>
+      {Array.from({ length: 4 }).map((_, i) => (
+        <li
+          key={i}
+          className="flex gap-4 rounded-2xl border border-border bg-card p-5"
+        >
+          <div className="h-14 w-12 shrink-0 animate-pulse rounded-xl bg-muted" />
+          <div className="flex-1 space-y-3 py-1">
+            <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-full animate-pulse rounded bg-muted" />
+            <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 type PostsPage = { posts: PostDTO[]; nextCursor: string | null; upvotedPostIds: string[] };
 
@@ -142,38 +165,56 @@ export function Board() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-semibold">Board</h1>
-          <p className="text-muted-foreground text-sm">
-            <span className="font-mono text-foreground">{slug}</span>
-            {activeWorkspace && activeWorkspace.slug === slug ? (
-              <span className="text-foreground"> · {activeWorkspace.name}</span>
-            ) : null}
-          </p>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="font-serif text-3xl font-medium tracking-tight">Feedback</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {activeWorkspace && activeWorkspace.slug === slug
+                ? activeWorkspace.name
+                : null}
+              <span className="font-mono"> /{slug}</span>
+            </p>
+          </div>
+          {canPost ? (
+            <Button type="button" variant="brand" onClick={() => setDialogOpen(true)}>
+              <MessageSquarePlus className="size-4" />
+              Submit feedback
+            </Button>
+          ) : user ? (
+            <Button type="button" variant="outline" disabled title="Only workspace members can post">
+              <MessageSquarePlus className="size-4" />
+              Submit feedback
+            </Button>
+          ) : (
+            <Button type="button" variant="brand" asChild>
+              <Link to="/">Sign in to submit</Link>
+            </Button>
+          )}
         </div>
+
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
-            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2" />
+          <div className="relative min-w-0 flex-1 sm:max-w-xs">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="search"
               placeholder="Search posts…"
               value={searchInput}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="h-8 w-48 pl-8 pr-7 text-sm sm:w-56"
+              className="h-9 pl-9 pr-8"
             />
             {searchInput ? (
               <button
                 type="button"
                 onClick={clearSearch}
-                className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2"
+                className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 aria-label="Clear search"
               >
-                <X className="h-3.5 w-3.5" />
+                <X className="size-4" />
               </button>
             ) : null}
           </div>
-          <div className="flex rounded-lg border p-0.5">
+          <div className="flex rounded-xl border border-border bg-card p-0.5">
             {(
               [
                 ["trending", "Trending"],
@@ -181,32 +222,22 @@ export function Board() {
                 ["newest", "Newest"],
               ] as const
             ).map(([value, label]) => (
-              <Button
+              <button
                 key={value}
                 type="button"
-                variant={sort === value ? "default" : "ghost"}
-                size="sm"
-                className="h-7 rounded-md px-2.5"
                 onClick={() => setSort(value)}
                 disabled={loading}
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-60",
+                  sort === value
+                    ? "bg-brand-bright/15 text-brand"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
               >
                 {label}
-              </Button>
+              </button>
             ))}
           </div>
-          {canPost ? (
-            <Button type="button" onClick={() => setDialogOpen(true)}>
-              Submit feedback
-            </Button>
-          ) : user ? (
-            <Button type="button" variant="outline" disabled title="Only workspace members can post">
-              Submit feedback
-            </Button>
-          ) : (
-            <Button type="button" variant="outline" asChild>
-              <Link to="/">Sign in to submit</Link>
-            </Button>
-          )}
         </div>
       </div>
 
@@ -218,21 +249,31 @@ export function Board() {
       />
 
       {error ? (
-        <p className="text-destructive text-sm" role="alert">
+        <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
           {error}
         </p>
       ) : null}
 
       {loading ? (
-        <p className="text-muted-foreground text-sm">Loading posts…</p>
+        <FeedSkeleton />
       ) : mergedFeed.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
-          {searchQuery ? `No posts match "${searchQuery}".` : "No posts yet. Be the first to share feedback."}
-        </p>
+        <div className="rounded-2xl border border-dashed border-border py-16 text-center">
+          <Search className="mx-auto size-7 text-muted-foreground/50" />
+          <p className="mt-4 text-sm text-muted-foreground">
+            {searchQuery
+              ? `No posts match "${searchQuery}".`
+              : "No posts yet. Be the first to share feedback."}
+          </p>
+        </div>
       ) : (
-        <ul className="space-y-3">
+        <motion.ul
+          className="space-y-3"
+          initial="hidden"
+          animate="show"
+          variants={staggerContainer(0.05)}
+        >
           {mergedFeed.map((post) => (
-            <li key={post.id}>
+            <motion.li key={post.id} variants={fadeUp}>
               <PostCard
                 post={post}
                 workspaceSlug={slug}
@@ -243,15 +284,17 @@ export function Board() {
                 onUpvoteChange={onUpvoteChange}
                 showFounderBadge={isOwner && post.author.id === user?.id}
               />
-            </li>
+            </motion.li>
           ))}
-        </ul>
+        </motion.ul>
       )}
 
       {nextCursor && !loading ? (
-        <Button type="button" variant="secondary" onClick={onLoadMore} disabled={loadingMore}>
-          {loadingMore ? "Loading…" : "Load more"}
-        </Button>
+        <div className="flex justify-center pt-2">
+          <Button type="button" variant="outline" onClick={onLoadMore} disabled={loadingMore}>
+            {loadingMore ? "Loading…" : "Load more"}
+          </Button>
+        </div>
       ) : null}
     </div>
   );
