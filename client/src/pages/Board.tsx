@@ -271,7 +271,9 @@ export function Board() {
             <p className="mt-4 text-sm text-muted-foreground">
               {searchQuery
                 ? `No posts match "${searchQuery}".`
-                : "No posts yet. Be the first to share feedback."}
+                : categoryFilter !== "all"
+                  ? "No posts in this category."
+                  : "No posts yet. Be the first to share feedback."}
             </p>
           </div>
         ) : (

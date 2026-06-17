@@ -19,6 +19,7 @@ function useNavLinks(): NavLink[] {
   if (!slug) return [];
   const onAdmin = location.pathname.endsWith("/admin");
   const isOwner = Boolean(user && activeWorkspace && user.id === activeWorkspace.ownerId);
+  const canAdmin = isOwner || activeWorkspace.role === "admin" || activeWorkspace.role === "owner";
   const links: NavLink[] = [
     {
       to: `/${encodeURIComponent(slug)}`,
@@ -27,7 +28,7 @@ function useNavLinks(): NavLink[] {
       active: !onAdmin,
     },
   ];
-  if (isOwner) {
+  if (canAdmin) {
     links.push({
       to: `/${encodeURIComponent(slug)}/admin`,
       label: "Command center",

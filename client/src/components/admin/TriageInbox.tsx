@@ -17,9 +17,10 @@ type Props = {
   loading: boolean;
   moderatingId: string | null;
   onModerate: (postId: string, status: ModStatus) => void | Promise<void>;
+  onBulkModerate: (ids: string[], status: ModStatus) => Promise<{ failed: string[] }>;
 };
 
-export function TriageInbox({ posts, slug, loading, moderatingId, onModerate }: Props) {
+export function TriageInbox({ posts, slug, loading, moderatingId, onModerate, onBulkModerate }: Props) {
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [sort, setSort] = useState<Sort>("newest");
 
@@ -42,8 +43,8 @@ export function TriageInbox({ posts, slug, loading, moderatingId, onModerate }: 
 
   async function bulk(status: ModStatus) {
     const ids = [...selected];
-    for (const id of ids) await onModerate(id, status); // sequential; controller clears rows
-    setSelected(new Set());
+    const { failed } = await onBulkModerate(ids, status);
+    setSelected(new Set(failed)); // keep only the rows that failed selected
   }
 
   if (loading) return <p className="text-sm text-muted-foreground">Loading triage…</p>;
@@ -54,7 +55,13 @@ export function TriageInbox({ posts, slug, loading, moderatingId, onModerate }: 
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          <input type="checkbox" checked={allSelected} onChange={toggleAll} className="size-4 rounded border-input" />
+          <input
+            type="checkbox"
+            ref={(el) => { if (el) el.indeterminate = selected.size > 0 && !allSelected; }}
+            checked={allSelected}
+            onChange={toggleAll}
+            className="size-4 rounded border-input"
+          />
           <span className="font-mono text-xs tracking-wide uppercase">{posts.length} pending</span>
         </label>
         <Segmented

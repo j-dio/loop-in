@@ -365,6 +365,30 @@ export function Admin() {
     }
   }
 
+  async function moderateMany(
+    ids: string[],
+    moderation_status: "approved" | "spam" | "rejected"
+  ): Promise<{ failed: string[] }> {
+    if (!slug) return { failed: ids };
+    const failed: string[] = [];
+    for (const postId of ids) {
+      setModeratingId(postId);
+      try {
+        await apiFetch<{ post: PostDTO }>(
+          `/api/workspaces/${encodeURIComponent(slug)}/posts/${encodeURIComponent(postId)}/moderate`,
+          { method: "PATCH", body: JSON.stringify({ moderation_status }) }
+        );
+        setTriagePosts((prev) => prev.filter((p) => p.id !== postId));
+      } catch {
+        failed.push(postId);
+      }
+    }
+    setModeratingId(null);
+    setActionError(failed.length > 0 ? `${failed.length} of ${ids.length} could not be moderated.` : null);
+    await loadKanban(); // reload ONCE after the batch
+    return { failed };
+  }
+
   const onKanbanDragEnd = useCallback(
     async (result: DropResult) => {
       const { destination, source, draggableId } = result;
@@ -540,6 +564,7 @@ export function Admin() {
           loading={triageLoading}
           moderatingId={moderatingId}
           onModerate={moderate}
+          onBulkModerate={moderateMany}
         />
       ) : (
         <div className="space-y-4">
