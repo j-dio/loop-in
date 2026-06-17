@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { ArrowRight } from "lucide-react";
@@ -84,6 +85,12 @@ export function Hero({ onPrimary }: HeroProps) {
               {n.label}
             </a>
           ))}
+          <Link
+            to="/explore"
+            className="text-sm font-medium tracking-tight text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Explore
+          </Link>
         </nav>
         <div className="flex items-center gap-2">
           <ThemeToggle />

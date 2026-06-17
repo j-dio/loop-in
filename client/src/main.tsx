@@ -11,6 +11,7 @@ import { Board } from "./pages/Board";
 import { Thread } from "./pages/Thread";
 import { Admin } from "./pages/Admin";
 import { AcceptInvite } from "./pages/AcceptInvite";
+import { Explore } from "./pages/Explore";
 import { NotFound } from "./pages/NotFound";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
@@ -22,6 +23,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <Route path="/" element={<Landing />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/invite/accept" element={<AcceptInvite />} />
+          <Route path="/explore" element={<Explore />} />
 
           <Route element={<AppShell />}>
             <Route path="/:slug" element={<Board />} />

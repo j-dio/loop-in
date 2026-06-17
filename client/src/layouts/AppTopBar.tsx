@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { LogOut, Menu } from "lucide-react";
+import { Compass, LogOut, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/brand/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -46,6 +46,12 @@ export function AppTopBar({ onToggleMobileNav }: { onToggleMobileNav: () => void
         ) : null}
 
         <div className="ml-auto flex items-center gap-1.5">
+          <Button type="button" variant="ghost" size="sm" asChild>
+            <Link to="/explore">
+              <Compass className="size-4" />
+              <span className="hidden sm:inline">Explore</span>
+            </Link>
+          </Button>
           <ThemeToggle />
           {user ? (
             <>
