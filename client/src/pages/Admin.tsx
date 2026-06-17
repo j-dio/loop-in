@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { Link, useParams } from "react-router-dom";
 import { type DropResult } from "@hello-pangea/dnd";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/PageHeader";
+import { Segmented } from "@/components/ui/segmented";
 import { TriageInbox } from "@/components/admin/TriageInbox";
 import { KanbanBoard, type ColumnsState, type BoardColumnId } from "@/components/admin/KanbanBoard";
 import { AiDigestPanel, type DigestData } from "@/components/admin/AiDigestPanel";
@@ -474,48 +476,22 @@ export function Admin() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="font-mono text-xs tracking-[0.22em] text-brand uppercase">
-            Workspace admin
-          </p>
-          <h1 className="font-display mt-2 text-4xl font-semibold tracking-tight sm:text-5xl">
-            Command center
-          </h1>
-          <p className="mt-2 font-mono text-xs tracking-wide text-muted-foreground">
-            {workspaceLabel ? <span className="text-foreground">{workspaceLabel}</span> : null}
-            <span> · /{slug}</span>
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+      <PageHeader
+        eyebrow="Workspace admin"
+        title="Command center"
+        meta={<>{workspaceLabel ? <span className="text-foreground">{workspaceLabel}</span> : null}<span> · /{slug}</span></>}
+        actions={
           <Button type="button" variant="outline" size="sm" asChild>
             <Link to={`/${encodeURIComponent(slug)}`}>View public board</Link>
           </Button>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="flex w-fit flex-wrap gap-0.5 rounded-xl border border-border bg-card p-0.5">
-        {(
-          [
-            ["triage", "Triage"],
-            ["kanban", "Kanban"],
-            ["settings", "Settings"],
-          ] as const
-        ).map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setTab(value)}
-            className={
-              tab === value
-                ? "rounded-lg bg-brand-bright/15 px-3.5 py-1.5 text-sm font-medium text-brand"
-                : "rounded-lg px-3.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            }
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <Segmented
+        options={[["triage", "Triage"], ["kanban", "Kanban"], ["settings", "Settings"]] as const}
+        value={tab}
+        onChange={(v) => setTab(v as typeof tab)}
+      />
 
       {listError ? (
         <p className="text-destructive text-sm" role="alert">
