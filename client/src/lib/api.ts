@@ -1,3 +1,5 @@
+import type { AppPlatform, LinkDTO, LinkKind, ScreenshotDTO, WorkspaceProfileDTO } from "@/lib/profileTypes";
+
 /**
  * API origin for fetch(). In dev, align `localhost` vs `127.0.0.1` with the page:
  * auth cookies are host-scoped, so `http://localhost:5173` + `http://127.0.0.1:3001`
@@ -97,6 +99,11 @@ export type UpdateWorkspaceBody = {
   primaryColor?: string;
   visibility?: "public" | "invite_only";
   require_approval?: boolean;
+  tagline?: string | null;
+  description?: string | null;
+  platform?: AppPlatform | null;
+  category?: string | null;
+  website_url?: string | null;
 };
 
 export async function updateWorkspace(
@@ -118,4 +125,52 @@ export async function updateWorkspace(
     method: "PATCH",
     body: JSON.stringify(body),
   });
+}
+
+const ws = (slug: string) => `/api/workspaces/${encodeURIComponent(slug)}`;
+
+export async function getWorkspaceProfile(slug: string): Promise<WorkspaceProfileDTO> {
+  return apiFetch(`${ws(slug)}/profile`);
+}
+
+type ScreenshotPresignResponse = {
+  upload_url: string;
+  image_url: string;
+  upload_headers: Record<string, string>;
+};
+
+export async function presignScreenshot(
+  slug: string,
+  body: { filename: string; content_type: string }
+): Promise<ScreenshotPresignResponse> {
+  return apiFetch(`${ws(slug)}/screenshots/presign`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function addScreenshot(slug: string, url: string): Promise<{ screenshot: ScreenshotDTO }> {
+  return apiFetch(`${ws(slug)}/screenshots`, { method: "POST", body: JSON.stringify({ url }) });
+}
+
+export async function deleteScreenshot(slug: string, id: string): Promise<{ ok: true }> {
+  return apiFetch(`${ws(slug)}/screenshots/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export async function reorderScreenshots(slug: string, ids: string[]): Promise<{ ok: true }> {
+  return apiFetch(`${ws(slug)}/screenshots/reorder`, {
+    method: "PATCH",
+    body: JSON.stringify({ ids }),
+  });
+}
+
+export async function addProfileLink(
+  slug: string,
+  body: { kind: LinkKind; url: string }
+): Promise<{ link: LinkDTO }> {
+  return apiFetch(`${ws(slug)}/links`, { method: "POST", body: JSON.stringify(body) });
+}
+
+export async function deleteProfileLink(slug: string, id: string): Promise<{ ok: true }> {
+  return apiFetch(`${ws(slug)}/links/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
