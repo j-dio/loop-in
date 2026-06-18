@@ -1,6 +1,6 @@
-import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "../../db";
-import { follows, posts, users, workspaces } from "../../db/schema";
+import { follows, postUpdates, posts, users, workspaces } from "../../db/schema";
 import { serializeAuthorForPost } from "../posts/posts.service";
 import type { PostCategory, ModerationStatus, BoardStatus } from "../posts/posts.service";
 
@@ -180,6 +180,121 @@ export function mergeFollowingFeed(
   const nextCursor = hasMore && last ? encodeFeedCursor(last.createdAt, last.id) : null;
 
   return { items, nextCursor };
+}
+
+function updateCursorWhere(createdAt: Date, id: string) {
+  return or(
+    lt(postUpdates.createdAt, createdAt),
+    and(eq(postUpdates.createdAt, createdAt), sql`${postUpdates.id}::text < ${id}`)
+  );
+}
+
+/**
+ * Following feed: reverse-chron union of approved posts + status updates from the apps the user
+ * follows. Two-query bounded merge (see mergeFollowingFeed). Updates whose parent post is not
+ * approved / soft-deleted are excluded so hidden posts never leak via their updates.
+ */
+export async function listFollowingFeed(input: {
+  userId: string;
+  limit: number;
+  cursor: { createdAt: Date; id: string } | null;
+}): Promise<{ items: FollowingFeedItem[]; nextCursor: string | null }> {
+  const followed = await db
+    .select({ workspaceId: follows.workspaceId })
+    .from(follows)
+    .where(eq(follows.userId, input.userId));
+  const wsIds = followed.map((f) => f.workspaceId);
+  if (wsIds.length === 0) return { items: [], nextCursor: null };
+
+  const fetch = input.limit + 1;
+
+  const postBase = and(
+    inArray(posts.workspaceId, wsIds),
+    eq(posts.moderationStatus, "approved"),
+    isNull(posts.deletedAt)
+  );
+  const postWhere = input.cursor
+    ? and(postBase, feedCursorWhere(input.cursor.createdAt, input.cursor.id))
+    : postBase;
+
+  const updateBase = and(
+    inArray(postUpdates.workspaceId, wsIds),
+    eq(posts.moderationStatus, "approved"),
+    isNull(posts.deletedAt)
+  );
+  const updateWhere = input.cursor
+    ? and(updateBase, updateCursorWhere(input.cursor.createdAt, input.cursor.id))
+    : updateBase;
+
+  const [postRows, updateRows] = await Promise.all([
+    db
+      .select({
+        post: posts,
+        authorId: users.id,
+        authorName: users.name,
+        authorAvatar: users.avatarUrl,
+        workspaceName: workspaces.name,
+        workspaceSlug: workspaces.slug,
+        workspaceLogo: workspaces.logoUrl,
+      })
+      .from(posts)
+      .innerJoin(workspaces, eq(posts.workspaceId, workspaces.id))
+      .innerJoin(users, eq(posts.authorId, users.id))
+      .where(postWhere)
+      .orderBy(desc(posts.createdAt), desc(posts.id))
+      .limit(fetch),
+    db
+      .select({
+        id: postUpdates.id,
+        content: postUpdates.content,
+        createdAt: postUpdates.createdAt,
+        postId: posts.id,
+        postTitle: posts.title,
+        authorId: users.id,
+        authorName: users.name,
+        authorAvatar: users.avatarUrl,
+        workspaceName: workspaces.name,
+        workspaceSlug: workspaces.slug,
+        workspaceLogo: workspaces.logoUrl,
+      })
+      .from(postUpdates)
+      .innerJoin(posts, eq(postUpdates.postId, posts.id))
+      .innerJoin(workspaces, eq(postUpdates.workspaceId, workspaces.id))
+      .innerJoin(users, eq(postUpdates.authorId, users.id))
+      .where(updateWhere)
+      .orderBy(desc(postUpdates.createdAt), desc(postUpdates.id))
+      .limit(fetch),
+  ]);
+
+  const postItems: FollowingFeedItem[] = postRows.map((r) => ({
+    type: "post",
+    id: r.post.id,
+    title: r.post.title,
+    description: r.post.description,
+    imageUrl: r.post.imageUrl ?? null,
+    category: r.post.category as PostCategory,
+    boardStatus: r.post.boardStatus as BoardStatus,
+    upvoteCount: r.post.upvoteCount,
+    createdAt: r.post.createdAt,
+    author: serializeAuthorForPost(
+      { id: r.authorId, name: r.authorName, avatarUrl: r.authorAvatar },
+      { isAnonymous: r.post.isAnonymous },
+      { userId: undefined, workspaceRole: undefined }
+    ),
+    workspace: { name: r.workspaceName, slug: r.workspaceSlug, logoUrl: r.workspaceLogo },
+  }));
+
+  const updateItems: FollowingFeedItem[] = updateRows.map((r) => ({
+    type: "update",
+    id: r.id,
+    createdAt: r.createdAt,
+    content: r.content,
+    post: { id: r.postId, title: r.postTitle },
+    author: { id: r.authorId, name: r.authorName ?? "Unknown", avatarUrl: r.authorAvatar },
+    workspace: { name: r.workspaceName, slug: r.workspaceSlug, logoUrl: r.workspaceLogo },
+  }));
+
+  return mergeFollowingFeed(postItems, updateItems, input.limit);
 }
 
 // Re-export for callers that only import from this module.

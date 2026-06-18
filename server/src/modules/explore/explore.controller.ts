@@ -4,7 +4,7 @@ import {
   ExploreFeedQuerySchema,
   ExploreWorkspacesQuerySchema,
 } from "./explore.schemas";
-import { listPublicFeed, listPublicWorkspaces } from "./explore.service";
+import { listFollowingFeed, listPublicFeed, listPublicWorkspaces } from "./explore.service";
 
 function parseFeedCursor(raw: string | undefined): { createdAt: Date; id: string } | null | "bad" {
   if (!raw) return null;
@@ -39,6 +39,12 @@ export async function exploreFeedHandler(req: Request, res: Response, next: Next
     }
     const cursor = parseFeedCursor(parsed.data.cursor);
     if (cursor === "bad") return res.status(400).json({ error: "Invalid cursor" });
+
+    if (parsed.data.tab === "following") {
+      if (!req.user?.id) return res.status(401).json({ error: "Unauthorized" });
+      const result = await listFollowingFeed({ userId: req.user.id, limit: parsed.data.limit, cursor });
+      return res.json(result);
+    }
 
     const result = await listPublicFeed({ limit: parsed.data.limit, cursor });
     return res.json(result);
