@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { MessageSquarePlus, Search, X } from "lucide-react";
 import { PostCard } from "@/components/PostCard";
+import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { SubmitFeedbackDialog } from "@/components/SubmitFeedbackDialog";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -171,6 +172,8 @@ export function Board() {
 
   return (
     <div className="space-y-6">
+      <ProfileHeader slug={slug} isOwner={isOwner} />
+
       <PageHeader
         eyebrow="Feedback board"
         title="Feedback"

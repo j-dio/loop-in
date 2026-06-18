@@ -40,6 +40,21 @@ export const boardStatus = pgEnum('board_status', [
   'shipped',
 ]);
 
+export const appPlatform = pgEnum('app_platform', [
+  'web',
+  'mobile',
+  'desktop',
+  'other',
+]);
+
+export const linkKind = pgEnum('link_kind', [
+  'github',
+  'appstore',
+  'playstore',
+  'x',
+  'other',
+]);
+
 export const users = pgTable('users', {
   id: uuid('id')
     .primaryKey()
@@ -103,6 +118,16 @@ export const workspaces = pgTable('workspaces', {
     .default('#0F172A'),
 
   logoUrl: text('logo_url'),
+
+  tagline: varchar('tagline', { length: 140 }),
+
+  description: text('description'),
+
+  platform: appPlatform('platform'),
+
+  category: varchar('category', { length: 50 }),
+
+  websiteUrl: text('website_url'),
 
   visibility: workspaceVisibility('visibility').notNull().default('public'),
 
@@ -317,4 +342,40 @@ export const comments = pgTable('comments', {
 }, (table) => ({
   postIdIdx: index('comments_post_id_idx').on(table.postId),
   workspaceIdIdx: index('comments_workspace_id_idx').on(table.workspaceId),
+}));
+
+export const appScreenshots = pgTable('app_screenshots', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  workspaceId: uuid('workspace_id')
+    .notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+
+  url: text('url').notNull(),
+
+  sortOrder: integer('sort_order').notNull().default(0),
+
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+}, (table) => ({
+  workspaceIdIdx: index('app_screenshots_workspace_id_idx').on(table.workspaceId),
+}));
+
+export const appLinks = pgTable('app_links', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  workspaceId: uuid('workspace_id')
+    .notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+
+  kind: linkKind('kind').notNull(),
+
+  url: text('url').notNull(),
+
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+}, (table) => ({
+  workspaceIdIdx: index('app_links_workspace_id_idx').on(table.workspaceId),
 }));

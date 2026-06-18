@@ -8,7 +8,7 @@ beforeAll(() => {
   delete process.env.S3_PUBLIC_BASE_URL;
 });
 
-import { isValidPostImageUrl, publicObjectUrlForKey } from "./uploads.service";
+import { isValidPostImageUrl, isValidScreenshotUrl, publicObjectUrlForKey } from "./uploads.service";
 
 const WS = "11111111-1111-1111-1111-111111111111";
 const HOST = "https://loopin-uploads.s3.ap-southeast-2.amazonaws.com";
@@ -46,6 +46,31 @@ describe("isValidPostImageUrl", () => {
   it("rejects garbage input", () => {
     expect(isValidPostImageUrl("not a url", WS)).toBe(false);
     expect(isValidPostImageUrl("", WS)).toBe(false);
+  });
+});
+
+describe("isValidScreenshotUrl", () => {
+  it("accepts a well-formed URL under tmp/screenshots/{workspaceId}/", () => {
+    expect(isValidScreenshotUrl(`${HOST}/tmp/screenshots/${WS}/${UUID}.jpg`, WS)).toBe(true);
+    expect(isValidScreenshotUrl(`${HOST}/tmp/screenshots/${WS}/${UUID}.webp`, WS)).toBe(true);
+  });
+
+  it("rejects the plain post prefix (must be the screenshots subprefix)", () => {
+    expect(isValidScreenshotUrl(`${HOST}/tmp/${WS}/${UUID}.jpg`, WS)).toBe(false);
+  });
+
+  it("rejects another workspace's screenshots prefix", () => {
+    const other = "22222222-2222-2222-2222-222222222222";
+    expect(isValidScreenshotUrl(`${HOST}/tmp/screenshots/${other}/${UUID}.jpg`, WS)).toBe(false);
+  });
+
+  it("rejects a different host", () => {
+    expect(isValidScreenshotUrl(`https://evil.example.com/tmp/screenshots/${WS}/${UUID}.jpg`, WS)).toBe(false);
+  });
+
+  it("rejects path traversal and garbage", () => {
+    expect(isValidScreenshotUrl(`${HOST}/tmp/screenshots/${WS}/../x.jpg`, WS)).toBe(false);
+    expect(isValidScreenshotUrl("not a url", WS)).toBe(false);
   });
 });
 

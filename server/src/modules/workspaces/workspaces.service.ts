@@ -6,6 +6,8 @@ import { sendAddedToWorkspaceEmail, sendPendingInviteEmail } from "../email/emai
 
 export type WorkspaceVisibility = "public" | "invite_only";
 export type WorkspaceRole = "owner" | "admin" | "member";
+export type AppPlatform = "web" | "mobile" | "desktop" | "other";
+export type LinkKind = "github" | "appstore" | "playstore" | "x" | "other";
 
 export type Workspace = {
   id: string;
@@ -14,6 +16,11 @@ export type Workspace = {
   slug: string;
   primaryColor: string;
   logoUrl: string | null;
+  tagline: string | null;
+  description: string | null;
+  platform: AppPlatform | null;
+  category: string | null;
+  websiteUrl: string | null;
   visibility: WorkspaceVisibility;
   requireApproval: boolean;
   createdAt: Date;
@@ -27,6 +34,11 @@ function mapWorkspaceRow(row: typeof workspaces.$inferSelect): Workspace {
     slug: row.slug,
     primaryColor: row.primaryColor,
     logoUrl: row.logoUrl,
+    tagline: row.tagline,
+    description: row.description,
+    platform: row.platform as AppPlatform | null,
+    category: row.category,
+    websiteUrl: row.websiteUrl,
     visibility: row.visibility as WorkspaceVisibility,
     requireApproval: row.requireApproval,
     createdAt: row.createdAt,
@@ -109,6 +121,11 @@ export async function updateWorkspaceBySlug(input: {
     logoUrl?: string | null | undefined;
     visibility?: WorkspaceVisibility | undefined;
     requireApproval?: boolean | undefined;
+    tagline?: string | null | undefined;
+    description?: string | null | undefined;
+    platform?: AppPlatform | null | undefined;
+    category?: string | null | undefined;
+    websiteUrl?: string | null | undefined;
   };
 }): Promise<Workspace | null> {
   const [updated] = await db
@@ -119,6 +136,11 @@ export async function updateWorkspaceBySlug(input: {
       logoUrl: input.patch.logoUrl,
       visibility: input.patch.visibility,
       requireApproval: input.patch.requireApproval,
+      tagline: input.patch.tagline,
+      description: input.patch.description,
+      platform: input.patch.platform,
+      category: input.patch.category,
+      websiteUrl: input.patch.websiteUrl,
     })
     .where(eq(workspaces.slug, input.slug))
     .returning();

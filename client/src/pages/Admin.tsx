@@ -10,6 +10,9 @@ import { AiDigestPanel, type DigestData } from "@/components/admin/AiDigestPanel
 import { WorkspaceSettings, type SettingsDraft } from "@/components/admin/WorkspaceSettings";
 import { WorkspaceLogoSection } from "@/components/admin/WorkspaceLogoSection";
 import { MembersPanel } from "@/components/admin/MembersPanel";
+import { ProfileFieldsForm } from "@/components/admin/ProfileFieldsForm";
+import { ScreenshotManager } from "@/components/admin/ScreenshotManager";
+import { LinksManager } from "@/components/admin/LinksManager";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { ApiError, apiFetch, updateWorkspace } from "@/lib/api";
 import type { PostDTO } from "@/lib/postTypes";
@@ -77,7 +80,7 @@ export function Admin() {
     "unknown"
   );
   const [commandCenterRole, setCommandCenterRole] = useState<WorkspaceRole | null>(null);
-  const [tab, setTab] = useState<"triage" | "kanban" | "settings">("triage");
+  const [tab, setTab] = useState<"triage" | "kanban" | "settings" | "profile">("triage");
   const [triagePosts, setTriagePosts] = useState<PostDTO[]>([]);
   const [kanbanColumns, setKanbanColumns] = useState<ColumnsState>(() => emptyColumns());
   const [triageLoading, setTriageLoading] = useState(false);
@@ -513,7 +516,7 @@ export function Admin() {
       />
 
       <Segmented
-        options={[["triage", "Triage"], ["kanban", "Kanban"], ["settings", "Settings"]] as const}
+        options={[["triage", "Triage"], ["kanban", "Kanban"], ["profile", "Profile"], ["settings", "Settings"]] as const}
         value={tab}
         onChange={(v) => setTab(v as typeof tab)}
       />
@@ -558,6 +561,12 @@ export function Admin() {
               onSubmitInvite={(ev) => void submitMemberInvite(ev)}
             />
           ) : null}
+        </div>
+      ) : tab === "profile" ? (
+        <div className="max-w-2xl">
+          <ProfileFieldsForm slug={slug} canEdit={canEditWorkspaceSettings} />
+          <ScreenshotManager slug={slug} />
+          <LinksManager slug={slug} />
         </div>
       ) : tab === "triage" ? (
         <TriageInbox

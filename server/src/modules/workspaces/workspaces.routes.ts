@@ -6,20 +6,27 @@ import { createAiRouterStack } from "../ai/ai.routes";
 import { createPostsRouterStack } from "../posts/posts.routes";
 import { createUploadsRouterStack } from "../uploads/uploads.routes";
 import {
+  addLinkHandler,
+  addScreenshotHandler,
   deleteInvite,
+  deleteLinkHandler,
+  deleteScreenshotHandler,
   deleteWorkspace,
   deleteWorkspaceMember,
   getInviteInfo,
   getMyRole,
   getPendingInvites,
   getWorkspaceMembers,
+  getWorkspaceProfileHandler,
   getWorkspaces,
   patchWorkspace,
   patchWorkspaceLogo,
   postAcceptInvite,
   postWorkspace,
   postWorkspaceMember,
+  presignScreenshot,
   presignWorkspaceLogo,
+  reorderScreenshotsHandler,
 } from "./workspaces.controller";
 
 export const workspacesRouter = Router();
@@ -102,6 +109,49 @@ workspacesRouter.patch(
   requireWorkspace,
   adminOrOwner,
   patchWorkspaceLogo
+);
+
+// Public app profile (fields + screenshots + links). requireWorkspace honors invite_only read-block.
+workspacesRouter.get("/:slug/profile", requireWorkspace, getWorkspaceProfileHandler);
+
+// Screenshots (admin or owner)
+workspacesRouter.post(
+  "/:slug/screenshots/presign",
+  authenticate,
+  requireWorkspace,
+  adminOrOwner,
+  presignScreenshot
+);
+workspacesRouter.patch(
+  "/:slug/screenshots/reorder",
+  authenticate,
+  requireWorkspace,
+  adminOrOwner,
+  reorderScreenshotsHandler
+);
+workspacesRouter.post(
+  "/:slug/screenshots",
+  authenticate,
+  requireWorkspace,
+  adminOrOwner,
+  addScreenshotHandler
+);
+workspacesRouter.delete(
+  "/:slug/screenshots/:id",
+  authenticate,
+  requireWorkspace,
+  adminOrOwner,
+  deleteScreenshotHandler
+);
+
+// Links (admin or owner)
+workspacesRouter.post("/:slug/links", authenticate, requireWorkspace, adminOrOwner, addLinkHandler);
+workspacesRouter.delete(
+  "/:slug/links/:id",
+  authenticate,
+  requireWorkspace,
+  adminOrOwner,
+  deleteLinkHandler
 );
 
 // Owner-only settings + delete

@@ -2,6 +2,10 @@ import { z } from "zod";
 
 export const WorkspaceVisibilitySchema = z.enum(["public", "invite_only"]);
 
+export const AppPlatformSchema = z.enum(["web", "mobile", "desktop", "other"]);
+export const LinkKindSchema = z.enum(["github", "appstore", "playstore", "x", "other"]);
+const HttpUrlSchema = z.string().trim().url().max(2048).startsWith("http");
+
 export const WorkspaceSlugSchema = z
   .string()
   .trim()
@@ -32,6 +36,12 @@ export const PatchWorkspaceBodySchema = z
     primaryColor: HexColorSchema.optional(),
     visibility: WorkspaceVisibilitySchema.optional(),
     require_approval: z.boolean().optional(),
+    // profile fields (owner-only). `null` clears the field.
+    tagline: z.string().trim().max(140).nullable().optional(),
+    description: z.string().trim().max(5000).nullable().optional(),
+    platform: AppPlatformSchema.nullable().optional(),
+    category: z.string().trim().max(50).nullable().optional(),
+    website_url: HttpUrlSchema.nullable().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, "at least one field must be provided");
 
@@ -56,5 +66,33 @@ export const InviteMemberBodySchema = z.object({
 export const RemoveMemberParamsSchema = z.object({
   slug: WorkspaceSlugSchema,
   userId: z.string().uuid(),
+});
+
+export const ScreenshotPresignBodySchema = z.object({
+  filename: z.string().trim().min(1).max(255),
+  content_type: z.enum(["image/jpeg", "image/png", "image/gif", "image/webp"]),
+});
+
+export const AddScreenshotBodySchema = z.object({
+  url: z.string().trim().url().max(2048),
+});
+
+export const ReorderScreenshotsBodySchema = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(5),
+});
+
+export const AddLinkBodySchema = z.object({
+  kind: LinkKindSchema,
+  url: HttpUrlSchema,
+});
+
+export const ScreenshotIdParamsSchema = z.object({
+  slug: WorkspaceSlugSchema,
+  id: z.string().uuid(),
+});
+
+export const LinkIdParamsSchema = z.object({
+  slug: WorkspaceSlugSchema,
+  id: z.string().uuid(),
 });
 
