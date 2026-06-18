@@ -20,4 +20,6 @@ export type WorkspaceProfileDTO = {
   };
   screenshots: ScreenshotDTO[];
   links: LinkDTO[];
+  followerCount: number;
+  isFollowing: boolean;
 };

@@ -4,6 +4,7 @@ import { z } from "zod";
 export const ExploreFeedQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).optional().default(20),
   cursor: z.string().optional(),
+  tab: z.enum(["discover", "following"]).optional().default("discover"),
 });
 
 /** Public-workspace directory query. */

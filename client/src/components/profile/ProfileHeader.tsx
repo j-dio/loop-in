@@ -4,6 +4,7 @@ import { Apple, Globe, Link as LinkIcon, Play } from "lucide-react";
 import { ApiError, getWorkspaceProfile } from "@/lib/api";
 import { WorkspaceTile } from "@/components/WorkspaceTile";
 import { Badge } from "@/components/ui/badge";
+import { FollowButton } from "@/components/FollowButton";
 import type { LinkDTO, WorkspaceProfileDTO } from "@/lib/profileTypes";
 
 const PLATFORM_LABEL: Record<NonNullable<WorkspaceProfileDTO["workspace"]["platform"]>, string> = {
@@ -31,6 +32,7 @@ function linkMeta(kind: LinkDTO["kind"]): { label: string; Icon: typeof Globe } 
 export function ProfileHeader({ slug, isOwner }: { slug: string; isOwner: boolean }) {
   const [data, setData] = useState<WorkspaceProfileDTO | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [followerCount, setFollowerCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,7 +40,10 @@ export function ProfileHeader({ slug, isOwner }: { slug: string; isOwner: boolea
     void (async () => {
       try {
         const profile = await getWorkspaceProfile(slug);
-        if (!cancelled) setData(profile);
+        if (!cancelled) {
+          setData(profile);
+          setFollowerCount(profile.followerCount);
+        }
       } catch (e) {
         // invite_only without access (403) or missing (404): render nothing.
         if (!(e instanceof ApiError)) throw e;
@@ -78,6 +83,17 @@ export function ProfileHeader({ slug, isOwner }: { slug: string; isOwner: boolea
             {w.platform ? <Badge tone="outline">{PLATFORM_LABEL[w.platform]}</Badge> : null}
             {w.category ? <Badge tone="neutral">{w.category}</Badge> : null}
           </div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <FollowButton
+            slug={slug}
+            initialFollowing={data.isFollowing}
+            initialCount={data.followerCount}
+            onChange={(s) => setFollowerCount(s.followerCount)}
+          />
+          <span className="font-mono text-xs text-muted-foreground">
+            {followerCount} {followerCount === 1 ? "follower" : "followers"}
+          </span>
         </div>
       </div>
 

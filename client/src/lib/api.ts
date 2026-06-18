@@ -174,3 +174,39 @@ export async function addProfileLink(
 export async function deleteProfileLink(slug: string, id: string): Promise<{ ok: true }> {
   return apiFetch(`${ws(slug)}/links/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
+
+export type FollowResult = { following: boolean; followerCount: number };
+
+export async function followWorkspace(slug: string): Promise<FollowResult> {
+  return apiFetch(`${ws(slug)}/follow`, { method: "POST" });
+}
+
+export async function unfollowWorkspace(slug: string): Promise<FollowResult> {
+  return apiFetch(`${ws(slug)}/follow`, { method: "DELETE" });
+}
+
+export type ExplorePostItem = {
+  type: "post";
+  id: string;
+  title: string;
+  description: string | null;
+  imageUrl: string | null;
+  category: "bug" | "feature_request" | "ui_tweak";
+  boardStatus: "inbox" | "under_review" | "planned" | "in_progress" | "shipped";
+  upvoteCount: number;
+  createdAt: string;
+  author: { id?: string; name: string; avatarUrl: string | null };
+  workspace: { name: string; slug: string; logoUrl: string | null };
+};
+
+export type ExploreUpdateItem = {
+  type: "update";
+  id: string;
+  createdAt: string;
+  content: string;
+  post: { id: string; title: string };
+  author: { id?: string; name: string; avatarUrl: string | null };
+  workspace: { name: string; slug: string; logoUrl: string | null };
+};
+
+export type FollowingFeedItem = ExplorePostItem | ExploreUpdateItem;

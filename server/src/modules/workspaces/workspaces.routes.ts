@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authenticate, optionalAuth } from "../../middleware/authenticate";
 import { createWorkspaceRateLimiter } from "../../middleware/rateLimit";
-import { requireRole, requireWorkspace } from "../../middleware/workspace";
+import { requireParticipant, requireRole, requireWorkspace } from "../../middleware/workspace";
 import { createAiRouterStack } from "../ai/ai.routes";
 import { createPostsRouterStack } from "../posts/posts.routes";
 import { createUploadsRouterStack } from "../uploads/uploads.routes";
@@ -13,6 +13,7 @@ import {
   deleteScreenshotHandler,
   deleteWorkspace,
   deleteWorkspaceMember,
+  followWorkspaceHandler,
   getInviteInfo,
   getMyRole,
   getPendingInvites,
@@ -27,6 +28,7 @@ import {
   presignScreenshot,
   presignWorkspaceLogo,
   reorderScreenshotsHandler,
+  unfollowWorkspaceHandler,
 } from "./workspaces.controller";
 
 export const workspacesRouter = Router();
@@ -113,6 +115,22 @@ workspacesRouter.patch(
 
 // Public app profile (fields + screenshots + links). requireWorkspace honors invite_only read-block.
 workspacesRouter.get("/:slug/profile", requireWorkspace, getWorkspaceProfileHandler);
+
+// Follow / unfollow an app (participant tier — any signed-in user on a public board)
+workspacesRouter.post(
+  "/:slug/follow",
+  authenticate,
+  requireWorkspace,
+  requireParticipant,
+  followWorkspaceHandler
+);
+workspacesRouter.delete(
+  "/:slug/follow",
+  authenticate,
+  requireWorkspace,
+  requireParticipant,
+  unfollowWorkspaceHandler
+);
 
 // Screenshots (admin or owner)
 workspacesRouter.post(

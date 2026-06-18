@@ -34,6 +34,12 @@ import {
   reorderScreenshots,
 } from "./workspaces.profile.service";
 import {
+  followWorkspace,
+  getFollowerCount,
+  isFollowing,
+  unfollowWorkspace,
+} from "./workspaces.follows.service";
+import {
   acceptInviteByToken,
   cancelPendingInvite,
   createWorkspaceWithOwnerMembership,
@@ -385,6 +391,11 @@ export async function getWorkspaceProfileHandler(req: Request, res: Response, ne
     if (!profile) return res.status(404).json({ error: "Workspace not found" });
 
     const { workspace, screenshots, links } = profile;
+    const viewerId = req.user?.id;
+    const [followerCount, following] = await Promise.all([
+      getFollowerCount(workspace.id),
+      viewerId ? isFollowing({ userId: viewerId, workspaceId: workspace.id }) : Promise.resolve(false),
+    ]);
     return res.json({
       workspace: {
         id: workspace.id,
@@ -401,6 +412,8 @@ export async function getWorkspaceProfileHandler(req: Request, res: Response, ne
       },
       screenshots,
       links,
+      followerCount,
+      isFollowing: following,
     });
   } catch (err) {
     next(err);
@@ -547,6 +560,34 @@ export async function deleteLinkHandler(req: Request, res: Response, next: NextF
     const result = await deleteLink({ workspaceId: req.workspace.id, id: paramsParsed.data.id });
     if (result === "not_found") return res.status(404).json({ error: "Link not found" });
     return res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** POST /:slug/follow — follow an app (participant tier). Idempotent. */
+export async function followWorkspaceHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user?.id) return res.status(401).json({ error: "Unauthorized" });
+    if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });
+
+    await followWorkspace({ userId: req.user.id, workspaceId: req.workspace.id });
+    const followerCount = await getFollowerCount(req.workspace.id);
+    return res.json({ following: true, followerCount });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** DELETE /:slug/follow — unfollow an app (participant tier). Idempotent. */
+export async function unfollowWorkspaceHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user?.id) return res.status(401).json({ error: "Unauthorized" });
+    if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });
+
+    await unfollowWorkspace({ userId: req.user.id, workspaceId: req.workspace.id });
+    const followerCount = await getFollowerCount(req.workspace.id);
+    return res.json({ following: false, followerCount });
   } catch (err) {
     next(err);
   }
