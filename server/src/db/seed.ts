@@ -2,6 +2,8 @@ import "../config/env";
 import { eq } from "drizzle-orm";
 import { db, pool } from "./index";
 import {
+  appLinks,
+  appScreenshots,
   comments,
   postUpdates,
   posts,
@@ -40,6 +42,13 @@ type SeedWorkspace = {
   name: string;
   slug: string;
   ownerKey: string;
+  tagline?: string;
+  description?: string;
+  platform?: "web" | "mobile" | "desktop" | "other";
+  category?: string;
+  websiteUrl?: string;
+  screenshots?: string[];
+  links?: { kind: "github" | "appstore" | "playstore" | "x" | "other"; url: string }[];
   posts: SeedPost[];
 };
 
@@ -58,6 +67,20 @@ const WORKSPACES: SeedWorkspace[] = [
     name: "Loop In",
     slug: "demo",
     ownerKey: "maya",
+    tagline: "The organized feedback layer for builders.",
+    description:
+      "Loop In turns scattered feedback into a public board with upvotes, triage, a Kanban roadmap, and official updates. Built for indie devs and small teams.",
+    platform: "web",
+    category: "Developer tools",
+    websiteUrl: "https://example.com/loopin",
+    screenshots: [
+      "https://placehold.co/1200x750/0f172a/ffffff/png?text=Loop+In+Board",
+      "https://placehold.co/1200x750/1e293b/ffffff/png?text=Kanban+Roadmap",
+    ],
+    links: [
+      { kind: "github", url: "https://github.com/example/loopin" },
+      { kind: "x", url: "https://x.com/example" },
+    ],
     posts: [
       {
         title: "Dark mode for the dashboard",
@@ -143,6 +166,14 @@ const WORKSPACES: SeedWorkspace[] = [
     name: "Orbit Notes",
     slug: "orbit-notes",
     ownerKey: "devon",
+    tagline: "Notes that sync everywhere, even offline.",
+    description:
+      "Orbit Notes is a fast markdown notebook with offline editing, folder colors, and PDF export. Take notes anywhere; sync when you reconnect.",
+    platform: "mobile",
+    category: "Productivity",
+    websiteUrl: "https://example.com/orbit",
+    screenshots: ["https://placehold.co/1200x750/3730a3/ffffff/png?text=Orbit+Notes"],
+    links: [{ kind: "playstore", url: "https://play.google.com/store/apps/details?id=com.example.orbit" }],
     posts: [
       {
         title: "Offline editing support",
@@ -234,11 +265,33 @@ async function seed() {
     const ownerId = userIdByKey.get(ws.ownerKey)!;
     const [workspace] = await db
       .insert(workspaces)
-      .values({ ownerId, name: ws.name, slug: ws.slug, visibility: "public", requireApproval: true })
+      .values({
+        ownerId,
+        name: ws.name,
+        slug: ws.slug,
+        visibility: "public",
+        requireApproval: true,
+        tagline: ws.tagline ?? null,
+        description: ws.description ?? null,
+        platform: ws.platform ?? null,
+        category: ws.category ?? null,
+        websiteUrl: ws.websiteUrl ?? null,
+      })
       .returning();
     if (!workspace) throw new Error(`Failed to create workspace ${ws.slug}`);
 
     await db.insert(workspaceMembers).values({ workspaceId: workspace.id, userId: ownerId, role: "owner" });
+
+    if (ws.screenshots?.length) {
+      await db.insert(appScreenshots).values(
+        ws.screenshots.map((url, i) => ({ workspaceId: workspace.id, url, sortOrder: i }))
+      );
+    }
+    if (ws.links?.length) {
+      await db.insert(appLinks).values(
+        ws.links.map((l) => ({ workspaceId: workspace.id, kind: l.kind, url: l.url }))
+      );
+    }
 
     for (const p of ws.posts) {
       const cappedUpvotes = Math.min(p.upvotes, upvoterIds.length);
