@@ -1,6 +1,6 @@
 import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "../../db";
-import { posts, users, workspaces } from "../../db/schema";
+import { follows, posts, users, workspaces } from "../../db/schema";
 import { serializeAuthorForPost } from "../posts/posts.service";
 import type { PostCategory, ModerationStatus, BoardStatus } from "../posts/posts.service";
 
@@ -11,6 +11,8 @@ export type ExploreWorkspace = {
   logoUrl: string | null;
   createdAt: Date;
   postCount: number;
+  followerCount: number;
+  isFollowing: boolean;
 };
 
 export type ExploreFeedItem = {
@@ -29,8 +31,15 @@ export type ExploreFeedItem = {
 };
 
 /** Directory of public workspaces, ranked by approved-post count (most active first). */
-export async function listPublicWorkspaces(limit: number): Promise<ExploreWorkspace[]> {
+export async function listPublicWorkspaces(
+  limit: number,
+  viewerId?: string
+): Promise<ExploreWorkspace[]> {
   const approvedPosts = sql<number>`count(${posts.id}) filter (where ${posts.moderationStatus} = 'approved' and ${posts.deletedAt} is null)`;
+  const followerCount = sql<number>`(select count(*)::int from ${follows} where ${follows.workspaceId} = ${workspaces.id})`;
+  const isFollowing = viewerId
+    ? sql<boolean>`exists(select 1 from ${follows} where ${follows.workspaceId} = ${workspaces.id} and ${follows.userId} = ${viewerId})`
+    : sql<boolean>`false`;
 
   const rows = await db
     .select({
@@ -40,6 +49,8 @@ export async function listPublicWorkspaces(limit: number): Promise<ExploreWorksp
       logoUrl: workspaces.logoUrl,
       createdAt: workspaces.createdAt,
       postCount: approvedPosts,
+      followerCount,
+      isFollowing,
     })
     .from(workspaces)
     .leftJoin(posts, eq(posts.workspaceId, workspaces.id))
@@ -55,6 +66,8 @@ export async function listPublicWorkspaces(limit: number): Promise<ExploreWorksp
     logoUrl: r.logoUrl,
     createdAt: r.createdAt,
     postCount: Number(r.postCount ?? 0),
+    followerCount: Number(r.followerCount ?? 0),
+    isFollowing: Boolean(r.isFollowing),
   }));
 }
 
