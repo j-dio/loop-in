@@ -15,6 +15,7 @@ export type User = {
   id: string;
   email: string;
   name: string | null;
+  avatarUrl: string | null;
 };
 
 export type Workspace = {
@@ -23,6 +24,7 @@ export type Workspace = {
   name: string;
   slug: string;
   primaryColor: string;
+  logoUrl: string | null;
   visibility: "public" | "invite_only";
   requireApproval: boolean;
   createdAt: string;

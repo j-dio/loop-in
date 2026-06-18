@@ -8,6 +8,7 @@ import { TriageInbox } from "@/components/admin/TriageInbox";
 import { KanbanBoard, type ColumnsState, type BoardColumnId } from "@/components/admin/KanbanBoard";
 import { AiDigestPanel, type DigestData } from "@/components/admin/AiDigestPanel";
 import { WorkspaceSettings, type SettingsDraft } from "@/components/admin/WorkspaceSettings";
+import { WorkspaceLogoSection } from "@/components/admin/WorkspaceLogoSection";
 import { MembersPanel } from "@/components/admin/MembersPanel";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { ApiError, apiFetch, updateWorkspace } from "@/lib/api";
@@ -539,6 +540,7 @@ export function Admin() {
             onChange={(patch) => setSettingsDraft((d) => (d ? { ...d, ...patch } : d))}
             onSubmit={() => void saveWorkspaceSettings()}
           />
+          <WorkspaceLogoSection canManage={canInviteMembers} />
           {canInviteMembers ? (
             <MembersPanel
               members={members}

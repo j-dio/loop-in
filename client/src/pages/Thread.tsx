@@ -14,6 +14,7 @@ import {
   moderationTone,
 } from "@/lib/postDisplay";
 import { useWorkspace } from "@/context/WorkspaceContext";
+import { UserAvatar } from "@/components/UserAvatar";
 import { ApiError, apiFetch } from "@/lib/api";
 import { setReturnTo } from "@/lib/returnTo";
 import type { CommentDTO } from "@/lib/commentTypes";
@@ -368,6 +369,13 @@ export function Thread() {
                   </p>
                 ) : null}
                 <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <UserAvatar
+                    name={post.author.name}
+                    avatarUrl={post.author.avatarUrl}
+                    seed={post.author.id}
+                    anonymous={!post.author.id}
+                    sizeClassName="size-6"
+                  />
                   <span className="font-medium text-foreground">{post.author.name}</span>
                   <span aria-hidden>·</span>
                   <time dateTime={post.createdAt}>
@@ -461,6 +469,12 @@ export function Thread() {
                         }`}
                       >
                         <div className="flex flex-wrap items-center gap-2 pr-10">
+                          <UserAvatar
+                            name={c.author.name}
+                            avatarUrl={c.author.avatarUrl}
+                            seed={c.author.id}
+                            sizeClassName="size-6"
+                          />
                           {showFounderBadge ? <Badge tone="brand">Founder</Badge> : null}
                           <span className="text-sm font-medium">{c.author.name}</span>
                           <span className="text-xs text-muted-foreground">

@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Compass, LogOut, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/brand/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { WorkspaceSwitcher } from "@/components/WorkspaceSwitcher";
+import { UserAvatar } from "@/components/UserAvatar";
+import { ProfileDialog } from "@/components/ProfileDialog";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { apiFetch } from "@/lib/api";
 import { setReturnTo } from "@/lib/returnTo";
@@ -11,6 +14,7 @@ import { setReturnTo } from "@/lib/returnTo";
 export function AppTopBar({ onToggleMobileNav }: { onToggleMobileNav: () => void }) {
   const { user, activeWorkspace, refreshSession } = useWorkspace();
   const navigate = useNavigate();
+  const [profileOpen, setProfileOpen] = useState(false);
 
   async function handleSignOut() {
     try {
@@ -55,13 +59,27 @@ export function AppTopBar({ onToggleMobileNav }: { onToggleMobileNav: () => void
           <ThemeToggle />
           {user ? (
             <>
-              <span className="hidden max-w-[160px] truncate px-1 font-mono text-xs tracking-wide text-muted-foreground sm:block">
-                {user.name ?? user.email}
-              </span>
+              <button
+                type="button"
+                onClick={() => setProfileOpen(true)}
+                className="flex items-center gap-2 rounded-full py-0.5 pl-0.5 pr-2 text-left transition-colors hover:bg-secondary/60"
+                aria-label="Edit your profile"
+              >
+                <UserAvatar
+                  name={user.name}
+                  avatarUrl={user.avatarUrl}
+                  seed={user.id}
+                  sizeClassName="size-8"
+                />
+                <span className="hidden max-w-[140px] truncate font-mono text-xs tracking-wide text-muted-foreground sm:block">
+                  {user.name ?? user.email}
+                </span>
+              </button>
               <Button type="button" variant="ghost" size="sm" onClick={() => void handleSignOut()}>
                 <LogOut className="size-4" />
                 <span className="hidden sm:inline">Sign out</span>
               </Button>
+              <ProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
             </>
           ) : (
             <Button type="button" variant="brand" size="sm" asChild>
