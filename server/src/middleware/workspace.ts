@@ -57,6 +57,23 @@ export async function requireWorkspace(req: Request, res: Response, next: NextFu
   }
 }
 
+/**
+ * requireParticipant
+ * Participant tier: any signed-in user may write on a PUBLIC board.
+ * - no user            -> 401
+ * - no workspace       -> 404 (requireWorkspace must run first)
+ * - invite_only + no role -> 403 (already blocked upstream by requireWorkspace; re-asserted here
+ *                                  so the guard is correct in isolation)
+ */
+export function requireParticipant(req: Request, res: Response, next: NextFunction) {
+  if (!req.user?.id) return res.status(401).json({ error: "Unauthorized" });
+  if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });
+  if (req.workspace.visibility === "invite_only" && !req.workspaceRole) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  return next();
+}
+
 export function requireRole(...roles: WorkspaceRole[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     const role = req.workspaceRole;
