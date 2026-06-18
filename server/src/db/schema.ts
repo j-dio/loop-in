@@ -379,3 +379,26 @@ export const appLinks = pgTable('app_links', {
 }, (table) => ({
   workspaceIdIdx: index('app_links_workspace_id_idx').on(table.workspaceId),
 }));
+
+export const follows = pgTable('follows', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+
+  workspaceId: uuid('workspace_id')
+    .notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+}, (table) => ({
+  userWorkspaceUnique: uniqueIndex('follows_user_id_workspace_id_unique').on(
+    table.userId,
+    table.workspaceId,
+  ),
+  workspaceIdIdx: index('follows_workspace_id_idx').on(table.workspaceId),
+  userIdIdx: index('follows_user_id_idx').on(table.userId),
+}));
