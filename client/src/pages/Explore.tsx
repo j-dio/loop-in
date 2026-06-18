@@ -224,6 +224,20 @@ export function Explore() {
                               <Badge tone={boardTone(p.boardStatus)}>{boardLabel(p.boardStatus)}</Badge>
                             </div>
                           </div>
+                          {p.imageUrl ? (
+                            <div className="mt-3 flex justify-center overflow-hidden rounded-xl border border-border bg-muted/30">
+                              <img
+                                src={p.imageUrl}
+                                alt={p.title}
+                                className="h-auto max-h-[30rem] w-full object-contain"
+                                loading="lazy"
+                                onError={(e) => {
+                                  const wrap = e.currentTarget.parentElement;
+                                  if (wrap) wrap.style.display = "none";
+                                }}
+                              />
+                            </div>
+                          ) : null}
                           {snippet(p.description) ? (
                             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                               {snippet(p.description)}

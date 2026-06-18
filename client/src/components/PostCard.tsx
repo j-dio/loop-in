@@ -147,11 +147,11 @@ export function PostCard({
         </div>
 
         {post.imageUrl ? (
-          <div className="mt-3 overflow-hidden rounded-xl border border-border bg-muted/30">
+          <div className="mt-3 flex justify-center overflow-hidden rounded-xl border border-border bg-muted/30">
             <img
               src={post.imageUrl}
               alt={post.title}
-              className="max-h-40 w-full object-cover"
+              className="h-auto max-h-[30rem] w-full object-contain"
               loading="lazy"
               onError={(e) => {
                 // Hide the container if the image fails to load (deleted object, expired host, etc.)
