@@ -123,7 +123,7 @@ export async function updateWorkspaceBySlug(input: {
     requireApproval?: boolean | undefined;
     tagline?: string | null | undefined;
     description?: string | null | undefined;
-    platform?: AppPlatform | undefined;
+    platform?: AppPlatform | null | undefined;
     category?: string | null | undefined;
     websiteUrl?: string | null | undefined;
   };

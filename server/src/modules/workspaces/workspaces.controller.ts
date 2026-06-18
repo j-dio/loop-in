@@ -90,12 +90,13 @@ export async function patchWorkspace(req: Request, res: Response, next: NextFunc
       return res.status(400).json({ error: "Invalid request", details: bodyParsed.error.flatten() });
     }
 
-    const { require_approval, ...rest } = bodyParsed.data;
+    const { require_approval, website_url, ...rest } = bodyParsed.data;
     const updated = await updateWorkspaceBySlug({
       slug: paramsParsed.data.slug,
       patch: {
         ...rest,
         ...(require_approval !== undefined ? { requireApproval: require_approval } : {}),
+        ...(website_url !== undefined ? { websiteUrl: website_url } : {}),
       },
     });
 
