@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authenticate, optionalAuth } from "../../middleware/authenticate";
-import { requireRole, requireWorkspace } from "../../middleware/workspace";
+import { requireParticipant, requireRole, requireWorkspace } from "../../middleware/workspace";
 import {
   createCommentHandler,
   deleteCommentHandler,
@@ -35,14 +35,14 @@ postsScopedRouter.get("/", listPostsHandler);
 postsScopedRouter.get("/admin/triage", ...adminOnly, listAdminTriageHandler);
 postsScopedRouter.get("/admin/kanban", ...adminOnly, listAdminKanbanHandler);
 postsScopedRouter.get("/:postId/upvote", getUpvoteHandler);
-postsScopedRouter.post("/:postId/upvote", authenticate, postToggleUpvoteHandler);
+postsScopedRouter.post("/:postId/upvote", authenticate, requireParticipant, postToggleUpvoteHandler);
 postsScopedRouter.get("/:postId/updates", listPostUpdatesHandler);
 postsScopedRouter.post("/:postId/updates", ...adminOnly, createPostUpdateHandler);
 postsScopedRouter.get("/:postId/comments", listCommentsHandler);
-postsScopedRouter.post("/:postId/comments", authenticate, createCommentHandler);
+postsScopedRouter.post("/:postId/comments", authenticate, requireParticipant, createCommentHandler);
 postsScopedRouter.delete("/:postId/comments/:commentId", authenticate, deleteCommentHandler);
 postsScopedRouter.get("/:postId", getPostHandler);
-postsScopedRouter.post("/", authenticate, createPostHandler);
+postsScopedRouter.post("/", authenticate, requireParticipant, createPostHandler);
 postsScopedRouter.patch("/:postId/moderate", ...adminOnly, moderatePostHandler);
 postsScopedRouter.patch("/:postId/status", ...adminOnly, patchPostBoardStatusHandler);
 postsScopedRouter.patch("/:postId", authenticate, patchPostHandler);
