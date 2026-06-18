@@ -8,6 +8,7 @@ export type ExploreWorkspace = {
   id: string;
   name: string;
   slug: string;
+  logoUrl: string | null;
   createdAt: Date;
   postCount: number;
 };
@@ -21,9 +22,10 @@ export type ExploreFeedItem = {
   boardStatus: BoardStatus;
   upvoteCount: number;
   createdAt: Date;
-  isAnonymous: boolean;
+  // Note: the raw `isAnonymous` flag is intentionally NOT exposed on the public feed —
+  // identity is masked by serializeAuthorForPost (a hidden author has no `id`).
   author: { id?: string; name: string; avatarUrl: string | null };
-  workspace: { name: string; slug: string };
+  workspace: { name: string; slug: string; logoUrl: string | null };
 };
 
 /** Directory of public workspaces, ranked by approved-post count (most active first). */
@@ -35,6 +37,7 @@ export async function listPublicWorkspaces(limit: number): Promise<ExploreWorksp
       id: workspaces.id,
       name: workspaces.name,
       slug: workspaces.slug,
+      logoUrl: workspaces.logoUrl,
       createdAt: workspaces.createdAt,
       postCount: approvedPosts,
     })
@@ -49,6 +52,7 @@ export async function listPublicWorkspaces(limit: number): Promise<ExploreWorksp
     id: r.id,
     name: r.name,
     slug: r.slug,
+    logoUrl: r.logoUrl,
     createdAt: r.createdAt,
     postCount: Number(r.postCount ?? 0),
   }));
@@ -87,6 +91,7 @@ export async function listPublicFeed(input: {
       authorAvatar: users.avatarUrl,
       workspaceName: workspaces.name,
       workspaceSlug: workspaces.slug,
+      workspaceLogo: workspaces.logoUrl,
     })
     .from(posts)
     .innerJoin(workspaces, eq(posts.workspaceId, workspaces.id))
@@ -114,13 +119,12 @@ export async function listPublicFeed(input: {
     boardStatus: r.post.boardStatus as BoardStatus,
     upvoteCount: r.post.upvoteCount,
     createdAt: r.post.createdAt,
-    isAnonymous: r.post.isAnonymous,
     author: serializeAuthorForPost(
       { id: r.authorId, name: r.authorName, avatarUrl: r.authorAvatar },
       { isAnonymous: r.post.isAnonymous },
       { userId: undefined, workspaceRole: undefined }
     ),
-    workspace: { name: r.workspaceName, slug: r.workspaceSlug },
+    workspace: { name: r.workspaceName, slug: r.workspaceSlug, logoUrl: r.workspaceLogo },
   }));
 
   return { items, nextCursor };

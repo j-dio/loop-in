@@ -15,9 +15,11 @@ import {
   getWorkspaceMembers,
   getWorkspaces,
   patchWorkspace,
+  patchWorkspaceLogo,
   postAcceptInvite,
   postWorkspace,
   postWorkspaceMember,
+  presignWorkspaceLogo,
 } from "./workspaces.controller";
 
 export const workspacesRouter = Router();
@@ -84,6 +86,22 @@ workspacesRouter.delete(
   requireWorkspace,
   adminOrOwner,
   deleteInvite
+);
+
+// Workspace logo (admin or owner)
+workspacesRouter.post(
+  "/:slug/logo/presign",
+  authenticate,
+  requireWorkspace,
+  adminOrOwner,
+  presignWorkspaceLogo
+);
+workspacesRouter.patch(
+  "/:slug/logo",
+  authenticate,
+  requireWorkspace,
+  adminOrOwner,
+  patchWorkspaceLogo
 );
 
 // Owner-only settings + delete

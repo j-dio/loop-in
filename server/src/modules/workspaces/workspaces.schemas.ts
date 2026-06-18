@@ -35,6 +35,16 @@ export const PatchWorkspaceBodySchema = z
   })
   .refine((v) => Object.keys(v).length > 0, "at least one field must be provided");
 
+export const LogoPresignBodySchema = z.object({
+  filename: z.string().trim().min(1).max(255),
+  content_type: z.enum(["image/jpeg", "image/png", "image/gif", "image/webp"]),
+});
+
+export const UpdateLogoBodySchema = z.object({
+  // `null` clears the logo (falls back to the monogram tile).
+  logo_url: z.string().url().max(2048).nullable(),
+});
+
 export const WorkspaceMembersParamsSchema = z.object({
   slug: WorkspaceSlugSchema,
 });

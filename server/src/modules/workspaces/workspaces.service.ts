@@ -13,6 +13,7 @@ export type Workspace = {
   name: string;
   slug: string;
   primaryColor: string;
+  logoUrl: string | null;
   visibility: WorkspaceVisibility;
   requireApproval: boolean;
   createdAt: Date;
@@ -25,6 +26,7 @@ function mapWorkspaceRow(row: typeof workspaces.$inferSelect): Workspace {
     name: row.name,
     slug: row.slug,
     primaryColor: row.primaryColor,
+    logoUrl: row.logoUrl,
     visibility: row.visibility as WorkspaceVisibility,
     requireApproval: row.requireApproval,
     createdAt: row.createdAt,
@@ -104,6 +106,7 @@ export async function updateWorkspaceBySlug(input: {
   patch: {
     name?: string | undefined;
     primaryColor?: string | undefined;
+    logoUrl?: string | null | undefined;
     visibility?: WorkspaceVisibility | undefined;
     requireApproval?: boolean | undefined;
   };
@@ -113,6 +116,7 @@ export async function updateWorkspaceBySlug(input: {
     .set({
       name: input.patch.name,
       primaryColor: input.patch.primaryColor,
+      logoUrl: input.patch.logoUrl,
       visibility: input.patch.visibility,
       requireApproval: input.patch.requireApproval,
     })

@@ -1,6 +1,9 @@
 import type { Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import { eq } from "drizzle-orm";
 import { requireEnv } from "../../config/env";
+import { db } from "../../db";
+import { users } from "../../db/schema";
 
 type AccessTokenClaims = {
   userId: string;
@@ -8,16 +11,28 @@ type AccessTokenClaims = {
   name: string | null;
 };
 
-export function getMe(req: Request, res: Response) {
+export async function getMe(req: Request, res: Response) {
   const token = req.cookies?.access_token as string | undefined;
   if (!token) return res.json({ user: null });
 
   try {
     const decoded = jwt.verify(token, requireEnv("JWT_SECRET")) as AccessTokenClaims;
 
-    return res.json({
-      user: { id: decoded.userId, email: decoded.email, name: decoded.name },
-    });
+    // Read fresh from the DB so profile edits (avatar, name) reflect immediately,
+    // without waiting for the 15-min access token to rotate.
+    const [row] = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        avatarUrl: users.avatarUrl,
+      })
+      .from(users)
+      .where(eq(users.id, decoded.userId))
+      .limit(1);
+
+    if (!row) return res.json({ user: null });
+    return res.json({ user: row });
   } catch {
     return res.json({ user: null });
   }

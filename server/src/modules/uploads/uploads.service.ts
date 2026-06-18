@@ -4,6 +4,15 @@ import { randomUUID } from "crypto";
 
 const PRESIGN_EXPIRES_SEC = 300;
 const UPLOAD_PREFIX = "tmp";
+// Avatars + workspace logos live under tmp/* so they ride the existing IAM PutObject
+// + bucket public-read policy scoped to tmp/* — no AWS reconfiguration required.
+//
+// ⚠️ PERSISTENT OBJECTS UNDER tmp/*: despite the "tmp" name, avatars and logos are
+// long-lived. Do NOT add an S3 lifecycle rule that expires/deletes tmp/* without
+// excluding tmp/avatars/* and tmp/logos/* — otherwise live profile pictures and
+// workspace logos will be silently deleted.
+const AVATAR_PREFIX = "tmp/avatars";
+const LOGO_PREFIX = "tmp/logos";
 
 export type AllowedImageContentType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 
@@ -54,6 +63,14 @@ function objectKeyForWorkspace(workspaceId: string, ext: string): string {
   return `${UPLOAD_PREFIX}/${workspaceId}/${randomUUID()}.${ext}`;
 }
 
+function objectKeyForAvatar(userId: string, ext: string): string {
+  return `${AVATAR_PREFIX}/${userId}/${randomUUID()}.${ext}`;
+}
+
+function objectKeyForLogo(workspaceId: string, ext: string): string {
+  return `${LOGO_PREFIX}/${workspaceId}/${randomUUID()}.${ext}`;
+}
+
 export function publicObjectUrlForKey(objectKey: string): string {
   const base = getBucketPublicBaseUrl();
   const baseUrl = new URL(base);
@@ -65,10 +82,10 @@ export function publicObjectUrlForKey(objectKey: string): string {
 }
 
 /**
- * Ensures the URL points at our bucket (or S3_PUBLIC_BASE_URL origin) under tmp/{workspaceId}/ with a UUID filename.
- * Prevents arbitrary image_url injection on post create.
+ * Shared guard: the URL must point at our bucket (or S3_PUBLIC_BASE_URL origin)
+ * under `dirPrefix/` with a UUID image filename. Prevents arbitrary URL injection.
  */
-export function isValidPostImageUrl(urlString: string, workspaceId: string): boolean {
+function isValidBucketImageUrl(urlString: string, dirPrefix: string): boolean {
   const base = getBucketPublicBaseUrl();
   if (!base) return false;
 
@@ -83,7 +100,7 @@ export function isValidPostImageUrl(urlString: string, workspaceId: string): boo
   if (u.host !== baseUrl.host) return false;
 
   const root = baseUrl.pathname === "/" ? "" : baseUrl.pathname.replace(/\/$/, "");
-  const expectedPrefix = `${root}/${UPLOAD_PREFIX}/${workspaceId}/`.replace(/\/{2,}/g, "/");
+  const expectedPrefix = `${root}/${dirPrefix}/`.replace(/\/{2,}/g, "/");
   if (!u.pathname.startsWith(expectedPrefix)) return false;
   if (u.pathname.includes("..")) return false;
 
@@ -93,46 +110,86 @@ export function isValidPostImageUrl(urlString: string, workspaceId: string): boo
   return uuidFile.test(rest);
 }
 
+/** Post images live under tmp/{workspaceId}/. */
+export function isValidPostImageUrl(urlString: string, workspaceId: string): boolean {
+  return isValidBucketImageUrl(urlString, `${UPLOAD_PREFIX}/${workspaceId}`);
+}
+
+/** Avatars live under tmp/avatars/{userId}/. */
+export function isValidAvatarUrl(urlString: string, userId: string): boolean {
+  return isValidBucketImageUrl(urlString, `${AVATAR_PREFIX}/${userId}`);
+}
+
+/** Workspace logos live under tmp/logos/{workspaceId}/. */
+export function isValidWorkspaceLogoUrl(urlString: string, workspaceId: string): boolean {
+  return isValidBucketImageUrl(urlString, `${LOGO_PREFIX}/${workspaceId}`);
+}
+
 export type PresignResult =
   | { ok: true; uploadUrl: string; imageUrl: string; headers: { "Content-Type": string } }
   | { ok: false; reason: "bad_extension_mismatch" | "s3_error"; message?: string };
 
-export async function createPresignedPut(input: {
-  workspaceId: string;
-  body: PresignBody;
-}): Promise<PresignResult> {
-  const extFromName = extensionFromFilename(input.body.filename);
-  const extFromMime = EXT_FOR_MIME[input.body.content_type];
-  if (!extFromName || extFromName !== extFromMime) {
-    return { ok: false, reason: "bad_extension_mismatch" };
-  }
+/** Filename extension must agree with the declared content type. */
+function resolveMatchingExt(
+  filename: string,
+  contentType: AllowedImageContentType
+): string | null {
+  const extFromName = extensionFromFilename(filename);
+  const extFromMime = EXT_FOR_MIME[contentType];
+  if (!extFromName || extFromName !== extFromMime) return null;
+  return extFromMime;
+}
 
+async function presignPutForKey(
+  key: string,
+  contentType: AllowedImageContentType
+): Promise<PresignResult> {
   const bucket = process.env.S3_BUCKET?.trim();
   const region = process.env.AWS_REGION?.trim();
   if (!bucket || !region) {
     return { ok: false, reason: "s3_error", message: "S3 is not configured" };
   }
 
-  const key = objectKeyForWorkspace(input.workspaceId, extFromMime);
   const client = getS3Client();
-
-  const command = new PutObjectCommand({
-    Bucket: bucket,
-    Key: key,
-    ContentType: input.body.content_type,
-  });
+  const command = new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: contentType });
 
   try {
     const uploadUrl = await getSignedUrl(client, command, { expiresIn: PRESIGN_EXPIRES_SEC });
-    const imageUrl = publicObjectUrlForKey(key);
     return {
       ok: true,
       uploadUrl,
-      imageUrl,
-      headers: { "Content-Type": input.body.content_type },
+      imageUrl: publicObjectUrlForKey(key),
+      headers: { "Content-Type": contentType },
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return { ok: false, reason: "s3_error", message };
   }
+}
+
+export async function createPresignedPut(input: {
+  workspaceId: string;
+  body: PresignBody;
+}): Promise<PresignResult> {
+  const ext = resolveMatchingExt(input.body.filename, input.body.content_type);
+  if (!ext) return { ok: false, reason: "bad_extension_mismatch" };
+  return presignPutForKey(objectKeyForWorkspace(input.workspaceId, ext), input.body.content_type);
+}
+
+export async function createPresignedAvatarPut(input: {
+  userId: string;
+  body: PresignBody;
+}): Promise<PresignResult> {
+  const ext = resolveMatchingExt(input.body.filename, input.body.content_type);
+  if (!ext) return { ok: false, reason: "bad_extension_mismatch" };
+  return presignPutForKey(objectKeyForAvatar(input.userId, ext), input.body.content_type);
+}
+
+export async function createPresignedLogoPut(input: {
+  workspaceId: string;
+  body: PresignBody;
+}): Promise<PresignResult> {
+  const ext = resolveMatchingExt(input.body.filename, input.body.content_type);
+  if (!ext) return { ok: false, reason: "bad_extension_mismatch" };
+  return presignPutForKey(objectKeyForLogo(input.workspaceId, ext), input.body.content_type);
 }

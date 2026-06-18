@@ -12,6 +12,7 @@ import cookieParser from "cookie-parser";
 import { authRouter } from "./modules/auth/auth.routes";
 import { workspacesRouter } from "./modules/workspaces/workspaces.routes";
 import { exploreRouter } from "./modules/explore/explore.routes";
+import { usersRouter } from "./modules/users/users.routes";
 import {
   RATE_LIMITS,
   setHealthRateLimitHeaders,
@@ -121,6 +122,7 @@ const port = Number.isFinite(parsedPort) ? parsedPort : 3001;
 app.use("/auth", authRouter);
 app.use("/api/workspaces", workspacesRouter);
 app.use("/api/explore", exploreRouter);
+app.use("/api/users", usersRouter);
 
 if (process.env.NODE_ENV !== "production") {
   app.get("/debug/sentry-test", (_req, _res, next) => {

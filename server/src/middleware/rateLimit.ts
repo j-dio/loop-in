@@ -109,6 +109,39 @@ export function createWorkspaceRateLimiter() {
   };
 }
 
+/**
+ * Classify a request mounted on `/api/users` (path is e.g. `/me/avatar/presign`).
+ * Presign minting reuses the tight `upload` budget; profile writes fall to `default`.
+ */
+export function classifyUsersRequest(method: string, path: string): RateLimitBucket {
+  if (method === "POST" && /^\/me\/avatar\/presign\/?$/.test(path)) return "upload";
+  return "default";
+}
+
+/**
+ * Rate limit for everything under `/api/users`. Runs after `optionalAuth` so it keys by
+ * `user_id` (these routes require auth). Mirrors `createWorkspaceRateLimiter`; closes the
+ * same presign-flood vector as the workspace upload limiter.
+ */
+export function createUsersRateLimiter() {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const bucket = classifyUsersRequest(req.method, req.path);
+    const { limit, windowMs } = RATE_LIMITS[bucket];
+    const identity = rateLimitIdentityKey(req);
+    const key = compositeKey(bucket, identity);
+    const result = await slidingWindowRedisHitOrFailOpen(key, limit, windowMs);
+    setRateLimitHeaders(res, {
+      limit: result.limit,
+      remaining: result.remaining,
+      resetSec: result.resetSec,
+    });
+    if (!result.allowed) {
+      return res.status(429).json({ error: "Too many requests" });
+    }
+    next();
+  };
+}
+
 /** Health checks: no counting; still emit headers so load balancers see stable shape. */
 export function setHealthRateLimitHeaders(res: Response): void {
   const resetSec = Math.ceil(Date.now() / 1000) + 86_400;
