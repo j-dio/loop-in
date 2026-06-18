@@ -58,6 +58,7 @@ export function Explore() {
   const [following, setFollowing] = useState<FollowingFeedItem[]>([]);
   const [followingCursor, setFollowingCursor] = useState<string | null>(null);
   const [followingLoaded, setFollowingLoaded] = useState(false);
+  const [followingLoadingMore, setFollowingLoadingMore] = useState(false);
 
   const loadFeed = useCallback(async (cursor?: string) => {
     const q = new URLSearchParams();
@@ -99,6 +100,14 @@ export function Explore() {
       cancelled = true;
     };
   }, [loadFeed]);
+
+  // Fix: reset Following state when the signed-in user changes so user B
+  // never sees user A's cached feed after an account switch.
+  useEffect(() => {
+    setFollowing([]);
+    setFollowingCursor(null);
+    setFollowingLoaded(false);
+  }, [user?.id]);
 
   useEffect(() => {
     if (tab !== "following" || !user || followingLoaded) return;
@@ -429,9 +438,11 @@ export function Explore() {
                               <p className="mt-1.5 text-base font-semibold tracking-tight text-foreground">
                                 {item.post.title}
                               </p>
-                              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                                {snippet(item.content)}
-                              </p>
+                              {snippet(item.content) ? (
+                                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                                  {snippet(item.content)}
+                                </p>
+                              ) : null}
                             </div>
                           </Link>
                         </li>
@@ -444,14 +455,22 @@ export function Explore() {
                   <div className="mt-6 flex justify-center">
                     <Button
                       variant="outline"
+                      disabled={followingLoadingMore}
                       onClick={async () => {
-                        if (!followingCursor) return;
-                        const fd = await loadFollowing(followingCursor);
-                        setFollowing((prev) => [...prev, ...fd.items]);
-                        setFollowingCursor(fd.nextCursor);
+                        if (!followingCursor || followingLoadingMore) return;
+                        setFollowingLoadingMore(true);
+                        try {
+                          const fd = await loadFollowing(followingCursor);
+                          setFollowing((prev) => [...prev, ...fd.items]);
+                          setFollowingCursor(fd.nextCursor);
+                        } catch {
+                          /* keep what we have */
+                        } finally {
+                          setFollowingLoadingMore(false);
+                        }
                       }}
                     >
-                      Load more
+                      {followingLoadingMore ? "Loading…" : "Load more"}
                     </Button>
                   </div>
                 ) : null}
