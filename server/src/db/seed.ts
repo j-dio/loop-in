@@ -5,6 +5,7 @@ import {
   appLinks,
   appScreenshots,
   comments,
+  follows,
   postUpdates,
   posts,
   upvotes,
@@ -49,6 +50,7 @@ type SeedWorkspace = {
   websiteUrl?: string;
   screenshots?: string[];
   links?: { kind: "github" | "appstore" | "playstore" | "x" | "other"; url: string }[];
+  followerKeys?: string[];
   posts: SeedPost[];
 };
 
@@ -81,6 +83,7 @@ const WORKSPACES: SeedWorkspace[] = [
       { kind: "github", url: "https://github.com/example/loopin" },
       { kind: "x", url: "https://x.com/example" },
     ],
+    followerKeys: ["devon", "priya", "sam", "lena"],
     posts: [
       {
         title: "Dark mode for the dashboard",
@@ -174,6 +177,7 @@ const WORKSPACES: SeedWorkspace[] = [
     websiteUrl: "https://example.com/orbit",
     screenshots: ["https://placehold.co/1200x750/3730a3/ffffff/png?text=Orbit+Notes"],
     links: [{ kind: "playstore", url: "https://play.google.com/store/apps/details?id=com.example.orbit" }],
+    followerKeys: ["maya", "priya", "theo"],
     posts: [
       {
         title: "Offline editing support",
@@ -291,6 +295,18 @@ async function seed() {
       await db.insert(appLinks).values(
         ws.links.map((l) => ({ workspaceId: workspace.id, kind: l.kind, url: l.url }))
       );
+    }
+
+    if (ws.followerKeys?.length) {
+      await db
+        .insert(follows)
+        .values(
+          ws.followerKeys
+            .map((k) => userIdByKey.get(k))
+            .filter((id): id is string => Boolean(id))
+            .map((userId) => ({ userId, workspaceId: workspace.id }))
+        )
+        .onConflictDoNothing();
     }
 
     for (const p of ws.posts) {
