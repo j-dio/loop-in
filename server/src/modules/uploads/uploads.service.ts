@@ -7,12 +7,14 @@ const UPLOAD_PREFIX = "tmp";
 // Avatars + workspace logos live under tmp/* so they ride the existing IAM PutObject
 // + bucket public-read policy scoped to tmp/* — no AWS reconfiguration required.
 //
-// ⚠️ PERSISTENT OBJECTS UNDER tmp/*: despite the "tmp" name, avatars and logos are
-// long-lived. Do NOT add an S3 lifecycle rule that expires/deletes tmp/* without
-// excluding tmp/avatars/* and tmp/logos/* — otherwise live profile pictures and
-// workspace logos will be silently deleted.
+// ⚠️ PERSISTENT OBJECTS UNDER tmp/*: despite the "tmp" name, avatars, logos, and
+// screenshots are long-lived. Do NOT add an S3 lifecycle rule that expires/deletes
+// tmp/* without excluding tmp/avatars/*, tmp/logos/*, and tmp/screenshots/* —
+// otherwise live profile pictures, workspace logos, and app screenshots will be
+// silently deleted.
 const AVATAR_PREFIX = "tmp/avatars";
 const LOGO_PREFIX = "tmp/logos";
+const SCREENSHOT_PREFIX = "tmp/screenshots";
 
 export type AllowedImageContentType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 
@@ -71,6 +73,10 @@ function objectKeyForLogo(workspaceId: string, ext: string): string {
   return `${LOGO_PREFIX}/${workspaceId}/${randomUUID()}.${ext}`;
 }
 
+function objectKeyForScreenshot(workspaceId: string, ext: string): string {
+  return `${SCREENSHOT_PREFIX}/${workspaceId}/${randomUUID()}.${ext}`;
+}
+
 export function publicObjectUrlForKey(objectKey: string): string {
   const base = getBucketPublicBaseUrl();
   const baseUrl = new URL(base);
@@ -123,6 +129,11 @@ export function isValidAvatarUrl(urlString: string, userId: string): boolean {
 /** Workspace logos live under tmp/logos/{workspaceId}/. */
 export function isValidWorkspaceLogoUrl(urlString: string, workspaceId: string): boolean {
   return isValidBucketImageUrl(urlString, `${LOGO_PREFIX}/${workspaceId}`);
+}
+
+/** Screenshots live under tmp/screenshots/{workspaceId}/. */
+export function isValidScreenshotUrl(urlString: string, workspaceId: string): boolean {
+  return isValidBucketImageUrl(urlString, `${SCREENSHOT_PREFIX}/${workspaceId}`);
 }
 
 export type PresignResult =
@@ -192,4 +203,13 @@ export async function createPresignedLogoPut(input: {
   const ext = resolveMatchingExt(input.body.filename, input.body.content_type);
   if (!ext) return { ok: false, reason: "bad_extension_mismatch" };
   return presignPutForKey(objectKeyForLogo(input.workspaceId, ext), input.body.content_type);
+}
+
+export async function createPresignedScreenshotPut(input: {
+  workspaceId: string;
+  body: PresignBody;
+}): Promise<PresignResult> {
+  const ext = resolveMatchingExt(input.body.filename, input.body.content_type);
+  if (!ext) return { ok: false, reason: "bad_extension_mismatch" };
+  return presignPutForKey(objectKeyForScreenshot(input.workspaceId, ext), input.body.content_type);
 }
