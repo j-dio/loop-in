@@ -210,6 +210,7 @@ export async function listFollowingFeed(input: {
 
   const postBase = and(
     inArray(posts.workspaceId, wsIds),
+    eq(workspaces.visibility, "public"),
     eq(posts.moderationStatus, "approved"),
     isNull(posts.deletedAt)
   );
@@ -219,6 +220,7 @@ export async function listFollowingFeed(input: {
 
   const updateBase = and(
     inArray(postUpdates.workspaceId, wsIds),
+    eq(workspaces.visibility, "public"),
     eq(posts.moderationStatus, "approved"),
     isNull(posts.deletedAt)
   );
