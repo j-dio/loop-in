@@ -102,6 +102,8 @@ export const workspaces = pgTable('workspaces', {
     .notNull()
     .default('#0F172A'),
 
+  logoUrl: text('logo_url'),
+
   visibility: workspaceVisibility('visibility').notNull().default('public'),
 
   requireApproval: boolean('require_approval').notNull().default(true),
