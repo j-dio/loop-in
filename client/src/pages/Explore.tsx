@@ -10,12 +10,14 @@ import { apiFetch } from "@/lib/api";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { categoryLabel, categoryTone, boardLabel, boardTone } from "@/lib/postDisplay";
 import { fadeUp, staggerContainer } from "@/lib/motion";
-import { cn } from "@/lib/utils";
+import { WorkspaceTile } from "@/components/WorkspaceTile";
+import { UserAvatar } from "@/components/UserAvatar";
 
 type ExploreWorkspace = {
   id: string;
   name: string;
   slug: string;
+  logoUrl: string | null;
   createdAt: string;
   postCount: number;
 };
@@ -29,9 +31,8 @@ type FeedItem = {
   boardStatus: "inbox" | "under_review" | "planned" | "in_progress" | "shipped";
   upvoteCount: number;
   createdAt: string;
-  isAnonymous: boolean;
   author: { id?: string; name: string; avatarUrl: string | null };
-  workspace: { name: string; slug: string };
+  workspace: { name: string; slug: string; logoUrl: string | null };
 };
 
 function snippet(text: string | null, max = 160) {
@@ -176,11 +177,19 @@ export function Explore() {
                       to={`/${encodeURIComponent(w.slug)}`}
                       className="group flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-5 transition-all hover:-translate-y-0.5 hover:border-brand/40"
                     >
-                      <div>
-                        <h3 className="font-display text-lg font-semibold tracking-tight group-hover:text-brand">
-                          {w.name}
-                        </h3>
-                        <p className="mt-1 font-mono text-xs text-muted-foreground">/{w.slug}</p>
+                      <div className="flex items-center gap-3">
+                        <WorkspaceTile
+                          name={w.name}
+                          seed={w.slug}
+                          logoUrl={w.logoUrl}
+                          sizeClassName="size-10"
+                        />
+                        <div className="min-w-0">
+                          <h3 className="font-display truncate text-lg font-semibold tracking-tight group-hover:text-brand">
+                            {w.name}
+                          </h3>
+                          <p className="mt-0.5 font-mono text-xs text-muted-foreground">/{w.slug}</p>
+                        </div>
                       </div>
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span className="inline-flex items-center gap-1.5">
@@ -210,13 +219,29 @@ export function Explore() {
                         to={`/${encodeURIComponent(p.workspace.slug)}/post/${p.id}`}
                         className="group flex gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:-translate-y-0.5 hover:border-brand/40 sm:p-5"
                       >
-                        <div className="flex h-fit min-w-12 shrink-0 flex-col items-center gap-0.5 rounded-xl border border-border px-2 py-2 text-sm font-semibold text-muted-foreground">
-                          <ArrowBigUp className="size-5" strokeWidth={2} aria-hidden />
-                          <span className="tabular-nums">{p.upvoteCount}</span>
+                        <div className="flex shrink-0 flex-col items-center gap-2">
+                          <WorkspaceTile
+                            name={p.workspace.name}
+                            seed={p.workspace.slug}
+                            logoUrl={p.workspace.logoUrl}
+                            sizeClassName="size-11"
+                          />
+                          <div className="flex min-w-11 flex-col items-center gap-0.5 rounded-xl border border-border px-2 py-1.5 text-sm font-semibold text-muted-foreground">
+                            <ArrowBigUp className="size-4" strokeWidth={2} aria-hidden />
+                            <span className="tabular-nums">{p.upvoteCount}</span>
+                          </div>
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-start justify-between gap-2">
-                            <span className="text-base font-semibold tracking-tight group-hover:text-brand">
+                          <div className="flex items-baseline gap-2">
+                            <span className="font-display truncate text-sm font-semibold tracking-tight text-foreground group-hover:text-brand">
+                              {p.workspace.name}
+                            </span>
+                            <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                              /{p.workspace.slug}
+                            </span>
+                          </div>
+                          <div className="mt-1.5 flex flex-wrap items-start justify-between gap-2">
+                            <span className="text-base font-semibold tracking-tight text-foreground">
                               {p.title}
                             </span>
                             <div className="flex flex-wrap gap-1.5">
@@ -244,13 +269,13 @@ export function Explore() {
                             </p>
                           ) : null}
                           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            <span
-                              className={cn(
-                                "rounded-full border border-brand/30 bg-brand-bright/10 px-2 py-0.5 font-mono text-[10px] tracking-wide text-brand"
-                              )}
-                            >
-                              {p.workspace.name}
-                            </span>
+                            <UserAvatar
+                              name={p.author.name}
+                              avatarUrl={p.author.avatarUrl}
+                              seed={p.author.id}
+                              anonymous={!p.author.id}
+                              sizeClassName="size-5"
+                            />
                             <span>{p.author.name}</span>
                             <span aria-hidden>·</span>
                             <time dateTime={p.createdAt}>

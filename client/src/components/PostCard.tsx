@@ -12,6 +12,7 @@ import {
   moderationTone,
 } from "@/lib/postDisplay";
 import { cn } from "@/lib/utils";
+import { UserAvatar } from "@/components/UserAvatar";
 import type { PostDTO } from "@/lib/postTypes";
 
 function snippet(text: string | null, max = 180) {
@@ -101,30 +102,39 @@ export function PostCard({
         pendingHighlight && "border-brand/40 ring-1 ring-brand/15"
       )}
     >
-      {/* Upvote rail */}
-      <button
-        type="button"
-        disabled={Boolean(upvoteDisabledReason) || upvoteBusy}
-        title={upvoteDisabledReason ?? (localUpvoted ? "Remove upvote" : "Upvote")}
-        onClick={handleUpvoteClick}
-        aria-pressed={localUpvoted}
-        className={cn(
-          "flex h-fit min-w-12 shrink-0 flex-col items-center gap-0.5 rounded-xl border px-2 py-2 text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60",
-          localUpvoted
-            ? "border-brand/40 bg-brand-bright/15 text-brand"
-            : "border-border text-muted-foreground hover:border-brand/30 hover:text-brand"
-        )}
-      >
-        <ArrowBigUp
-          className={cn(
-            "size-5 transition-transform",
-            localUpvoted ? "fill-current" : "group-hover:-translate-y-0.5"
-          )}
-          strokeWidth={2}
-          aria-hidden
+      {/* Author + upvote rail */}
+      <div className="flex shrink-0 flex-col items-center gap-2">
+        <UserAvatar
+          name={post.author.name}
+          avatarUrl={post.author.avatarUrl}
+          seed={post.author.id}
+          anonymous={!post.author.id}
+          sizeClassName="size-9"
         />
-        <span className="tabular-nums">{localCount}</span>
-      </button>
+        <button
+          type="button"
+          disabled={Boolean(upvoteDisabledReason) || upvoteBusy}
+          title={upvoteDisabledReason ?? (localUpvoted ? "Remove upvote" : "Upvote")}
+          onClick={handleUpvoteClick}
+          aria-pressed={localUpvoted}
+          className={cn(
+            "flex min-w-12 flex-col items-center gap-0.5 rounded-xl border px-2 py-2 text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60",
+            localUpvoted
+              ? "border-brand/40 bg-brand-bright/15 text-brand"
+              : "border-border text-muted-foreground hover:border-brand/30 hover:text-brand"
+          )}
+        >
+          <ArrowBigUp
+            className={cn(
+              "size-5 transition-transform",
+              localUpvoted ? "fill-current" : "group-hover:-translate-y-0.5"
+            )}
+            strokeWidth={2}
+            aria-hidden
+          />
+          <span className="tabular-nums">{localCount}</span>
+        </button>
+      </div>
 
       {/* Body */}
       <div className="min-w-0 flex-1">
