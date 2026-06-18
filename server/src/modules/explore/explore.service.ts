@@ -30,6 +30,18 @@ export type ExploreFeedItem = {
   workspace: { name: string; slug: string; logoUrl: string | null };
 };
 
+export type FollowingFeedItem =
+  | ({ type: "post" } & ExploreFeedItem)
+  | {
+      type: "update";
+      id: string;
+      createdAt: Date;
+      content: string;
+      post: { id: string; title: string };
+      author: { id?: string; name: string; avatarUrl: string | null };
+      workspace: { name: string; slug: string; logoUrl: string | null };
+    };
+
 /** Directory of public workspaces, ranked by approved-post count (most active first). */
 export async function listPublicWorkspaces(
   limit: number,
@@ -69,6 +81,12 @@ export async function listPublicWorkspaces(
     followerCount: Number(r.followerCount ?? 0),
     isFollowing: Boolean(r.isFollowing),
   }));
+}
+
+/** Opaque base64url newest-cursor (createdAt, id). Shared by the discover + following feeds. */
+export function encodeFeedCursor(createdAt: Date, id: string): string {
+  const payload = { v: 1 as const, createdAt: createdAt.toISOString(), id };
+  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
 }
 
 function feedCursorWhere(createdAt: Date, id: string) {
@@ -117,11 +135,7 @@ export async function listPublicFeed(input: {
   const hasMore = rows.length > input.limit;
   const last = page[page.length - 1];
 
-  let nextCursor: string | null = null;
-  if (hasMore && last) {
-    const payload = { v: 1 as const, createdAt: last.post.createdAt.toISOString(), id: last.post.id };
-    nextCursor = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
-  }
+  const nextCursor = hasMore && last ? encodeFeedCursor(last.post.createdAt, last.post.id) : null;
 
   const items: ExploreFeedItem[] = page.map((r) => ({
     id: r.post.id,
@@ -139,6 +153,31 @@ export async function listPublicFeed(input: {
     ),
     workspace: { name: r.workspaceName, slug: r.workspaceSlug, logoUrl: r.workspaceLogo },
   }));
+
+  return { items, nextCursor };
+}
+
+/**
+ * Merge two reverse-chron sources (posts + status updates) into one page.
+ * Each source is pre-fetched at limit+1 in (createdAt desc, id desc) order; merging their heads
+ * yields the true top-`limit` of the union (merge of sorted streams). Ties broken by id desc to
+ * match the SQL `id::text <` cursor ordering.
+ */
+export function mergeFollowingFeed(
+  postItems: FollowingFeedItem[],
+  updateItems: FollowingFeedItem[],
+  limit: number
+): { items: FollowingFeedItem[]; nextCursor: string | null } {
+  const merged = [...postItems, ...updateItems].sort((a, b) => {
+    const dt = b.createdAt.getTime() - a.createdAt.getTime();
+    if (dt !== 0) return dt;
+    return b.id.localeCompare(a.id);
+  });
+
+  const items = merged.slice(0, limit);
+  const hasMore = merged.length > limit;
+  const last = items[items.length - 1];
+  const nextCursor = hasMore && last ? encodeFeedCursor(last.createdAt, last.id) : null;
 
   return { items, nextCursor };
 }
