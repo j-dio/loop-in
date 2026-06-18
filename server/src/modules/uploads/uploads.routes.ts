@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { authenticate, optionalAuth } from "../../middleware/authenticate";
-import { requireWorkspace } from "../../middleware/workspace";
+import { requireParticipant, requireWorkspace } from "../../middleware/workspace";
 import { presignUploadHandler } from "./uploads.controller";
 
 const uploadsRouter = Router({ mergeParams: true });
 
-uploadsRouter.post("/presign", authenticate, presignUploadHandler);
+uploadsRouter.post("/presign", authenticate, requireParticipant, presignUploadHandler);
 
 /** Mounted at /api/workspaces/:slug/uploads */
 export function createUploadsRouterStack() {
