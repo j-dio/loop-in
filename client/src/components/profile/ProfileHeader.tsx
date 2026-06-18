@@ -4,6 +4,7 @@ import { Apple, Globe, Link as LinkIcon, Play } from "lucide-react";
 import { ApiError, getWorkspaceProfile } from "@/lib/api";
 import { WorkspaceTile } from "@/components/WorkspaceTile";
 import { Badge } from "@/components/ui/badge";
+import { FollowButton } from "@/components/FollowButton";
 import type { LinkDTO, WorkspaceProfileDTO } from "@/lib/profileTypes";
 
 const PLATFORM_LABEL: Record<NonNullable<WorkspaceProfileDTO["workspace"]["platform"]>, string> = {
@@ -78,6 +79,16 @@ export function ProfileHeader({ slug, isOwner }: { slug: string; isOwner: boolea
             {w.platform ? <Badge tone="outline">{PLATFORM_LABEL[w.platform]}</Badge> : null}
             {w.category ? <Badge tone="neutral">{w.category}</Badge> : null}
           </div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <FollowButton
+            slug={slug}
+            initialFollowing={data.isFollowing}
+            initialCount={data.followerCount}
+          />
+          <span className="font-mono text-xs text-muted-foreground">
+            {data.followerCount} {data.followerCount === 1 ? "follower" : "followers"}
+          </span>
         </div>
       </div>
 
