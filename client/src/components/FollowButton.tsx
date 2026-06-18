@@ -33,18 +33,22 @@ export function FollowButton({
     if (busy) return;
     setBusy(true);
     const next = !following;
-    // optimistic
+    const prevCount = count;
+    const optimisticCount = prevCount + (next ? 1 : -1);
+    // optimistic — apply locally and notify the parent immediately
     setFollowing(next);
-    setCount((c) => c + (next ? 1 : -1));
+    setCount(optimisticCount);
+    onChange?.({ following: next, followerCount: optimisticCount });
     try {
       const res = next ? await followWorkspace(slug) : await unfollowWorkspace(slug);
       setFollowing(res.following);
       setCount(res.followerCount);
       onChange?.({ following: res.following, followerCount: res.followerCount });
     } catch {
-      // revert
+      // revert to the pre-toggle state
       setFollowing(!next);
-      setCount((c) => c + (next ? -1 : 1));
+      setCount(prevCount);
+      onChange?.({ following: !next, followerCount: prevCount });
     } finally {
       setBusy(false);
     }
