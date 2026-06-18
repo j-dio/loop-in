@@ -128,8 +128,18 @@ export function Landing() {
       if (err instanceof ApiError && err.status === 409) {
         setCreateError("That slug is already taken. Try another.");
       } else if (err instanceof ApiError && typeof err.body === "object" && err.body !== null) {
-        const o = err.body as { error?: string };
-        setCreateError(o.error ?? "Could not create workspace.");
+        const o = err.body as {
+          error?: string;
+          details?: { fieldErrors?: Record<string, string[]>; formErrors?: string[] };
+        };
+        // Prefer the specific Zod validation message (e.g. "slug must be kebab-case")
+        // over the generic "Invalid request" the API sends as `error`.
+        const fieldErrors = o.details?.fieldErrors ?? {};
+        const firstFieldError = Object.values(fieldErrors).flat()[0];
+        const firstFormError = o.details?.formErrors?.[0];
+        setCreateError(
+          firstFieldError ?? firstFormError ?? o.error ?? "Could not create workspace."
+        );
       } else {
         setCreateError("Could not create workspace.");
       }
@@ -387,7 +397,9 @@ export function Landing() {
                   value={slug}
                   onChange={(e) => {
                     setSlugTouched(true);
-                    setSlug(e.target.value);
+                    // Strip anything the server's kebab-case rule rejects so invalid
+                    // characters (spaces, parens, uppercase) can never be submitted.
+                    setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""));
                   }}
                   placeholder="acme-feedback"
                   spellCheck={false}
