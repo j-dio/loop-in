@@ -37,7 +37,10 @@ export const RATE_LIMITS: Record<
 export const PARTICIPANT_IP_LIMITS: Partial<
   Record<RateLimitBucket, { limit: number; windowMs: number }>
 > = {
-  createPost: { limit: 20, windowMs: 3_600_000 },
+  // createPost cap is generous (60/h) on purpose: many legit users share one IP behind NAT
+  // / mobile carrier-grade NAT, and hold-for-mod (requireApproval) is the real spam backstop,
+  // not this ceiling. It only exists to blunt a single-host many-account flood.
+  createPost: { limit: 60, windowMs: 3_600_000 },
   upvote: { limit: 120, windowMs: 60_000 },
   comment: { limit: 80, windowMs: 60_000 },
 };

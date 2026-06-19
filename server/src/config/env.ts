@@ -2,7 +2,9 @@ import { config as loadEnv } from "dotenv";
 
 // Local dev: load the repo-root .env so `server/` and tooling share one source.
 // Production: rely on real environment variables.
-loadEnv({ path: "../.env" });
+// quiet: suppress dotenv's startup banner so it never pollutes script stdout (e.g. the
+// UAT mint-token helper, whose only output must be the raw token).
+loadEnv({ path: "../.env", quiet: true });
 
 export function requireEnv(name: string): string {
   const value = process.env[name];
