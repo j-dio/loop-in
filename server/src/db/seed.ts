@@ -1,5 +1,5 @@
 import "../config/env";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db, pool } from "./index";
 import {
   appLinks,
@@ -243,6 +243,63 @@ async function findOrCreateUser(u: { name: string; email: string }) {
   return inserted;
 }
 
+/**
+ * Backfill Phase 2/3 social data onto a workspace that already exists. Safe to run against prod:
+ * - profile fields are only filled when currently null (never clobbers a real admin edit),
+ * - screenshots/links are inserted only when the workspace has none (no duplicates on re-run),
+ * - follow edges dedupe on the unique (user_id, workspace_id) constraint.
+ */
+async function backfillExistingWorkspace(
+  existing: typeof workspaces.$inferSelect,
+  ws: SeedWorkspace,
+  userIdByKey: Map<string, string>
+) {
+  const patch: Partial<typeof workspaces.$inferInsert> = {};
+  if (existing.tagline == null && ws.tagline) patch.tagline = ws.tagline;
+  if (existing.description == null && ws.description) patch.description = ws.description;
+  if (existing.platform == null && ws.platform) patch.platform = ws.platform;
+  if (existing.category == null && ws.category) patch.category = ws.category;
+  if (existing.websiteUrl == null && ws.websiteUrl) patch.websiteUrl = ws.websiteUrl;
+  if (Object.keys(patch).length > 0) {
+    await db.update(workspaces).set(patch).where(eq(workspaces.id, existing.id));
+  }
+
+  if (ws.screenshots?.length) {
+    const [row] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(appScreenshots)
+      .where(eq(appScreenshots.workspaceId, existing.id));
+    if (Number(row?.count ?? 0) === 0) {
+      await db
+        .insert(appScreenshots)
+        .values(ws.screenshots.map((url, i) => ({ workspaceId: existing.id, url, sortOrder: i })));
+    }
+  }
+
+  if (ws.links?.length) {
+    const [row] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(appLinks)
+      .where(eq(appLinks.workspaceId, existing.id));
+    if (Number(row?.count ?? 0) === 0) {
+      await db
+        .insert(appLinks)
+        .values(ws.links.map((l) => ({ workspaceId: existing.id, kind: l.kind, url: l.url })));
+    }
+  }
+
+  if (ws.followerKeys?.length) {
+    const values = ws.followerKeys
+      .map((k) => userIdByKey.get(k))
+      .filter((id): id is string => Boolean(id))
+      .map((userId) => ({ userId, workspaceId: existing.id }));
+    if (values.length) await db.insert(follows).values(values).onConflictDoNothing();
+  }
+
+  // eslint-disable-next-line no-console
+  console.log(`↻ backfilled profile data for existing workspace "${ws.slug}"`);
+}
+
 async function seed() {
   if (process.env.NODE_ENV === "production" && process.env.SEED_CONFIRM !== "1") {
     throw new Error(
@@ -261,8 +318,11 @@ async function seed() {
   for (const ws of WORKSPACES) {
     const [existing] = await db.select().from(workspaces).where(eq(workspaces.slug, ws.slug)).limit(1);
     if (existing) {
-      // eslint-disable-next-line no-console
-      console.log(`• workspace "${ws.slug}" already exists — skipping`);
+      // Workspace already exists (e.g. created by an earlier pre-social-MVP deploy). Don't skip
+      // outright — backfill the Phase 2/3 profile data so /explore showcases the social features.
+      // Non-destructive + idempotent: profile fields fill blanks only, screenshots/links insert
+      // only when none exist, follows dedupe on the unique constraint.
+      await backfillExistingWorkspace(existing, ws, userIdByKey);
       continue;
     }
 
