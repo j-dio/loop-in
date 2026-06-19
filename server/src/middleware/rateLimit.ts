@@ -1,5 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
-import { slidingWindowRedisHitOrFailOpen } from "../lib/rateLimitSlidingRedis";
+import {
+  slidingWindowRedisHitOrFailOpen,
+  type RateLimitResult,
+} from "../lib/rateLimitSlidingRedis";
 
 export type { RateLimitResult } from "../lib/rateLimitSlidingRedis";
 
@@ -17,6 +20,26 @@ export const RATE_LIMITS: Record<
   // Presigned-upload minting: tighter than default so a user can't mint a flood of PUT URLs.
   upload: { limit: 20, windowMs: 60_000 },
   default: { limit: 100, windowMs: 60_000 },
+};
+
+/**
+ * Per-IP ceilings for participant writes (flag-5 MVP). Applied IN ADDITION to the
+ * per-identity bucket in `createWorkspaceRateLimiter` so a single host can't flood a
+ * public board by spinning up many accounts (every participant write requires auth, so
+ * the per-identity key is always `u:<id>` — without this, N accounts on one IP = N×limit).
+ *
+ * Deliberately more generous than the per-user limit (same window, higher cap) to tolerate
+ * NAT / shared office IPs where several legitimate users sit behind one address.
+ *
+ * Only the three named participant-write buckets are covered. Presign minting (`upload`)
+ * already carries its own tight per-identity budget and is out of scope here.
+ */
+export const PARTICIPANT_IP_LIMITS: Partial<
+  Record<RateLimitBucket, { limit: number; windowMs: number }>
+> = {
+  createPost: { limit: 20, windowMs: 3_600_000 },
+  upvote: { limit: 120, windowMs: 60_000 },
+  comment: { limit: 80, windowMs: 60_000 },
 };
 
 /**
@@ -53,6 +76,36 @@ export function setRateLimitHeaders(res: Response, info: {
 
 function compositeKey(bucket: RateLimitBucket, identity: string): string {
   return `${bucket}:${identity}`;
+}
+
+/**
+ * Key for the per-IP ceiling on participant writes. Namespaced with `-ip` so it never
+ * collides with the per-identity key of an anonymous request (`${bucket}:ip:<ip>`), which
+ * is a different counter even though both are keyed on the same address.
+ */
+function participantIpKey(bucket: RateLimitBucket, ip: string): string {
+  return `${bucket}-ip:ip:${ip}`;
+}
+
+/**
+ * Combine a per-identity result with an optional per-IP result. Allowed only when BOTH
+ * allow; response headers reflect the strictest (fewest remaining) applicable bucket so
+ * clients back off against whichever ceiling they are closest to. Pure — unit-tested.
+ */
+export function combineRateLimitDecision(
+  identity: RateLimitResult,
+  ip: RateLimitResult | null,
+): { allowed: boolean; headers: { limit: number; remaining: number; resetSec: number } } {
+  const allowed = identity.allowed && (ip ? ip.allowed : true);
+  const strictest = ip && ip.remaining < identity.remaining ? ip : identity;
+  return {
+    allowed,
+    headers: {
+      limit: strictest.limit,
+      remaining: strictest.remaining,
+      resetSec: strictest.resetSec,
+    },
+  };
 }
 
 /** 10/min on all `/auth` routes; keyed by IP so OAuth redirects and refresh are not keyed on provider profiles. */
@@ -94,15 +147,21 @@ export function createWorkspaceRateLimiter() {
   return async (req: Request, res: Response, next: NextFunction) => {
     const bucket = classifyWorkspaceRequest(req.method, req.path);
     const { limit, windowMs } = RATE_LIMITS[bucket];
-    const identity = rateLimitIdentityKey(req);
-    const key = compositeKey(bucket, identity);
+    const key = compositeKey(bucket, rateLimitIdentityKey(req));
     const result = await slidingWindowRedisHitOrFailOpen(key, limit, windowMs);
-    setRateLimitHeaders(res, {
-      limit: result.limit,
-      remaining: result.remaining,
-      resetSec: result.resetSec,
-    });
-    if (!result.allowed) {
+
+    // Participant writes also pass a per-IP ceiling (flag-5 MVP), enforced alongside the
+    // per-identity bucket so one host can't flood via many accounts. Both must allow.
+    const ipLimit = PARTICIPANT_IP_LIMITS[bucket];
+    let ipResult: RateLimitResult | null = null;
+    if (ipLimit) {
+      const ipKey = participantIpKey(bucket, getClientIp(req));
+      ipResult = await slidingWindowRedisHitOrFailOpen(ipKey, ipLimit.limit, ipLimit.windowMs);
+    }
+
+    const decision = combineRateLimitDecision(result, ipResult);
+    setRateLimitHeaders(res, decision.headers);
+    if (!decision.allowed) {
       return res.status(429).json({ error: "Too many requests" });
     }
     next();
