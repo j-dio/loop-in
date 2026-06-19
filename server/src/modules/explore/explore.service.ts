@@ -42,10 +42,15 @@ export type FollowingFeedItem =
       workspace: { name: string; slug: string; logoUrl: string | null };
     };
 
-/** Directory of public workspaces, ranked by approved-post count (most active first). */
+/**
+ * Directory of public workspaces. `sort="active"` (default) ranks by approved-post count;
+ * `sort="newest"` ranks by recency (powers the Explore "new apps" strip). The
+ * `visibility='public'` filter is identical in both modes — invite-only never leaks.
+ */
 export async function listPublicWorkspaces(
   limit: number,
-  viewerId?: string
+  viewerId?: string,
+  sort: "active" | "newest" = "active"
 ): Promise<ExploreWorkspace[]> {
   const approvedPosts = sql<number>`count(${posts.id}) filter (where ${posts.moderationStatus} = 'approved' and ${posts.deletedAt} is null)`;
   const followerCount = sql<number>`(select count(*)::int from ${follows} where ${follows.workspaceId} = ${workspaces.id})`;
@@ -68,7 +73,11 @@ export async function listPublicWorkspaces(
     .leftJoin(posts, eq(posts.workspaceId, workspaces.id))
     .where(eq(workspaces.visibility, "public"))
     .groupBy(workspaces.id)
-    .orderBy(desc(approvedPosts), desc(workspaces.createdAt))
+    .orderBy(
+      ...(sort === "newest"
+        ? [desc(workspaces.createdAt)]
+        : [desc(approvedPosts), desc(workspaces.createdAt)])
+    )
     .limit(limit);
 
   return rows.map((r) => ({

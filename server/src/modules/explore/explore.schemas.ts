@@ -7,9 +7,10 @@ export const ExploreFeedQuerySchema = z.object({
   tab: z.enum(["discover", "following"]).optional().default("discover"),
 });
 
-/** Public-workspace directory query. */
+/** Public-workspace directory query. `sort=newest` powers the "new apps" strip. */
 export const ExploreWorkspacesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(60).optional().default(30),
+  sort: z.enum(["active", "newest"]).optional().default("active"),
 });
 
 export const ExploreFeedCursorSchema = z.object({

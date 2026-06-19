@@ -24,7 +24,11 @@ export async function exploreWorkspacesHandler(req: Request, res: Response, next
     if (!parsed.success) {
       return res.status(400).json({ error: "Invalid query", details: parsed.error.flatten() });
     }
-    const workspaces = await listPublicWorkspaces(parsed.data.limit, req.user?.id);
+    const workspaces = await listPublicWorkspaces(
+      parsed.data.limit,
+      req.user?.id,
+      parsed.data.sort
+    );
     return res.json({ workspaces });
   } catch (err) {
     next(err);
