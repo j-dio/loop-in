@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowBigUp, Compass, Megaphone, MessageSquare } from "lucide-react";
-import { Logo, LoopMark } from "@/components/brand/Logo";
+import { ArrowBigUp, Compass, Megaphone, MessageSquare, Sparkles } from "lucide-react";
+import { Logo } from "@/components/brand/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Segmented } from "@/components/ui/segmented";
+import { Skeleton } from "@/components/ui/skeleton";
 import { FollowButton } from "@/components/FollowButton";
 import { apiFetch } from "@/lib/api";
 import type { FollowingFeedItem } from "@/lib/api";
@@ -40,15 +41,84 @@ type FeedItem = {
   workspace: { name: string; slug: string; logoUrl: string | null };
 };
 
+type FollowState = { following: boolean; followerCount: number };
+
 function snippet(text: string | null, max = 160) {
   if (!text) return null;
   const t = text.trim();
   return t.length <= max ? t : `${t.slice(0, max)}…`;
 }
 
+const sectionLabel = "font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase";
+
+/** Centered empty/placeholder state — icon tile + title + subtext + optional action. */
+function EmptyState({
+  icon: Icon,
+  title,
+  children,
+  action,
+}: {
+  icon: typeof Compass;
+  title: string;
+  children?: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="mt-4 flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center">
+      <span className="flex size-11 items-center justify-center rounded-xl border border-border bg-muted/40 text-muted-foreground">
+        <Icon className="size-5" aria-hidden />
+      </span>
+      <p className="font-display text-base font-semibold tracking-tight text-foreground">{title}</p>
+      {children ? (
+        <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">{children}</p>
+      ) : null}
+      {action}
+    </div>
+  );
+}
+
+function SkeletonAppCard({ compact = false }: { compact?: boolean }) {
+  return (
+    <div
+      className={
+        compact
+          ? "flex w-60 shrink-0 snap-start flex-col gap-4 rounded-xl border border-border bg-card p-5"
+          : "flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-5"
+      }
+    >
+      <div className="flex items-center gap-3">
+        <Skeleton className="size-10 rounded-xl" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-3 w-16" />
+        </div>
+      </div>
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className="h-7 w-20 rounded-md" />
+      </div>
+    </div>
+  );
+}
+
+function SkeletonFeedRow() {
+  return (
+    <div className="flex gap-4 rounded-xl border border-border bg-card p-4 sm:p-5">
+      <Skeleton className="size-11 shrink-0 rounded-xl" />
+      <div className="min-w-0 flex-1 space-y-3">
+        <Skeleton className="h-3 w-32" />
+        <Skeleton className="h-5 w-3/4" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-3 w-40" />
+      </div>
+    </div>
+  );
+}
+
 export function Explore() {
   const { user } = useWorkspace();
   const [workspaces, setWorkspaces] = useState<ExploreWorkspace[]>([]);
+  const [newApps, setNewApps] = useState<ExploreWorkspace[]>([]);
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,6 +128,7 @@ export function Explore() {
   const [following, setFollowing] = useState<FollowingFeedItem[]>([]);
   const [followingCursor, setFollowingCursor] = useState<string | null>(null);
   const [followingLoaded, setFollowingLoaded] = useState(false);
+  const [followingLoading, setFollowingLoading] = useState(false);
   const [followingLoadingMore, setFollowingLoadingMore] = useState(false);
 
   const loadFeed = useCallback(async (cursor?: string) => {
@@ -76,18 +147,32 @@ export function Explore() {
     );
   }, []);
 
+  // Keep a workspace's follow state in sync wherever it appears (new-apps strip + directory).
+  const syncFollow = useCallback((slug: string, s: FollowState) => {
+    const apply = (prev: ExploreWorkspace[]) =>
+      prev.map((w) =>
+        w.slug === slug ? { ...w, isFollowing: s.following, followerCount: s.followerCount } : w
+      );
+    setWorkspaces(apply);
+    setNewApps(apply);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
     void (async () => {
       try {
-        const [ws, fd] = await Promise.all([
+        const [ws, recent, fd] = await Promise.all([
           apiFetch<{ workspaces: ExploreWorkspace[] }>("/api/explore/workspaces"),
+          apiFetch<{ workspaces: ExploreWorkspace[] }>(
+            "/api/explore/workspaces?sort=newest&limit=12"
+          ),
           loadFeed(),
         ]);
         if (cancelled) return;
         setWorkspaces(ws.workspaces);
+        setNewApps(recent.workspaces);
         setFeed(fd.items);
         setNextCursor(fd.nextCursor);
       } catch {
@@ -112,6 +197,7 @@ export function Explore() {
   useEffect(() => {
     if (tab !== "following" || !user || followingLoaded) return;
     let cancelled = false;
+    setFollowingLoading(true);
     void (async () => {
       try {
         const fd = await loadFollowing();
@@ -121,7 +207,10 @@ export function Explore() {
       } catch {
         /* leave empty; empty state handles it */
       } finally {
-        if (!cancelled) setFollowingLoaded(true);
+        if (!cancelled) {
+          setFollowingLoaded(true);
+          setFollowingLoading(false);
+        }
       }
     })();
     return () => {
@@ -210,23 +299,93 @@ export function Explore() {
         ) : null}
 
         {loading ? (
-          <div className="mt-12 flex flex-col items-center gap-3 py-16">
-            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: "linear" }}>
-              <LoopMark className="size-7" />
-            </motion.div>
-            <p className="font-mono text-xs tracking-widest text-muted-foreground uppercase">Loading…</p>
+          <div className="mt-12 space-y-14">
+            <section>
+              <Skeleton className="h-3 w-28" />
+              <div className="mt-4 flex gap-3 overflow-hidden">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <SkeletonAppCard key={i} compact />
+                ))}
+              </div>
+            </section>
+            <section>
+              <Skeleton className="h-3 w-32" />
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <SkeletonAppCard key={i} />
+                ))}
+              </div>
+            </section>
+            <section>
+              <Skeleton className="h-3 w-36" />
+              <div className="mt-4 space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <SkeletonFeedRow key={i} />
+                ))}
+              </div>
+            </section>
           </div>
         ) : (
           <>
             {tab === "discover" ? (
               <>
+                {/* New apps strip */}
+                {newApps.length > 0 ? (
+                  <section className="mt-12" aria-labelledby="new-heading">
+                    <h2 id="new-heading" className={`flex items-center gap-2 ${sectionLabel}`}>
+                      <Sparkles className="size-3.5 text-brand" /> Just launched
+                    </h2>
+                    <div className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [scrollbar-width:thin]">
+                      {newApps.map((w) => (
+                        <div
+                          key={w.id}
+                          className="group flex w-60 shrink-0 snap-start flex-col gap-4 rounded-xl border border-border bg-card p-5 transition-all hover:-translate-y-0.5 hover:border-brand/40"
+                        >
+                          <Link
+                            to={`/${encodeURIComponent(w.slug)}`}
+                            className="flex items-center gap-3"
+                          >
+                            <WorkspaceTile
+                              name={w.name}
+                              seed={w.slug}
+                              logoUrl={w.logoUrl}
+                              sizeClassName="size-10"
+                            />
+                            <div className="min-w-0">
+                              <h3 className="font-display truncate text-base font-semibold tracking-tight group-hover:text-brand">
+                                {w.name}
+                              </h3>
+                              <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
+                                /{w.slug}
+                              </p>
+                            </div>
+                          </Link>
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span className="tabular-nums">
+                              {w.followerCount} {w.followerCount === 1 ? "follower" : "followers"}
+                            </span>
+                            <FollowButton
+                              slug={w.slug}
+                              initialFollowing={w.isFollowing}
+                              initialCount={w.followerCount}
+                              onChange={(s) => syncFollow(w.slug, s)}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+
                 {/* Public workspaces directory */}
                 <section className="mt-12" aria-labelledby="ws-heading">
-                  <h2 id="ws-heading" className="font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+                  <h2 id="ws-heading" className={sectionLabel}>
                     Public boards · {workspaces.length}
                   </h2>
                   {workspaces.length === 0 ? (
-                    <p className="mt-4 text-sm text-muted-foreground">No public boards yet.</p>
+                    <EmptyState icon={Compass} title="No public boards yet">
+                      Public feedback boards will show up here as teams open them to the world.
+                    </EmptyState>
                   ) : (
                     <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       {workspaces.map((w) => (
@@ -262,6 +421,7 @@ export function Explore() {
                               slug={w.slug}
                               initialFollowing={w.isFollowing}
                               initialCount={w.followerCount}
+                              onChange={(s) => syncFollow(w.slug, s)}
                             />
                           </div>
                         </div>
@@ -272,11 +432,13 @@ export function Explore() {
 
                 {/* Aggregated feed */}
                 <section className="mt-14" aria-labelledby="feed-heading">
-                  <h2 id="feed-heading" className="font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+                  <h2 id="feed-heading" className={sectionLabel}>
                     Latest across all boards
                   </h2>
                   {feed.length === 0 ? (
-                    <p className="mt-4 text-sm text-muted-foreground">No public feedback yet.</p>
+                    <EmptyState icon={MessageSquare} title="No public feedback yet">
+                      When people post on public boards, the freshest ideas land here.
+                    </EmptyState>
                   ) : (
                     <ul className="mt-4 space-y-3">
                       {feed.map((p) => (
@@ -369,21 +531,27 @@ export function Explore() {
               </>
             ) : (
               <section className="mt-12" aria-labelledby="following-heading">
-                <h2 id="following-heading" className="font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+                <h2 id="following-heading" className={sectionLabel}>
                   From apps you follow
                 </h2>
-                {following.length === 0 ? (
-                  <div className="mt-4 rounded-xl border border-dashed border-border bg-card p-6 text-sm text-muted-foreground">
-                    You're not following any apps yet — follow apps from{" "}
-                    <button
-                      type="button"
-                      className="font-medium text-brand hover:underline"
-                      onClick={() => setTab("discover")}
-                    >
-                      Discover
-                    </button>{" "}
-                    and their activity shows up here.
+                {followingLoading ? (
+                  <div className="mt-4 space-y-3">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <SkeletonFeedRow key={i} />
+                    ))}
                   </div>
+                ) : following.length === 0 ? (
+                  <EmptyState
+                    icon={Compass}
+                    title="You're not following any apps yet"
+                    action={
+                      <Button variant="brand" size="sm" onClick={() => setTab("discover")}>
+                        Browse Discover
+                      </Button>
+                    }
+                  >
+                    Follow apps from Discover and their new posts and updates show up here.
+                  </EmptyState>
                 ) : (
                   <ul className="mt-4 space-y-3">
                     {following.map((item) =>
