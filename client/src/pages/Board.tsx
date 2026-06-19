@@ -76,7 +76,11 @@ export function Board() {
     }
   }, [slug, workspaces, setActiveWorkspace, activeWorkspace?.id]);
 
-  const canPost = Boolean(slug && user && workspaces.some((w) => w.slug === slug));
+  // Any signed-in user who can read the board may participate (submit/upvote/comment).
+  // Non-members are blocked from reading invite_only boards upstream (requireWorkspace), so a
+  // readable board (no access error) + a signed-in user means participation is allowed — whether
+  // they're a member of an invite_only board or an outside participant on a public one.
+  const canPost = Boolean(slug && user && !error);
   const isOwner = Boolean(user && activeWorkspace && activeWorkspace.slug === slug && user.id === activeWorkspace.ownerId);
 
   const fetchPage = useCallback(
@@ -189,12 +193,7 @@ export function Board() {
               <MessageSquarePlus className="size-4" />
               Submit feedback
             </Button>
-          ) : user ? (
-            <Button type="button" variant="outline" disabled title="Only workspace members can post">
-              <MessageSquarePlus className="size-4" />
-              Submit feedback
-            </Button>
-          ) : (
+          ) : !user ? (
             <Button type="button" variant="brand" asChild>
               <Link
                 to="/"
@@ -203,7 +202,7 @@ export function Board() {
                 Sign in to submit
               </Link>
             </Button>
-          )
+          ) : null
         }
       />
 

@@ -75,6 +75,11 @@ export function Thread() {
   }, [slug, workspaces, setActiveWorkspace, activeWorkspace?.id]);
 
   const isMember = Boolean(slug && user && workspaces.some((w) => w.slug === slug));
+  // Any signed-in user who can read this thread may participate (comment/upvote). Non-members are
+  // blocked from reading invite_only boards upstream, so readable (no error) + signed-in = allowed:
+  // a member of an invite_only board, or an outside participant on a public one. `isMember` stays
+  // for admin-only affordances (official updates, triage).
+  const canParticipate = Boolean(slug && user && !error);
 
   useEffect(() => {
     if (!slug || !user || !isMember) {
@@ -182,7 +187,7 @@ export function Thread() {
   }, [post]);
 
   async function handleUpvoteClick() {
-    if (!slug || !postId || !post || !user || !isMember || upvoteBusy) return;
+    if (!slug || !postId || !post || !user || !canParticipate || upvoteBusy) return;
     const approvedForUpvote = post.moderationStatus === "approved";
     if (!approvedForUpvote) return;
 
@@ -252,7 +257,7 @@ export function Thread() {
 
   async function handleSubmitComment(e: FormEvent) {
     e.preventDefault();
-    if (!slug || !postId || !isMember || submitting) return;
+    if (!slug || !postId || !canParticipate || submitting) return;
     const trimmed = commentBody.trim();
     if (!trimmed) return;
 
@@ -286,9 +291,7 @@ export function Thread() {
       ? "Upvotes apply after the post is approved"
       : !user
         ? "Sign in to upvote"
-        : !isMember
-          ? "Only workspace members can upvote"
-          : null;
+        : null;
 
   return (
     <div className="space-y-6">
@@ -503,7 +506,7 @@ export function Thread() {
           </section>
 
           <section className="border-t pt-6" aria-label="Add a comment">
-            {isMember ? (
+            {canParticipate ? (
               <form onSubmit={(e) => void handleSubmitComment(e)} className="space-y-3">
                 <label htmlFor="thread-comment" className="text-sm font-medium">
                   Add a comment
@@ -526,11 +529,7 @@ export function Thread() {
                   {submitting ? "Posting…" : "Post comment"}
                 </Button>
               </form>
-            ) : user ? (
-              <p className="text-muted-foreground text-sm">
-                Only workspace members can comment. Join this workspace to participate.
-              </p>
-            ) : (
+            ) : !user ? (
               <p className="text-muted-foreground text-sm">
                 <Button variant="link" className="h-auto p-0" asChild>
                   <Link
@@ -540,9 +539,9 @@ export function Thread() {
                     Sign in
                   </Link>
                 </Button>{" "}
-                and join the workspace to comment.
+                to comment.
               </p>
-            )}
+            ) : null}
           </section>
         </>
       ) : null}
