@@ -46,6 +46,9 @@ const imgSrc = [
   "https://lh3.googleusercontent.com",
   "https://*.googleusercontent.com",
   "https://avatars.githubusercontent.com",
+  // Placeholder host used by the demo seed's app screenshots; harmless (image-only) and keeps
+  // /explore looking populated without self-hosting demo assets.
+  "https://placehold.co",
   ...(s3Host ? [s3Host] : []),
 ];
 const isProd = process.env.NODE_ENV === "production";
