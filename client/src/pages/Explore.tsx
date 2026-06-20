@@ -335,7 +335,7 @@ export function Explore() {
                     <h2 id="new-heading" className={`flex items-center gap-2 ${sectionLabel}`}>
                       <Sparkles className="size-3.5 text-brand" /> Just launched
                     </h2>
-                    <div className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [scrollbar-width:thin]">
+                    <div className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 pt-2 [scrollbar-width:thin]">
                       {newApps.map((w) => (
                         <div
                           key={w.id}
