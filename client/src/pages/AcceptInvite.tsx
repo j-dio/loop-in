@@ -129,9 +129,18 @@ export function AcceptInvite() {
             </div>
 
             {user ? (
-              <Button variant="brand" onClick={handleAccept} className="w-full">
-                Join {state.info.workspaceName}
-              </Button>
+              <div className="space-y-3">
+                <Button variant="brand" onClick={handleAccept} className="w-full">
+                  Join {state.info.workspaceName}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/")}
+                  className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Not now — go home
+                </button>
+              </div>
             ) : (
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">Sign in to accept this invite.</p>
