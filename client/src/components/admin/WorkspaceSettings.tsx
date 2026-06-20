@@ -95,12 +95,16 @@ export function WorkspaceSettings({
       </Section>
 
       {feedback ? (
-        <p
-          className={feedback.kind === "ok" ? "text-sm text-brand" : "text-sm text-destructive"}
+        <div
           role={feedback.kind === "err" ? "alert" : "status"}
+          className={
+            feedback.kind === "ok"
+              ? "rounded-lg border border-brand/30 bg-brand-bright/10 px-4 py-3 text-sm text-brand"
+              : "rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          }
         >
           {feedback.text}
-        </p>
+        </div>
       ) : null}
       <Button type="submit" className="mt-4" disabled={!canEdit || saving}>
         {saving ? "Saving…" : "Save settings"}

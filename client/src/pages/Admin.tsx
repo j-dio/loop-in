@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { type DropResult } from "@hello-pangea/dnd";
 import { Button } from "@/components/ui/button";
@@ -99,6 +99,7 @@ export function Admin() {
   const [settingsFeedback, setSettingsFeedback] = useState<{ kind: "ok" | "err"; text: string } | null>(
     null
   );
+  const settingsDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const canEditWorkspaceSettings = commandCenterRole === "owner";
   const canInviteMembers =
@@ -238,8 +239,11 @@ export function Admin() {
       visibility: w.visibility,
       requireApproval: w.requireApproval,
     });
-    setSettingsFeedback(null);
   }, [tab, slug, workspaces]);
+
+  useEffect(() => {
+    setSettingsFeedback(null);
+  }, [tab, slug]);
 
   async function saveWorkspaceSettings() {
     if (!slug || !settingsDraft || !canEditWorkspaceSettings) return;
@@ -257,7 +261,9 @@ export function Admin() {
         require_approval: settingsDraft.requireApproval,
       });
       await refreshSession();
+      if (settingsDismissRef.current) clearTimeout(settingsDismissRef.current);
       setSettingsFeedback({ kind: "ok", text: "Settings saved." });
+      settingsDismissRef.current = setTimeout(() => setSettingsFeedback(null), 4000);
     } catch (e) {
       const msg =
         e instanceof ApiError && e.status === 403

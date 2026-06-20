@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { getWorkspaceProfile, updateWorkspace } from "@/lib/api";
 import { Section } from "@/components/admin/Section";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ export function ProfileFieldsForm({ slug, canEdit }: { slug: string; canEdit: bo
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const dismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,7 +53,9 @@ export function ProfileFieldsForm({ slug, canEdit }: { slug: string; canEdit: bo
         category: draft.category.trim() || null,
         website_url: draft.website_url.trim() || null,
       });
+      if (dismissRef.current) clearTimeout(dismissRef.current);
       setFeedback({ kind: "ok", text: "Profile saved." });
+      dismissRef.current = setTimeout(() => setFeedback(null), 4000);
     } catch {
       setFeedback({ kind: "err", text: "Could not save. Check the website URL is valid (http/https)." });
     } finally {
@@ -142,16 +145,21 @@ export function ProfileFieldsForm({ slug, canEdit }: { slug: string; canEdit: bo
               placeholder="https://example.com"
             />
           </div>
-          <div className="flex items-center gap-3">
-            <Button type="submit" variant="brand" disabled={saving}>
-              {saving ? "Saving…" : "Save profile"}
-            </Button>
-            {feedback ? (
-              <span className={feedback.kind === "ok" ? "text-xs text-brand" : "text-xs text-destructive"}>
-                {feedback.text}
-              </span>
-            ) : null}
-          </div>
+          {feedback ? (
+            <div
+              role={feedback.kind === "err" ? "alert" : "status"}
+              className={
+                feedback.kind === "ok"
+                  ? "rounded-lg border border-brand/30 bg-brand-bright/10 px-4 py-3 text-sm text-brand"
+                  : "rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+              }
+            >
+              {feedback.text}
+            </div>
+          ) : null}
+          <Button type="submit" variant="brand" disabled={saving}>
+            {saving ? "Saving…" : "Save profile"}
+          </Button>
         </form>
       )}
     </Section>
