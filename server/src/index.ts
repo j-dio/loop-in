@@ -64,7 +64,7 @@ app.use(
         "style-src": ["'self'", "'unsafe-inline'"],
         "img-src": imgSrc,
         "font-src": ["'self'", "data:"],
-        "connect-src": ["'self'"],
+        "connect-src": ["'self'", ...(s3Host ? [s3Host] : [])],
         "object-src": ["'none'"],
         "base-uri": ["'self'"],
         "frame-ancestors": ["'self'"],
