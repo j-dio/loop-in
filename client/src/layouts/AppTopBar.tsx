@@ -63,10 +63,12 @@ export function AppTopBar({ onToggleMobileNav }: { onToggleMobileNav: () => void
         </nav>
 
         <div className="ml-auto flex items-center gap-1.5">
-          <Button type="button" variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4" />
-            <span className="hidden sm:inline">New app</span>
-          </Button>
+          {user && (
+            <Button type="button" variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="size-4" />
+              <span className="hidden sm:inline">New app</span>
+            </Button>
+          )}
           <NotificationBell />
           <ThemeToggle />
           {user ? (
@@ -101,7 +103,7 @@ export function AppTopBar({ onToggleMobileNav }: { onToggleMobileNav: () => void
           )}
         </div>
       </div>
-      <CreateAppDialog open={createOpen} onOpenChange={setCreateOpen} />
+      {user && <CreateAppDialog open={createOpen} onOpenChange={setCreateOpen} />}
     </header>
   );
 }

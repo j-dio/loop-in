@@ -69,8 +69,7 @@ export function CreateAppDialog({ open, onOpenChange }: Props) {
     try {
       const w = await createWorkspace({ name: n, slug: s });
       setActiveWorkspace(w);
-      onOpenChange(false);
-      reset();
+      handleOpenChange(false);
       navigate(`/${w.slug}/admin`);
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
