@@ -33,8 +33,9 @@ test("Explore renders inside the shared shell (global top bar present)", async (
   await loginAs(context, SEED.theo);
   await page.goto("/explore");
   // The global nav (Home/Explore links) proves we're in AppShell, not the old bespoke header.
-  await expect(page.getByRole("link", { name: "Home" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Explore" })).toBeVisible();
+  // Use exact:true — the logo link also carries "Home" in its aria-label ("Loop In home").
+  await expect(page.getByRole("link", { name: "Home", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Explore", exact: true })).toBeVisible();
 });
 
 test("admin route shows the contextual sub-nav", async ({ page, context }) => {
