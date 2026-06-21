@@ -71,16 +71,14 @@ export function Explore() {
           apiFetch<{ workspaces: ExploreWorkspace[] }>(
             "/api/explore/workspaces?sort=newest&limit=12"
           ),
-          apiFetch<{ items: FollowingFeedItem[]; nextCursor: string | null }>(
+          apiFetch<{ items: PulseItem[]; nextCursor: string | null }>(
             "/api/explore/feed?tab=pulse"
           ),
         ]);
         if (cancelled) return;
         setWorkspaces(ws.workspaces);
         setNewApps(recent.workspaces);
-        setPulse(
-          pulseRes.items.filter((item): item is PulseItem => item.type === "update")
-        );
+        setPulse(pulseRes.items);
       } catch {
         if (!cancelled) setError("Could not load public boards. Please try again.");
       } finally {
