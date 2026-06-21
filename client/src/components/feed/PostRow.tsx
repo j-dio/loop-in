@@ -1,12 +1,7 @@
 import { Link } from "react-router-dom";
 import { WorkspaceTile } from "@/components/WorkspaceTile";
 import type { ExplorePostItem } from "@/lib/api";
-
-function snippet(text: string | null, max = 160) {
-  if (!text) return null;
-  const t = text.trim();
-  return t.length <= max ? t : `${t.slice(0, max)}…`;
-}
+import { snippet } from "./text";
 
 interface PostRowProps {
   item: ExplorePostItem;

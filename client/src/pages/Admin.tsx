@@ -74,10 +74,11 @@ const SECTION_LABELS: Record<AdminSection, string> = {
   profile: "Profile",
 };
 
+const VALID_SECTIONS = ["triage", "kanban", "updates", "settings", "profile"] as const;
+
 export function Admin() {
   const { slug } = useParams();
   const [searchParams] = useSearchParams();
-  const VALID_SECTIONS = ["triage", "kanban", "updates", "settings", "profile"] as const;
   const raw = searchParams.get("section");
   const section: AdminSection = VALID_SECTIONS.includes(raw as AdminSection) ? (raw as AdminSection) : "triage";
   const {

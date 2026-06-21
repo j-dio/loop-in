@@ -104,17 +104,37 @@ async function trackedSeedPost(overrides: {
   upvoteCount?: number;
   title?: string;
 }) {
-  const p = await seedPost(overrides);
-  // The post author user id isn't returned by seedPost; we need it for user cleanup.
-  // Instead, rely on cascade: workspace delete cascades to posts, but posts.authorId is
-  // ON DELETE RESTRICT on users. So we can't delete users before posts.
-  // Strategy: skip explicit user cleanup — test DB isolation via unique emails is sufficient,
-  // and the tiny test residue (users) won't interfere with assertions.
-  return p;
+  // seedPost internally calls seedUser; we need the author id for cleanup.
+  // Re-implement inline so we can capture the author.
+  const author = await seedUser();
+  userIds.push(author.id);
+  const [row] = await db
+    .insert(posts)
+    .values({
+      workspaceId: overrides.workspaceId,
+      authorId: author.id,
+      title: overrides.title ?? uid("post"),
+      category: "feature_request",
+      moderationStatus: overrides.moderationStatus ?? "approved",
+      upvoteCount: overrides.upvoteCount ?? 0,
+    })
+    .returning();
+  return row!;
 }
 
 async function trackedSeedUpdate(overrides: { postId: string; workspaceId: string; content: string }) {
-  return seedUpdate(overrides);
+  const author = await seedUser();
+  userIds.push(author.id);
+  const [row] = await db
+    .insert(postUpdates)
+    .values({
+      postId: overrides.postId,
+      workspaceId: overrides.workspaceId,
+      authorId: author.id,
+      content: overrides.content,
+    })
+    .returning();
+  return row!;
 }
 
 afterEach(async () => {
@@ -209,7 +229,7 @@ describe("mergeFollowingFeed", () => {
 // Integration tests — require a live DATABASE_URL.
 // ---------------------------------------------------------------------------
 
-describe("listPublicPulse", () => {
+describe.skipIf(!process.env.DATABASE_URL)("listPublicPulse", () => {
   it("returns only status updates from public workspaces, never raw posts", async () => {
     const pub = await trackedSeedWorkspace({ visibility: "public" });
     const inviteOnly = await trackedSeedWorkspace({ visibility: "invite_only" });
@@ -226,7 +246,7 @@ describe("listPublicPulse", () => {
   });
 });
 
-describe("listFollowingFeed — trending threshold", () => {
+describe.skipIf(!process.env.DATABASE_URL)("listFollowingFeed — trending threshold", () => {
   it("following feed excludes feedback posts below the trending threshold but keeps updates", async () => {
     const ws = await trackedSeedWorkspace({ visibility: "public" });
     const viewer = await seedUser();

@@ -1,12 +1,7 @@
 import { Link } from "react-router-dom";
 import { Megaphone } from "lucide-react";
 import { WorkspaceTile } from "@/components/WorkspaceTile";
-
-function snippet(text: string | null, max = 160) {
-  if (!text) return null;
-  const t = text.trim();
-  return t.length <= max ? t : `${t.slice(0, max)}…`;
-}
+import { snippet } from "./text";
 
 export interface PulseCardItem {
   id: string;

@@ -137,35 +137,27 @@ export function Home() {
             <h2 id="home-following-heading" className={sectionLabel}>
               From apps you follow
             </h2>
-            {following.length === 0 ? (
-              <EmptyState icon={Compass} title="Nothing here yet">
-                New posts and updates from apps you follow will appear here.
-              </EmptyState>
-            ) : (
-              <>
-                <ul className="mt-4 space-y-3">
-                  {following.map((item) =>
-                    item.type === "post" ? (
-                      <li key={`p-${item.id}`}>
-                        <PostRow item={item} />
-                      </li>
-                    ) : (
-                      <li key={`u-${item.id}`}>
-                        <PulseCard item={item} />
-                      </li>
-                    )
-                  )}
-                </ul>
+            <ul className="mt-4 space-y-3">
+                {following.map((item) =>
+                  item.type === "post" ? (
+                    <li key={`p-${item.id}`}>
+                      <PostRow item={item} />
+                    </li>
+                  ) : (
+                    <li key={`u-${item.id}`}>
+                      <PulseCard item={item} />
+                    </li>
+                  )
+                )}
+              </ul>
 
-                {followingCursor ? (
-                  <div className="mt-6 flex justify-center">
-                    <Button variant="outline" onClick={loadMoreFollowing} disabled={loadingMoreFollowing || !followingCursor}>
-                      Load more
-                    </Button>
-                  </div>
-                ) : null}
-              </>
-            )}
+              {followingCursor ? (
+                <div className="mt-6 flex justify-center">
+                  <Button variant="outline" onClick={loadMoreFollowing} disabled={loadingMoreFollowing || !followingCursor}>
+                    Load more
+                  </Button>
+                </div>
+              ) : null}
           </section>
         </div>
       )}
