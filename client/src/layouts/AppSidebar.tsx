@@ -1,5 +1,14 @@
-import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, MessageSquare, PanelLeftClose, PanelLeft } from "lucide-react";
+import { Link, useLocation, useParams } from "react-router-dom";
+import {
+  Inbox,
+  LayoutDashboard,
+  Megaphone,
+  MessageSquare,
+  PanelLeftClose,
+  PanelLeft,
+  Settings,
+  User,
+} from "lucide-react";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
@@ -12,20 +21,62 @@ import { cn } from "@/lib/utils";
 
 type NavLink = { to: string; label: string; icon: React.ReactNode; active: boolean };
 
+const ADMIN_PATH_RE = /^\/[^/]+\/admin(\/|$)/;
+
 function useNavLinks(): NavLink[] {
   const { activeWorkspace, user } = useWorkspace();
   const location = useLocation();
-  const slug = activeWorkspace?.slug;
+  const params = useParams<{ slug?: string }>();
+  const slug = activeWorkspace?.slug ?? params.slug;
+
   if (!slug) return [];
-  const onAdmin = location.pathname.endsWith("/admin");
+
+  const onAdmin = ADMIN_PATH_RE.test(location.pathname);
+
+  if (onAdmin) {
+    const currentSection = new URLSearchParams(location.search).get("section") ?? "triage";
+    return [
+      {
+        to: `/${encodeURIComponent(slug)}/admin?section=triage`,
+        label: "Triage",
+        icon: <Inbox className="size-4" />,
+        active: currentSection === "triage",
+      },
+      {
+        to: `/${encodeURIComponent(slug)}/admin?section=kanban`,
+        label: "Board",
+        icon: <LayoutDashboard className="size-4" />,
+        active: currentSection === "kanban",
+      },
+      {
+        to: `/${encodeURIComponent(slug)}/admin?section=updates`,
+        label: "Updates",
+        icon: <Megaphone className="size-4" />,
+        active: currentSection === "updates",
+      },
+      {
+        to: `/${encodeURIComponent(slug)}/admin?section=settings`,
+        label: "Settings",
+        icon: <Settings className="size-4" />,
+        active: currentSection === "settings",
+      },
+      {
+        to: `/${encodeURIComponent(slug)}/admin?section=profile`,
+        label: "Profile",
+        icon: <User className="size-4" />,
+        active: currentSection === "profile",
+      },
+    ];
+  }
+
   const isOwner = Boolean(user && activeWorkspace && user.id === activeWorkspace.ownerId);
-  const canAdmin = isOwner || activeWorkspace.role === "admin" || activeWorkspace.role === "owner";
+  const canAdmin = isOwner || activeWorkspace?.role === "admin" || activeWorkspace?.role === "owner";
   const links: NavLink[] = [
     {
       to: `/${encodeURIComponent(slug)}`,
       label: "Board",
       icon: <MessageSquare className="size-4" />,
-      active: !onAdmin,
+      active: true,
     },
   ];
   if (canAdmin) {
@@ -33,7 +84,7 @@ function useNavLinks(): NavLink[] {
       to: `/${encodeURIComponent(slug)}/admin`,
       label: "Command center",
       icon: <LayoutDashboard className="size-4" />,
-      active: onAdmin,
+      active: false,
     });
   }
   return links;
