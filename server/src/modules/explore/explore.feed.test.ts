@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { inArray } from "drizzle-orm";
 import { db } from "../../db";
-import { postUpdates, posts, users, workspaces } from "../../db/schema";
-import { listPublicPulse, mergeFollowingFeed, type FollowingFeedItem } from "./explore.service";
+import { follows, postUpdates, posts, users, workspaces } from "../../db/schema";
+import { listFollowingFeed, FOLLOWING_TRENDING_MIN, listPublicPulse, mergeFollowingFeed, type FollowingFeedItem } from "./explore.service";
 
 // ---------------------------------------------------------------------------
 // DB seed helpers — used only by integration tests that require a real DB.
@@ -43,6 +43,8 @@ async function seedWorkspace(overrides: { visibility?: "public" | "invite_only" 
 async function seedPost(overrides: {
   workspaceId: string;
   moderationStatus?: "pending" | "approved" | "spam" | "rejected";
+  upvoteCount?: number;
+  title?: string;
 }) {
   const author = await seedUser();
   const [row] = await db
@@ -50,10 +52,19 @@ async function seedPost(overrides: {
     .values({
       workspaceId: overrides.workspaceId,
       authorId: author.id,
-      title: uid("post"),
+      title: overrides.title ?? uid("post"),
       category: "feature_request",
       moderationStatus: overrides.moderationStatus ?? "approved",
+      upvoteCount: overrides.upvoteCount ?? 0,
     })
+    .returning();
+  return row!;
+}
+
+async function seedFollow(overrides: { userId: string; workspaceId: string }) {
+  const [row] = await db
+    .insert(follows)
+    .values({ userId: overrides.userId, workspaceId: overrides.workspaceId })
     .returning();
   return row!;
 }
@@ -90,6 +101,8 @@ async function trackedSeedWorkspace(overrides?: { visibility?: "public" | "invit
 async function trackedSeedPost(overrides: {
   workspaceId: string;
   moderationStatus?: "pending" | "approved" | "spam" | "rejected";
+  upvoteCount?: number;
+  title?: string;
 }) {
   const p = await seedPost(overrides);
   // The post author user id isn't returned by seedPost; we need it for user cleanup.
@@ -210,5 +223,27 @@ describe("listPublicPulse", () => {
     expect(items.every((i) => i.type === "update")).toBe(true);
     expect(items.map((i) => i.content)).toContain("Shipped it");
     expect(items.map((i) => i.content)).not.toContain("secret");
+  });
+});
+
+describe("listFollowingFeed — trending threshold", () => {
+  it("following feed excludes feedback posts below the trending threshold but keeps updates", async () => {
+    const ws = await trackedSeedWorkspace({ visibility: "public" });
+    const viewer = await seedUser();
+    userIds.push(viewer.id);
+    await seedFollow({ userId: viewer.id, workspaceId: ws.id });
+    const cold = await trackedSeedPost({ workspaceId: ws.id, moderationStatus: "approved", upvoteCount: 0, title: "cold idea" });
+    await trackedSeedPost({ workspaceId: ws.id, moderationStatus: "approved", upvoteCount: FOLLOWING_TRENDING_MIN, title: "hot idea" });
+    await trackedSeedUpdate({ postId: cold.id, workspaceId: ws.id, content: "update on cold" });
+
+    const { items } = await listFollowingFeed({
+      userId: viewer.id, limit: 20, cursor: null, minUpvotes: FOLLOWING_TRENDING_MIN,
+    });
+
+    const titles = items.filter((i) => i.type === "post").map((i) => (i as { title: string }).title);
+    expect(titles).toContain("hot idea");
+    expect(titles).not.toContain("cold idea");
+    // the update still rides through even though its parent post is "cold"
+    expect(items.some((i) => i.type === "update" && (i as { content: string }).content === "update on cold")).toBe(true);
   });
 });

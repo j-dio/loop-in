@@ -4,7 +4,7 @@ import {
   ExploreFeedQuerySchema,
   ExploreWorkspacesQuerySchema,
 } from "./explore.schemas";
-import { listFollowingFeed, listPublicFeed, listPublicPulse, listPublicWorkspaces } from "./explore.service";
+import { listFollowingFeed, listPublicFeed, listPublicPulse, listPublicWorkspaces, FOLLOWING_TRENDING_MIN } from "./explore.service";
 
 function parseFeedCursor(raw: string | undefined): { createdAt: Date; id: string } | null | "bad" {
   if (!raw) return null;
@@ -46,7 +46,7 @@ export async function exploreFeedHandler(req: Request, res: Response, next: Next
 
     if (parsed.data.tab === "following") {
       if (!req.user?.id) return res.status(401).json({ error: "Unauthorized" });
-      const result = await listFollowingFeed({ userId: req.user.id, limit: parsed.data.limit, cursor });
+      const result = await listFollowingFeed({ userId: req.user.id, limit: parsed.data.limit, cursor, minUpvotes: FOLLOWING_TRENDING_MIN });
       return res.json(result);
     }
 

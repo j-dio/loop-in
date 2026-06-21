@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { follows, postUpdates, posts, users, workspaces } from "../../db/schema";
 import { serializeAuthorForPost } from "../posts/posts.service";
@@ -199,14 +199,25 @@ function updateCursorWhere(createdAt: Date, id: string) {
 }
 
 /**
+ * Minimum upvote count for a post to appear in the following feed's trending filter.
+ * Status updates are exempt — builder news always shows regardless of threshold.
+ */
+export const FOLLOWING_TRENDING_MIN = 5;
+
+/**
  * Following feed: reverse-chron union of approved posts + status updates from the apps the user
  * follows. Two-query bounded merge (see mergeFollowingFeed). Updates whose parent post is not
  * approved / soft-deleted are excluded so hidden posts never leak via their updates.
+ *
+ * When `minUpvotes` is set, only posts meeting that threshold appear; updates are always included.
+ * Existing callers omitting `minUpvotes` get the unfiltered post stream (Drizzle ignores undefined
+ * args in `and(...)`).
  */
 export async function listFollowingFeed(input: {
   userId: string;
   limit: number;
   cursor: { createdAt: Date; id: string } | null;
+  minUpvotes?: number;
 }): Promise<{ items: FollowingFeedItem[]; nextCursor: string | null }> {
   const followed = await db
     .select({ workspaceId: follows.workspaceId })
@@ -221,7 +232,8 @@ export async function listFollowingFeed(input: {
     inArray(posts.workspaceId, wsIds),
     eq(workspaces.visibility, "public"),
     eq(posts.moderationStatus, "approved"),
-    isNull(posts.deletedAt)
+    isNull(posts.deletedAt),
+    input.minUpvotes != null ? gte(posts.upvoteCount, input.minUpvotes) : undefined
   );
   const postWhere = input.cursor
     ? and(postBase, feedCursorWhere(input.cursor.createdAt, input.cursor.id))
