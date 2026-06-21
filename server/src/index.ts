@@ -13,6 +13,7 @@ import { authRouter } from "./modules/auth/auth.routes";
 import { workspacesRouter } from "./modules/workspaces/workspaces.routes";
 import { exploreRouter } from "./modules/explore/explore.routes";
 import { usersRouter } from "./modules/users/users.routes";
+import { notificationsRouter } from "./modules/notifications/notifications.routes";
 import {
   RATE_LIMITS,
   setHealthRateLimitHeaders,
@@ -126,6 +127,7 @@ app.use("/auth", authRouter);
 app.use("/api/workspaces", workspacesRouter);
 app.use("/api/explore", exploreRouter);
 app.use("/api/users", usersRouter);
+app.use("/api/notifications", notificationsRouter);
 
 if (process.env.NODE_ENV !== "production") {
   app.get("/debug/sentry-test", (_req, _res, next) => {

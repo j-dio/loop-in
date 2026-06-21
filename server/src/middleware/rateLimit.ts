@@ -204,6 +204,24 @@ export function createUsersRateLimiter() {
   };
 }
 
+/** Rate limit for everything under `/api/notifications`. All paths use the `default` bucket. */
+export function createNotificationsRateLimiter() {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const { limit, windowMs } = RATE_LIMITS.default;
+    const key = compositeKey("default", rateLimitIdentityKey(req));
+    const result = await slidingWindowRedisHitOrFailOpen(key, limit, windowMs);
+    setRateLimitHeaders(res, {
+      limit: result.limit,
+      remaining: result.remaining,
+      resetSec: result.resetSec,
+    });
+    if (!result.allowed) {
+      return res.status(429).json({ error: "Too many requests" });
+    }
+    next();
+  };
+}
+
 /** Health checks: no counting; still emit headers so load balancers see stable shape. */
 export function setHealthRateLimitHeaders(res: Response): void {
   const resetSec = Math.ceil(Date.now() / 1000) + 86_400;
