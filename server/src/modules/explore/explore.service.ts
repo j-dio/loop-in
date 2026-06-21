@@ -308,5 +308,65 @@ export async function listFollowingFeed(input: {
   return mergeFollowingFeed(postItems, updateItems, input.limit);
 }
 
+export type PulseItem = Extract<FollowingFeedItem, { type: "update" }>;
+
+/**
+ * Explore pulse: reverse-chron status updates across all PUBLIC workspaces. Builder-authored
+ * news only — never raw feedback posts. Parent post must be approved + not soft-deleted so a
+ * hidden post never leaks via its update. (Announcements join this stream in sub-project C.)
+ */
+export async function listPublicPulse(input: {
+  limit: number;
+  cursor: { createdAt: Date; id: string } | null;
+}): Promise<{ items: PulseItem[]; nextCursor: string | null }> {
+  const base = and(
+    eq(workspaces.visibility, "public"),
+    eq(posts.moderationStatus, "approved"),
+    isNull(posts.deletedAt)
+  );
+  const whereClause = input.cursor
+    ? and(base, updateCursorWhere(input.cursor.createdAt, input.cursor.id))
+    : base;
+
+  const rows = await db
+    .select({
+      id: postUpdates.id,
+      content: postUpdates.content,
+      createdAt: postUpdates.createdAt,
+      postId: posts.id,
+      postTitle: posts.title,
+      authorId: users.id,
+      authorName: users.name,
+      authorAvatar: users.avatarUrl,
+      workspaceName: workspaces.name,
+      workspaceSlug: workspaces.slug,
+      workspaceLogo: workspaces.logoUrl,
+    })
+    .from(postUpdates)
+    .innerJoin(posts, eq(postUpdates.postId, posts.id))
+    .innerJoin(workspaces, eq(postUpdates.workspaceId, workspaces.id))
+    .innerJoin(users, eq(postUpdates.authorId, users.id))
+    .where(whereClause)
+    .orderBy(desc(postUpdates.createdAt), desc(postUpdates.id))
+    .limit(input.limit + 1);
+
+  const page = rows.slice(0, input.limit);
+  const hasMore = rows.length > input.limit;
+  const last = page[page.length - 1];
+  const nextCursor = hasMore && last ? encodeFeedCursor(last.createdAt, last.id) : null;
+
+  const items: PulseItem[] = page.map((r) => ({
+    type: "update",
+    id: r.id,
+    createdAt: r.createdAt,
+    content: r.content,
+    post: { id: r.postId, title: r.postTitle },
+    author: { id: r.authorId, name: r.authorName ?? "Unknown", avatarUrl: r.authorAvatar },
+    workspace: { name: r.workspaceName, slug: r.workspaceSlug, logoUrl: r.workspaceLogo },
+  }));
+
+  return { items, nextCursor };
+}
+
 // Re-export for callers that only import from this module.
 export type { ModerationStatus };

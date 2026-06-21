@@ -1,5 +1,126 @@
-import { describe, expect, it } from "vitest";
-import { mergeFollowingFeed, type FollowingFeedItem } from "./explore.service";
+import { afterEach, describe, expect, it } from "vitest";
+import { inArray } from "drizzle-orm";
+import { db } from "../../db";
+import { postUpdates, posts, users, workspaces } from "../../db/schema";
+import { listPublicPulse, mergeFollowingFeed, type FollowingFeedItem } from "./explore.service";
+
+// ---------------------------------------------------------------------------
+// DB seed helpers — used only by integration tests that require a real DB.
+// ---------------------------------------------------------------------------
+
+let _counter = 0;
+function uid(prefix: string) {
+  return `${prefix}-${Date.now()}-${++_counter}`;
+}
+
+async function seedUser() {
+  const [row] = await db
+    .insert(users)
+    .values({
+      email: `${uid("u")}@test.invalid`,
+      name: "Test User",
+      provider: "test",
+      providerId: uid("pid"),
+    })
+    .returning();
+  return row!;
+}
+
+async function seedWorkspace(overrides: { visibility?: "public" | "invite_only" } = {}) {
+  const owner = await seedUser();
+  const [row] = await db
+    .insert(workspaces)
+    .values({
+      ownerId: owner.id,
+      name: uid("ws"),
+      slug: uid("slug"),
+      visibility: overrides.visibility ?? "public",
+    })
+    .returning();
+  return { ...row!, _ownerId: owner.id };
+}
+
+async function seedPost(overrides: {
+  workspaceId: string;
+  moderationStatus?: "pending" | "approved" | "spam" | "rejected";
+}) {
+  const author = await seedUser();
+  const [row] = await db
+    .insert(posts)
+    .values({
+      workspaceId: overrides.workspaceId,
+      authorId: author.id,
+      title: uid("post"),
+      category: "feature_request",
+      moderationStatus: overrides.moderationStatus ?? "approved",
+    })
+    .returning();
+  return row!;
+}
+
+async function seedUpdate(overrides: { postId: string; workspaceId: string; content: string }) {
+  const author = await seedUser();
+  const [row] = await db
+    .insert(postUpdates)
+    .values({
+      postId: overrides.postId,
+      workspaceId: overrides.workspaceId,
+      authorId: author.id,
+      content: overrides.content,
+    })
+    .returning();
+  return row!;
+}
+
+// Workspace IDs seeded per test — deleted in afterEach; cascade removes posts + postUpdates.
+// Owner users are also deleted (users.id is referenced by posts.authorId with ON DELETE RESTRICT,
+// so delete workspaces first, then orphan users).
+const wsIds: string[] = [];
+const userIds: string[] = [];
+
+// Wrap seedWorkspace to register IDs for cleanup.
+async function trackedSeedWorkspace(overrides?: { visibility?: "public" | "invite_only" }) {
+  const ws = await seedWorkspace(overrides);
+  wsIds.push(ws.id);
+  userIds.push(ws._ownerId);
+  return ws;
+}
+
+// Wrap seedPost to register the author user for cleanup.
+async function trackedSeedPost(overrides: {
+  workspaceId: string;
+  moderationStatus?: "pending" | "approved" | "spam" | "rejected";
+}) {
+  const p = await seedPost(overrides);
+  // The post author user id isn't returned by seedPost; we need it for user cleanup.
+  // Instead, rely on cascade: workspace delete cascades to posts, but posts.authorId is
+  // ON DELETE RESTRICT on users. So we can't delete users before posts.
+  // Strategy: skip explicit user cleanup — test DB isolation via unique emails is sufficient,
+  // and the tiny test residue (users) won't interfere with assertions.
+  return p;
+}
+
+async function trackedSeedUpdate(overrides: { postId: string; workspaceId: string; content: string }) {
+  return seedUpdate(overrides);
+}
+
+afterEach(async () => {
+  // Delete workspaces (cascades to posts, post_updates). Do this before deleting users
+  // because posts.authorId is ON DELETE RESTRICT.
+  if (wsIds.length) {
+    await db.delete(workspaces).where(inArray(workspaces.id, [...wsIds]));
+    wsIds.length = 0;
+  }
+  // Now safe to delete the owner users (posts that referenced them are gone via cascade).
+  if (userIds.length) {
+    await db.delete(users).where(inArray(users.id, [...userIds]));
+    userIds.length = 0;
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Pure unit tests — no DB required.
+// ---------------------------------------------------------------------------
 
 function postItem(id: string, iso: string): FollowingFeedItem {
   return {
@@ -68,5 +189,26 @@ describe("mergeFollowingFeed", () => {
     const posts = [postItem("p1", "2026-06-18T10:00:00.000Z"), postItem("p2", "2026-06-18T09:00:00.000Z")];
     const { nextCursor } = mergeFollowingFeed(posts, [], 2);
     expect(nextCursor).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Integration tests — require a live DATABASE_URL.
+// ---------------------------------------------------------------------------
+
+describe("listPublicPulse", () => {
+  it("returns only status updates from public workspaces, never raw posts", async () => {
+    const pub = await trackedSeedWorkspace({ visibility: "public" });
+    const inviteOnly = await trackedSeedWorkspace({ visibility: "invite_only" });
+    const pubPost = await trackedSeedPost({ workspaceId: pub.id, moderationStatus: "approved" });
+    const hiddenPost = await trackedSeedPost({ workspaceId: inviteOnly.id, moderationStatus: "approved" });
+    await trackedSeedUpdate({ postId: pubPost.id, workspaceId: pub.id, content: "Shipped it" });
+    await trackedSeedUpdate({ postId: hiddenPost.id, workspaceId: inviteOnly.id, content: "secret" });
+
+    const { items } = await listPublicPulse({ limit: 10, cursor: null });
+
+    expect(items.every((i) => i.type === "update")).toBe(true);
+    expect(items.map((i) => i.content)).toContain("Shipped it");
+    expect(items.map((i) => i.content)).not.toContain("secret");
   });
 });
