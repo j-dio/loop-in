@@ -57,6 +57,13 @@
       "when": 1781786193832,
       "tag": "0007_square_ulik",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1781965331188,
+      "tag": "0008_powerful_daredevil",
+      "breakpoints": true
     }
   ]
 }

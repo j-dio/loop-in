@@ -9,6 +9,7 @@ import {
   boolean,
   uniqueIndex,
   index,
+  jsonb,
 } from 'drizzle-orm/pg-core';
 import { desc, sql } from 'drizzle-orm';
 
@@ -401,4 +402,52 @@ export const follows = pgTable('follows', {
   ),
   workspaceIdIdx: index('follows_workspace_id_idx').on(table.workspaceId),
   userIdIdx: index('follows_user_id_idx').on(table.userId),
+}));
+
+export const notificationType = pgEnum('notification_type', [
+  'post_approved',
+  'post_planned',
+  'post_in_progress',
+  'post_shipped',
+  'post_update',
+  'post_comment',
+  'app_shipped',
+  'app_update',
+]);
+
+export const notifications = pgTable('notifications', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  recipientId: uuid('recipient_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+
+  type: notificationType('type').notNull(),
+
+  workspaceId: uuid('workspace_id')
+    .notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+
+  postId: uuid('post_id')
+    .references(() => posts.id, { onDelete: 'cascade' }),
+
+  actorId: uuid('actor_id')
+    .references(() => users.id, { onDelete: 'set null' }),
+
+  data: jsonb('data').notNull().default({}),
+
+  readAt: timestamp('read_at', { withTimezone: true }),
+
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+}, (table) => ({
+  recipientCreatedAtIdx: index('notifications_recipient_id_created_at_idx').on(
+    table.recipientId,
+    desc(table.createdAt),
+  ),
+  recipientReadAtIdx: index('notifications_recipient_id_read_at_idx').on(
+    table.recipientId,
+    table.readAt,
+  ),
 }));
