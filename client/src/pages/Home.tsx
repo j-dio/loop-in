@@ -19,6 +19,7 @@ export function Home() {
     pulse,
     following,
     followingCursor,
+    loadingMoreFollowing,
     loadMoreFollowing,
     syncFollow,
     error,
@@ -158,7 +159,7 @@ export function Home() {
 
                 {followingCursor ? (
                   <div className="mt-6 flex justify-center">
-                    <Button variant="outline" onClick={loadMoreFollowing}>
+                    <Button variant="outline" onClick={loadMoreFollowing} disabled={loadingMoreFollowing || !followingCursor}>
                       Load more
                     </Button>
                   </div>

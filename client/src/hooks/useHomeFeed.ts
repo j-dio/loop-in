@@ -30,6 +30,7 @@ export type UseHomeFeedResult = {
   pulse: PulseItem[];
   following: FollowingFeedItem[];
   followingCursor: string | null;
+  loadingMoreFollowing: boolean;
   loadMoreFollowing: () => Promise<void>;
   syncFollow: (slug: string, data: FollowState) => void;
   error: string | null;
@@ -164,6 +165,7 @@ export function useHomeFeed(): UseHomeFeedResult {
     pulse,
     following,
     followingCursor,
+    loadingMoreFollowing,
     loadMoreFollowing,
     syncFollow,
     error,
