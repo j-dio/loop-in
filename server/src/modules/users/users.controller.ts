@@ -5,7 +5,7 @@ import {
   isS3UploadConfigured,
   isValidAvatarUrl,
 } from "../uploads/uploads.service";
-import { updateUserProfile } from "./users.service";
+import { completeOnboarding, updateUserProfile } from "./users.service";
 
 /** POST /api/users/me/avatar/presign — presigned PUT for the caller's own avatar. */
 export async function presignAvatarHandler(req: Request, res: Response, next: NextFunction) {
@@ -40,6 +40,21 @@ export async function presignAvatarHandler(req: Request, res: Response, next: Ne
       upload_headers: result.headers,
       expires_in_seconds: 300,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** POST /api/users/me/onboarding/complete — mark the caller's onboarding as done. */
+export async function completeOnboardingHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const updated = await completeOnboarding(userId);
+    if (!updated) return res.status(404).json({ error: "User not found" });
+
+    return res.json({ user: updated });
   } catch (err) {
     next(err);
   }
