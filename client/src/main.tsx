@@ -12,6 +12,7 @@ import { Thread } from "./pages/Thread";
 import { Admin } from "./pages/Admin";
 import { AcceptInvite } from "./pages/AcceptInvite";
 import { Explore } from "./pages/Explore";
+import { Notifications } from "./pages/Notifications";
 import { NotFound } from "./pages/NotFound";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
@@ -26,6 +27,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <Route path="/explore" element={<Explore />} />
 
           <Route element={<AppShell />}>
+            <Route path="/notifications" element={<Notifications />} />
             <Route path="/:slug" element={<Board />} />
             <Route path="/:slug/post/:id" element={<Thread />} />
             <Route path="/:slug/admin" element={<Admin />} />
