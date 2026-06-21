@@ -8,7 +8,7 @@ export function OnboardingGate() {
 
   if (loading || !user) return null;
   if (user.onboardingCompletedAt !== null) return null;
-  if (location.pathname === "/welcome") return null;
+  if (location.pathname.startsWith("/welcome")) return null;
 
   return <Navigate to="/welcome" replace />;
 }

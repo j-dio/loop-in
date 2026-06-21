@@ -12,9 +12,10 @@ type Stage = "fork" | "follow";
 
 export function Welcome() {
   const navigate = useNavigate();
-  const { completeOnboarding } = useWorkspace();
+  const { user, loading, completeOnboarding } = useWorkspace();
   const [stage, setStage] = useState<Stage>("fork");
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [finishing, setFinishing] = useState(false);
 
   // Follow stage state
   const [workspaces, setWorkspaces] = useState<AppCardWorkspace[]>([]);
@@ -42,8 +43,17 @@ export function Welcome() {
     };
   }, [stage]);
 
+  if (loading) return null;
+  if (!user) { navigate("/"); return null; }
+
   async function finish() {
-    await completeOnboarding();
+    if (finishing) return;
+    setFinishing(true);
+    try {
+      await completeOnboarding();
+    } catch {
+      // best-effort — navigate anyway
+    }
     navigate("/home");
   }
 
@@ -76,6 +86,7 @@ export function Welcome() {
             onFollowDiscover={() => setStage("follow")}
             onBuildApp={() => setWizardOpen(true)}
             onSkip={finish}
+            finishing={finishing}
           />
         )}
 
@@ -85,6 +96,7 @@ export function Welcome() {
             loading={followLoading}
             onFollowChange={handleFollowChange}
             onDone={finish}
+            finishing={finishing}
           />
         )}
       </main>
@@ -102,10 +114,12 @@ function ForkStage({
   onFollowDiscover,
   onBuildApp,
   onSkip,
+  finishing,
 }: {
   onFollowDiscover: () => void;
   onBuildApp: () => void;
   onSkip: () => void;
+  finishing: boolean;
 }) {
   return (
     <div className="w-full max-w-lg space-y-8">
@@ -140,7 +154,8 @@ function ForkStage({
         <button
           type="button"
           onClick={onSkip}
-          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          disabled={finishing}
+          className="text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
         >
           Just exploring →
         </button>
@@ -184,11 +199,13 @@ function FollowStage({
   loading,
   onFollowChange,
   onDone,
+  finishing,
 }: {
   workspaces: AppCardWorkspace[];
   loading: boolean;
   onFollowChange: (slug: string, data: { following: boolean; followerCount: number }) => void;
   onDone: () => void;
+  finishing: boolean;
 }) {
   return (
     <div className="w-full max-w-3xl space-y-8">
@@ -226,13 +243,14 @@ function FollowStage({
       )}
 
       <div className="flex flex-col items-center gap-3 pt-2">
-        <Button variant="brand" onClick={onDone} className="w-full max-w-xs">
+        <Button variant="brand" onClick={onDone} disabled={finishing} className="w-full max-w-xs">
           Done
         </Button>
         <button
           type="button"
           onClick={onDone}
-          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          disabled={finishing}
+          className="text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
         >
           Skip
         </button>

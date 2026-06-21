@@ -70,10 +70,11 @@ export function CreateAppWizard({ open, onOpenChange }: Props) {
     try {
       const w = await createWorkspace({ name: n, slug: s, tagline: t, platform, category });
       setActiveWorkspace(w);
-      if (user?.onboardingCompletedAt == null) {
-        await completeOnboarding();
-      }
       handleOpenChange(false);
+      // Best-effort: stamp onboarding. Never block navigation.
+      if (user?.onboardingCompletedAt == null) {
+        completeOnboarding().catch(() => {/* silent */});
+      }
       navigate(`/${w.slug}/admin?section=profile`);
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
