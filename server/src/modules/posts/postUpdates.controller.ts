@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { CreatePostUpdateBodySchema, PostUpdateParamsSchema } from "./postUpdates.schemas";
 import { createPostUpdate, listPostUpdates } from "./postUpdates.service";
 import type { RequesterContext } from "./posts.service";
-import { notifyPostUpdate } from "./notifications.service";
+import { notifyPostUpdate } from "../notifications/notifications.service";
 
 function requesterCtx(req: Request): RequesterContext {
   return {
@@ -63,6 +63,7 @@ export async function createPostUpdateHandler(req: Request, res: Response, next:
 
     notifyPostUpdate({
       postId: paramsParsed.data.postId,
+      workspaceId: req.workspace.id,
       workspaceSlug: req.workspace.slug,
       actorId: req.user.id,
       updateContent: bodyParsed.data.content,

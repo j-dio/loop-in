@@ -11,7 +11,7 @@ import {
   PatchPostBodySchema,
 } from "./posts.schemas";
 import { isValidPostImageUrl } from "../uploads/uploads.service";
-import { notifyPostApproved, notifyPostShipped } from "./notifications.service";
+import { notifyBoardMove, notifyPostApproved } from "../notifications/notifications.service";
 import {
   createPost,
   getMyUpvoteState,
@@ -157,6 +157,7 @@ export async function moderatePostHandler(req: Request, res: Response, next: Nex
     ) {
       notifyPostApproved({
         postId: paramsParsed.data.postId,
+        workspaceId: req.workspace.id,
         workspaceSlug: req.workspace.slug,
         actorId: req.user.id,
       });
@@ -195,13 +196,13 @@ export async function patchPostBoardStatusHandler(req: Request, res: Response, n
       return res.status(409).json({ error: "Post must be approved before updating board status" });
     }
 
-    if (bodyParsed.data.board_status === "shipped") {
-      notifyPostShipped({
-        postId: paramsParsed.data.postId,
-        workspaceSlug: req.workspace.slug,
-        actorId: req.user.id,
-      });
-    }
+    notifyBoardMove({
+      postId: paramsParsed.data.postId,
+      workspaceId: req.workspace.id,
+      workspaceSlug: req.workspace.slug,
+      boardStatus: bodyParsed.data.board_status,
+      actorId: req.user.id,
+    });
 
     return res.json({ post: updated });
   } catch (err) {

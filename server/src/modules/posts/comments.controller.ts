@@ -6,6 +6,7 @@ import {
 } from "./comments.schemas";
 import { createComment, listCommentsForPost, softDeleteComment } from "./comments.service";
 import type { RequesterContext } from "./posts.service";
+import { notifyPostComment } from "../notifications/notifications.service";
 
 function requesterCtx(req: Request): RequesterContext {
   return {
@@ -64,6 +65,14 @@ export async function createCommentHandler(req: Request, res: Response, next: Ne
 
     if (comment === "not_found") return res.status(404).json({ error: "Post not found" });
     if (comment === "forbidden") return res.status(403).json({ error: "Forbidden" });
+
+    notifyPostComment({
+      postId: paramsParsed.data.postId,
+      workspaceId: req.workspace.id,
+      workspaceSlug: req.workspace.slug,
+      actorId: req.user.id,
+      commentBody: bodyParsed.data.content,
+    });
 
     return res.status(201).json({ comment });
   } catch (err) {
