@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ImagePlus, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ImagePlus, LogOut, Trash2 } from "lucide-react";
 import { ApiError, apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,7 +38,9 @@ type Props = {
 
 export function ProfileDialog({ open, onOpenChange }: Props) {
   const { user, refreshSession } = useWorkspace();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [signingOut, setSigningOut] = useState(false);
 
   const [name, setName] = useState("");
   // Pending avatar URL (null = unchanged; "" = cleared back to default).
@@ -147,7 +150,20 @@ export function ProfileDialog({ open, onOpenChange }: Props) {
     }
   }
 
-  const busy = saving || uploading;
+  async function handleSignOut() {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await apiFetch("/auth/logout", { method: "POST" });
+    } catch {
+      /* proceed with local cleanup anyway */
+    }
+    await refreshSession();
+    onOpenChange(false);
+    navigate("/");
+  }
+
+  const busy = saving || uploading || signingOut;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -223,13 +239,25 @@ export function ProfileDialog({ open, onOpenChange }: Props) {
 
           {error ? <p className="text-destructive text-sm">{error}</p> : null}
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
-              Cancel
+          <DialogFooter className="sm:justify-between">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => void handleSignOut()}
+              disabled={busy}
+              className="text-muted-foreground hover:text-destructive"
+            >
+              <LogOut className="size-4" />
+              {signingOut ? "Signing out…" : "Sign out"}
             </Button>
-            <Button type="submit" variant="brand" disabled={busy}>
-              {saving ? "Saving…" : "Save"}
-            </Button>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="brand" disabled={busy}>
+                {saving ? "Saving…" : "Save"}
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

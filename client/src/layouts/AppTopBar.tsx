@@ -1,30 +1,19 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Compass, LogOut, Menu } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Compass, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/brand/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { WorkspaceSwitcher } from "@/components/WorkspaceSwitcher";
 import { UserAvatar } from "@/components/UserAvatar";
 import { ProfileDialog } from "@/components/ProfileDialog";
+import { NotificationBell } from "@/components/NotificationBell";
 import { useWorkspace } from "@/context/WorkspaceContext";
-import { apiFetch } from "@/lib/api";
 import { setReturnTo } from "@/lib/returnTo";
 
 export function AppTopBar({ onToggleMobileNav }: { onToggleMobileNav: () => void }) {
-  const { user, activeWorkspace, refreshSession } = useWorkspace();
-  const navigate = useNavigate();
+  const { user, activeWorkspace } = useWorkspace();
   const [profileOpen, setProfileOpen] = useState(false);
-
-  async function handleSignOut() {
-    try {
-      await apiFetch("/auth/logout", { method: "POST" });
-    } catch {
-      /* proceed with local cleanup anyway */
-    }
-    await refreshSession();
-    navigate("/");
-  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md">
@@ -56,6 +45,7 @@ export function AppTopBar({ onToggleMobileNav }: { onToggleMobileNav: () => void
               <span className="hidden sm:inline">Explore</span>
             </Link>
           </Button>
+          <NotificationBell />
           <ThemeToggle />
           {user ? (
             <>
@@ -75,10 +65,6 @@ export function AppTopBar({ onToggleMobileNav }: { onToggleMobileNav: () => void
                   {user.name ?? user.email}
                 </span>
               </button>
-              <Button type="button" variant="ghost" size="sm" onClick={() => void handleSignOut()}>
-                <LogOut className="size-4" />
-                <span className="hidden sm:inline">Sign out</span>
-              </Button>
               <ProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
             </>
           ) : (
