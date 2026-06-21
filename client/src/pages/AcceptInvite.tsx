@@ -31,13 +31,13 @@ export function AcceptInvite() {
   const token = params.get("token") ?? "";
   const api = getApiBase();
 
-  const [state, setState] = useState<PageState>({ status: "loading" });
+  // Derive the no-token case at init so the effect never setStates synchronously.
+  const [state, setState] = useState<PageState>(() =>
+    token ? { status: "loading" } : { status: "not_found" }
+  );
 
   useEffect(() => {
-    if (!token) {
-      setState({ status: "not_found" });
-      return;
-    }
+    if (!token) return;
 
     apiFetch<{ invite: InviteInfo }>(`/api/workspaces/invites/${encodeURIComponent(token)}`)
       .then((data) => setState({ status: "loaded", info: data.invite }))
