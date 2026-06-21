@@ -1,5 +1,5 @@
 import "../src/config/env";
-import { eq, isNull, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db, pool } from "../src/db";
 import { users } from "../src/db/schema";
 
