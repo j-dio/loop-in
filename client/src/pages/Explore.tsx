@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowBigUp, Compass, Megaphone, MessageSquare, Sparkles } from "lucide-react";
+import { ArrowBigUp, Compass, MessageSquare, Sparkles } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FollowButton } from "@/components/FollowButton";
 import { apiFetch } from "@/lib/api";
 import type { FollowingFeedItem } from "@/lib/api";
 import { useWorkspace } from "@/context/WorkspaceContext";
@@ -16,6 +15,10 @@ import { categoryLabel, categoryTone, boardLabel, boardTone } from "@/lib/postDi
 import { fadeUp, staggerContainer } from "@/lib/motion";
 import { WorkspaceTile } from "@/components/WorkspaceTile";
 import { UserAvatar } from "@/components/UserAvatar";
+import { EmptyState } from "@/components/feed/EmptyState";
+import { SkeletonAppCard, SkeletonFeedRow, sectionLabel } from "@/components/feed/FeedSkeletons";
+import { AppCard } from "@/components/feed/AppCard";
+import { PulseCard } from "@/components/feed/PulseCard";
 
 type ExploreWorkspace = {
   id: string;
@@ -47,72 +50,6 @@ function snippet(text: string | null, max = 160) {
   if (!text) return null;
   const t = text.trim();
   return t.length <= max ? t : `${t.slice(0, max)}…`;
-}
-
-const sectionLabel = "font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase";
-
-/** Centered empty/placeholder state — icon tile + title + subtext + optional action. */
-function EmptyState({
-  icon: Icon,
-  title,
-  children,
-  action,
-}: {
-  icon: typeof Compass;
-  title: string;
-  children?: React.ReactNode;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="mt-4 flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center">
-      <span className="flex size-11 items-center justify-center rounded-xl border border-border bg-muted/40 text-muted-foreground">
-        <Icon className="size-5" aria-hidden />
-      </span>
-      <p className="font-display text-base font-semibold tracking-tight text-foreground">{title}</p>
-      {children ? (
-        <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">{children}</p>
-      ) : null}
-      {action}
-    </div>
-  );
-}
-
-function SkeletonAppCard({ compact = false }: { compact?: boolean }) {
-  return (
-    <div
-      className={
-        compact
-          ? "flex w-60 shrink-0 snap-start flex-col gap-4 rounded-xl border border-border bg-card p-5"
-          : "flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-5"
-      }
-    >
-      <div className="flex items-center gap-3">
-        <Skeleton className="size-10 rounded-xl" />
-        <div className="min-w-0 flex-1 space-y-2">
-          <Skeleton className="h-4 w-28" />
-          <Skeleton className="h-3 w-16" />
-        </div>
-      </div>
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-3 w-24" />
-        <Skeleton className="h-7 w-20 rounded-md" />
-      </div>
-    </div>
-  );
-}
-
-function SkeletonFeedRow() {
-  return (
-    <div className="flex gap-4 rounded-xl border border-border bg-card p-4 sm:p-5">
-      <Skeleton className="size-11 shrink-0 rounded-xl" />
-      <div className="min-w-0 flex-1 space-y-3">
-        <Skeleton className="h-3 w-32" />
-        <Skeleton className="h-5 w-3/4" />
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-3 w-40" />
-      </div>
-    </div>
-  );
 }
 
 export function Explore() {
@@ -337,41 +274,12 @@ export function Explore() {
                     </h2>
                     <div className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 pt-2 [scrollbar-width:thin]">
                       {newApps.map((w) => (
-                        <div
+                        <AppCard
                           key={w.id}
-                          className="group flex w-60 shrink-0 snap-start flex-col gap-4 rounded-xl border border-border bg-card p-5 transition-all hover:-translate-y-0.5 hover:border-brand/40"
-                        >
-                          <Link
-                            to={`/${encodeURIComponent(w.slug)}`}
-                            className="flex items-center gap-3"
-                          >
-                            <WorkspaceTile
-                              name={w.name}
-                              seed={w.slug}
-                              logoUrl={w.logoUrl}
-                              sizeClassName="size-10"
-                            />
-                            <div className="min-w-0">
-                              <h3 className="font-display truncate text-base font-semibold tracking-tight group-hover:text-brand">
-                                {w.name}
-                              </h3>
-                              <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
-                                /{w.slug}
-                              </p>
-                            </div>
-                          </Link>
-                          <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <span className="tabular-nums">
-                              {w.followerCount} {w.followerCount === 1 ? "follower" : "followers"}
-                            </span>
-                            <FollowButton
-                              slug={w.slug}
-                              initialFollowing={w.isFollowing}
-                              initialCount={w.followerCount}
-                              onChange={(s) => syncFollow(w.slug, s)}
-                            />
-                          </div>
-                        </div>
+                          workspace={w}
+                          compact
+                          onFollowChange={syncFollow}
+                        />
                       ))}
                     </div>
                   </section>
@@ -389,42 +297,11 @@ export function Explore() {
                   ) : (
                     <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       {workspaces.map((w) => (
-                        <div
+                        <AppCard
                           key={w.id}
-                          className="group flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-5 transition-all hover:-translate-y-0.5 hover:border-brand/40"
-                        >
-                          <Link to={`/${encodeURIComponent(w.slug)}`} className="flex items-center gap-3">
-                            <WorkspaceTile
-                              name={w.name}
-                              seed={w.slug}
-                              logoUrl={w.logoUrl}
-                              sizeClassName="size-10"
-                            />
-                            <div className="min-w-0">
-                              <h3 className="font-display truncate text-lg font-semibold tracking-tight group-hover:text-brand">
-                                {w.name}
-                              </h3>
-                              <p className="mt-0.5 font-mono text-xs text-muted-foreground">/{w.slug}</p>
-                            </div>
-                          </Link>
-                          <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <span className="inline-flex items-center gap-3">
-                              <span className="inline-flex items-center gap-1.5">
-                                <MessageSquare className="size-3.5" />
-                                {w.postCount} {w.postCount === 1 ? "post" : "posts"}
-                              </span>
-                              <span className="tabular-nums">
-                                {w.followerCount} {w.followerCount === 1 ? "follower" : "followers"}
-                              </span>
-                            </span>
-                            <FollowButton
-                              slug={w.slug}
-                              initialFollowing={w.isFollowing}
-                              initialCount={w.followerCount}
-                              onChange={(s) => syncFollow(w.slug, s)}
-                            />
-                          </div>
-                        </div>
+                          workspace={w}
+                          onFollowChange={syncFollow}
+                        />
                       ))}
                     </div>
                   )}
@@ -589,30 +466,7 @@ export function Explore() {
                         </li>
                       ) : (
                         <li key={`u-${item.id}`}>
-                          <Link
-                            to={`/${encodeURIComponent(item.workspace.slug)}/post/${item.post.id}`}
-                            className="group flex gap-4 rounded-xl border border-brand/30 bg-brand-bright/5 p-4 transition-all hover:-translate-y-0.5 hover:border-brand/50 sm:p-5"
-                          >
-                            <WorkspaceTile
-                              name={item.workspace.name}
-                              seed={item.workspace.slug}
-                              logoUrl={item.workspace.logoUrl}
-                              sizeClassName="size-11"
-                            />
-                            <div className="min-w-0 flex-1">
-                              <p className="flex items-center gap-1.5 font-mono text-[11px] tracking-[0.18em] text-brand uppercase">
-                                <Megaphone className="size-3.5" /> Update · {item.workspace.name}
-                              </p>
-                              <p className="mt-1.5 text-base font-semibold tracking-tight text-foreground">
-                                {item.post.title}
-                              </p>
-                              {snippet(item.content) ? (
-                                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                                  {snippet(item.content)}
-                                </p>
-                              ) : null}
-                            </div>
-                          </Link>
+                          <PulseCard item={item} />
                         </li>
                       )
                     )}
