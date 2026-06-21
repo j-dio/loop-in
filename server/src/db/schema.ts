@@ -77,6 +77,8 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at', { withTimezone: true })
     .defaultNow()
     .notNull(),
+
+  onboardingCompletedAt: timestamp('onboarding_completed_at', { withTimezone: true }),
 }, (table) => ({
   emailUnique: uniqueIndex('users_email_unique').on(table.email),
   providerUnique: uniqueIndex('users_provider_provider_id_unique').on(
