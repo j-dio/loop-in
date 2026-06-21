@@ -4,7 +4,7 @@ import {
   ExploreFeedQuerySchema,
   ExploreWorkspacesQuerySchema,
 } from "./explore.schemas";
-import { listFollowingFeed, listPublicFeed, listPublicPulse, listPublicWorkspaces, FOLLOWING_TRENDING_MIN } from "./explore.service";
+import { listFollowingFeed, listPublicPulse, listPublicWorkspaces, FOLLOWING_TRENDING_MIN } from "./explore.service";
 
 function parseFeedCursor(raw: string | undefined): { createdAt: Date; id: string } | null | "bad" {
   if (!raw) return null;
@@ -50,12 +50,9 @@ export async function exploreFeedHandler(req: Request, res: Response, next: Next
       return res.json(result);
     }
 
-    if (parsed.data.tab === "pulse") {
-      const result = await listPublicPulse({ limit: parsed.data.limit, cursor });
-      return res.json(result);
-    }
-
-    const result = await listPublicFeed({ limit: parsed.data.limit, cursor });
+    // Default + explicit `tab=pulse`: builder news (status updates) across public boards.
+    // Raw cross-board feedback is intentionally not exposed — feedback lives on each board.
+    const result = await listPublicPulse({ limit: parsed.data.limit, cursor });
     return res.json(result);
   } catch (err) {
     next(err);

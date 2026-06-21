@@ -106,67 +106,6 @@ function feedCursorWhere(createdAt: Date, id: string) {
 }
 
 /**
- * Cross-workspace feed: newest *approved* posts across all *public* workspaces. Never includes
- * invite-only content, pending/spam/rejected posts, or soft-deleted posts. Anonymous authors are
- * masked (the explore viewer is never workspace staff).
- */
-export async function listPublicFeed(input: {
-  limit: number;
-  cursor: { createdAt: Date; id: string } | null;
-}): Promise<{ items: ExploreFeedItem[]; nextCursor: string | null }> {
-  const base = and(
-    eq(workspaces.visibility, "public"),
-    eq(posts.moderationStatus, "approved"),
-    isNull(posts.deletedAt)
-  );
-  const whereClause = input.cursor
-    ? and(base, feedCursorWhere(input.cursor.createdAt, input.cursor.id))
-    : base;
-
-  const rows = await db
-    .select({
-      post: posts,
-      authorId: users.id,
-      authorName: users.name,
-      authorAvatar: users.avatarUrl,
-      workspaceName: workspaces.name,
-      workspaceSlug: workspaces.slug,
-      workspaceLogo: workspaces.logoUrl,
-    })
-    .from(posts)
-    .innerJoin(workspaces, eq(posts.workspaceId, workspaces.id))
-    .innerJoin(users, eq(posts.authorId, users.id))
-    .where(whereClause)
-    .orderBy(desc(posts.createdAt), desc(posts.id))
-    .limit(input.limit + 1);
-
-  const page = rows.slice(0, input.limit);
-  const hasMore = rows.length > input.limit;
-  const last = page[page.length - 1];
-
-  const nextCursor = hasMore && last ? encodeFeedCursor(last.post.createdAt, last.post.id) : null;
-
-  const items: ExploreFeedItem[] = page.map((r) => ({
-    id: r.post.id,
-    title: r.post.title,
-    description: r.post.description,
-    imageUrl: r.post.imageUrl ?? null,
-    category: r.post.category as PostCategory,
-    boardStatus: r.post.boardStatus as BoardStatus,
-    upvoteCount: r.post.upvoteCount,
-    createdAt: r.post.createdAt,
-    author: serializeAuthorForPost(
-      { id: r.authorId, name: r.authorName, avatarUrl: r.authorAvatar },
-      { isAnonymous: r.post.isAnonymous },
-      { userId: undefined, workspaceRole: undefined }
-    ),
-    workspace: { name: r.workspaceName, slug: r.workspaceSlug, logoUrl: r.workspaceLogo },
-  }));
-
-  return { items, nextCursor };
-}
-
-/**
  * Merge two reverse-chron sources (posts + status updates) into one page.
  * Each source is pre-fetched at limit+1 in (createdAt desc, id desc) order; merging their heads
  * yields the true top-`limit` of the union (merge of sorted streams). Ties broken by id desc to
