@@ -7,7 +7,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { WorkspaceSwitcher } from "@/components/WorkspaceSwitcher";
 import { UserAvatar } from "@/components/UserAvatar";
 import { ProfileDialog } from "@/components/ProfileDialog";
-import { CreateAppDialog } from "@/components/CreateAppDialog";
+import { CreateAppWizard } from "@/components/CreateAppWizard";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { setReturnTo } from "@/lib/returnTo";
@@ -103,7 +103,7 @@ export function AppTopBar({ onToggleMobileNav }: { onToggleMobileNav: () => void
           )}
         </div>
       </div>
-      {user && <CreateAppDialog open={createOpen} onOpenChange={setCreateOpen} />}
+      {user && <CreateAppWizard open={createOpen} onOpenChange={setCreateOpen} />}
     </header>
   );
 }
