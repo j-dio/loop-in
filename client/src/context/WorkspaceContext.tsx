@@ -16,6 +16,7 @@ export type User = {
   email: string;
   name: string | null;
   avatarUrl: string | null;
+  onboardingCompletedAt: string | null;
 };
 
 export type Workspace = {
@@ -42,9 +43,13 @@ type WorkspaceContextValue = {
   createWorkspace: (input: {
     name: string;
     slug: string;
+    tagline: string;
+    platform: "web" | "mobile" | "desktop" | "other";
+    category: string;
     primaryColor?: string;
     visibility?: "public" | "invite_only";
   }) => Promise<Workspace>;
+  completeOnboarding: () => Promise<void>;
 };
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -117,6 +122,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     async (input: {
       name: string;
       slug: string;
+      tagline: string;
+      platform: "web" | "mobile" | "desktop" | "other";
+      category: string;
       primaryColor?: string;
       visibility?: "public" | "invite_only";
     }) => {
@@ -131,6 +139,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const completeOnboarding = useCallback(async () => {
+    await apiFetch("/api/users/me/onboarding/complete", { method: "POST" });
+    await refreshSession();
+  }, [refreshSession]);
+
   const value = useMemo(
     () => ({
       user,
@@ -140,8 +153,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setActiveWorkspace,
       refreshSession,
       createWorkspace,
+      completeOnboarding,
     }),
-    [user, loading, workspaces, activeWorkspace, setActiveWorkspace, refreshSession, createWorkspace]
+    [user, loading, workspaces, activeWorkspace, setActiveWorkspace, refreshSession, createWorkspace, completeOnboarding]
   );
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;

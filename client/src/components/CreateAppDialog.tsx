@@ -67,7 +67,7 @@ export function CreateAppDialog({ open, onOpenChange }: Props) {
     }
     setCreating(true);
     try {
-      const w = await createWorkspace({ name: n, slug: s });
+      const w = await createWorkspace({ name: n, slug: s, tagline: "", platform: "web", category: "other" });
       setActiveWorkspace(w);
       handleOpenChange(false);
       navigate(`/${w.slug}/admin`);
