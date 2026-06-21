@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { WorkspaceSwitcher } from "@/components/WorkspaceSwitcher";
 import { UserAvatar } from "@/components/UserAvatar";
 import { ProfileDialog } from "@/components/ProfileDialog";
+import { CreateAppDialog } from "@/components/CreateAppDialog";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { setReturnTo } from "@/lib/returnTo";
@@ -15,6 +16,7 @@ import { cn } from "@/lib/utils";
 export function AppTopBar({ onToggleMobileNav }: { onToggleMobileNav: () => void }) {
   const { user, workspaces, activeWorkspace } = useWorkspace();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const location = useLocation();
   const isAdmin = /^\/[^/]+\/admin(\/|$)/.test(location.pathname);
 
@@ -61,7 +63,7 @@ export function AppTopBar({ onToggleMobileNav }: { onToggleMobileNav: () => void
         </nav>
 
         <div className="ml-auto flex items-center gap-1.5">
-          <Button type="button" variant="outline" size="sm" onClick={() => {}}>
+          <Button type="button" variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />
             <span className="hidden sm:inline">New app</span>
           </Button>
@@ -99,6 +101,7 @@ export function AppTopBar({ onToggleMobileNav }: { onToggleMobileNav: () => void
           )}
         </div>
       </div>
+      <CreateAppDialog open={createOpen} onOpenChange={setCreateOpen} />
     </header>
   );
 }
