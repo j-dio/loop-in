@@ -3,6 +3,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { AppTopBar } from "@/layouts/AppTopBar";
 import { AppSidebar } from "@/layouts/AppSidebar";
+import { OnboardingGate } from "@/components/onboarding/OnboardingGate";
 import { useSidebar } from "@/hooks/useSidebar";
 
 export function AppShell() {
@@ -13,6 +14,7 @@ export function AppShell() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
+      <OnboardingGate />
       <AppTopBar onToggleMobileNav={() => setMobileOpen(true)} />
       <div className="flex flex-1">
         {isAdmin && (
