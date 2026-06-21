@@ -124,7 +124,7 @@ export function useHomeFeed(): UseHomeFeedResult {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user?.id]);
 
   // Loads the next page of the following feed using the current cursor.
   const loadMoreFollowing = useCallback(async () => {
