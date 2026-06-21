@@ -62,7 +62,7 @@ export async function postWorkspace(req: Request, res: Response, next: NextFunct
       return res.status(400).json({ error: "Invalid request", details: parsed.error.flatten() });
     }
 
-    const { name, slug, primaryColor, visibility, require_approval } = parsed.data;
+    const { name, slug, tagline, platform, category, primaryColor, visibility, require_approval } = parsed.data;
 
     const [existing] = await db
       .select({ id: workspaces.id })
@@ -76,6 +76,9 @@ export async function postWorkspace(req: Request, res: Response, next: NextFunct
       userId: req.user.id,
       name,
       slug,
+      tagline,
+      platform,
+      category,
       primaryColor,
       visibility,
       requireApproval: require_approval,

@@ -49,6 +49,9 @@ export async function createWorkspaceWithOwnerMembership(input: {
   userId: string;
   name: string;
   slug: string;
+  tagline: string;
+  platform: AppPlatform;
+  category: string;
   primaryColor?: string | undefined;
   visibility?: WorkspaceVisibility | undefined;
   requireApproval?: boolean | undefined;
@@ -60,6 +63,9 @@ export async function createWorkspaceWithOwnerMembership(input: {
         ownerId: input.userId,
         name: input.name,
         slug: input.slug,
+        tagline: input.tagline,
+        platform: input.platform,
+        category: input.category,
         primaryColor: input.primaryColor ?? undefined,
         visibility: input.visibility ?? undefined,
         requireApproval: input.requireApproval ?? undefined,

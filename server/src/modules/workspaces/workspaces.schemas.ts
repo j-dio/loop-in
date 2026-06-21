@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isReservedSlug } from "./reservedSlugs";
 
 export const WorkspaceVisibilitySchema = z.enum(["public", "invite_only"]);
 
@@ -13,6 +14,11 @@ export const WorkspaceSlugSchema = z
   .max(100)
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "slug must be kebab-case (a-z, 0-9, '-')");
 
+const CreateSlugSchema = WorkspaceSlugSchema.refine(
+  (s) => !isReservedSlug(s),
+  "that URL is reserved — pick another"
+);
+
 export const HexColorSchema = z
   .string()
   .trim()
@@ -20,7 +26,10 @@ export const HexColorSchema = z
 
 export const CreateWorkspaceBodySchema = z.object({
   name: z.string().trim().min(1).max(255),
-  slug: WorkspaceSlugSchema,
+  slug: CreateSlugSchema,
+  tagline: z.string().trim().min(1).max(140),
+  platform: AppPlatformSchema,
+  category: z.string().trim().min(1).max(50),
   primaryColor: HexColorSchema.optional(),
   visibility: WorkspaceVisibilitySchema.optional(),
   require_approval: z.boolean().optional(),
