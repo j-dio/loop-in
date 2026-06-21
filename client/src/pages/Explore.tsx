@@ -1,24 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowBigUp, Compass, MessageSquare, Sparkles } from "lucide-react";
-import { Logo } from "@/components/brand/Logo";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { Compass, Sparkles, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiFetch } from "@/lib/api";
 import type { FollowingFeedItem } from "@/lib/api";
 import { useWorkspace } from "@/context/WorkspaceContext";
-import { categoryLabel, categoryTone, boardLabel, boardTone } from "@/lib/postDisplay";
 import { fadeUp, staggerContainer } from "@/lib/motion";
-import { WorkspaceTile } from "@/components/WorkspaceTile";
-import { UserAvatar } from "@/components/UserAvatar";
 import { EmptyState } from "@/components/feed/EmptyState";
 import { SkeletonAppCard, SkeletonFeedRow, sectionLabel } from "@/components/feed/FeedSkeletons";
 import { AppCard } from "@/components/feed/AppCard";
 import { PulseCard } from "@/components/feed/PulseCard";
+import type { PulseItem } from "@/hooks/useHomeFeed";
 import { PostRow } from "@/components/feed/PostRow";
 
 type ExploreWorkspace = {
@@ -32,35 +26,14 @@ type ExploreWorkspace = {
   isFollowing: boolean;
 };
 
-type FeedItem = {
-  id: string;
-  title: string;
-  description: string | null;
-  imageUrl: string | null;
-  category: "bug" | "feature_request" | "ui_tweak";
-  boardStatus: "inbox" | "under_review" | "planned" | "in_progress" | "shipped";
-  upvoteCount: number;
-  createdAt: string;
-  author: { id?: string; name: string; avatarUrl: string | null };
-  workspace: { name: string; slug: string; logoUrl: string | null };
-};
-
 type FollowState = { following: boolean; followerCount: number };
-
-function snippet(text: string | null, max = 160) {
-  if (!text) return null;
-  const t = text.trim();
-  return t.length <= max ? t : `${t.slice(0, max)}…`;
-}
 
 export function Explore() {
   const { user } = useWorkspace();
   const [workspaces, setWorkspaces] = useState<ExploreWorkspace[]>([]);
   const [newApps, setNewApps] = useState<ExploreWorkspace[]>([]);
-  const [feed, setFeed] = useState<FeedItem[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [pulse, setPulse] = useState<PulseItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"discover" | "following">("discover");
   const [following, setFollowing] = useState<FollowingFeedItem[]>([]);
@@ -68,14 +41,6 @@ export function Explore() {
   const [followingLoaded, setFollowingLoaded] = useState(false);
   const [followingLoading, setFollowingLoading] = useState(false);
   const [followingLoadingMore, setFollowingLoadingMore] = useState(false);
-
-  const loadFeed = useCallback(async (cursor?: string) => {
-    const q = new URLSearchParams();
-    if (cursor) q.set("cursor", cursor);
-    return apiFetch<{ items: FeedItem[]; nextCursor: string | null }>(
-      `/api/explore/feed?${q.toString()}`
-    );
-  }, []);
 
   const loadFollowing = useCallback(async (cursor?: string) => {
     const q = new URLSearchParams({ tab: "following" });
@@ -101,18 +66,21 @@ export function Explore() {
     setError(null);
     void (async () => {
       try {
-        const [ws, recent, fd] = await Promise.all([
+        const [ws, recent, pulseRes] = await Promise.all([
           apiFetch<{ workspaces: ExploreWorkspace[] }>("/api/explore/workspaces"),
           apiFetch<{ workspaces: ExploreWorkspace[] }>(
             "/api/explore/workspaces?sort=newest&limit=12"
           ),
-          loadFeed(),
+          apiFetch<{ items: FollowingFeedItem[]; nextCursor: string | null }>(
+            "/api/explore/feed?tab=pulse"
+          ),
         ]);
         if (cancelled) return;
         setWorkspaces(ws.workspaces);
         setNewApps(recent.workspaces);
-        setFeed(fd.items);
-        setNextCursor(fd.nextCursor);
+        setPulse(
+          pulseRes.items.filter((item): item is PulseItem => item.type === "update")
+        );
       } catch {
         if (!cancelled) setError("Could not load public boards. Please try again.");
       } finally {
@@ -122,7 +90,7 @@ export function Explore() {
     return () => {
       cancelled = true;
     };
-  }, [loadFeed]);
+  }, []);
 
   // Fix: reset Following state when the signed-in user changes so user B
   // never sees user A's cached feed after an account switch.
@@ -156,48 +124,9 @@ export function Explore() {
     };
   }, [tab, user, followingLoaded, loadFollowing]);
 
-  const onLoadMore = async () => {
-    if (!nextCursor || loadingMore) return;
-    setLoadingMore(true);
-    try {
-      const fd = await loadFeed(nextCursor);
-      setFeed((prev) => [...prev, ...fd.items]);
-      setNextCursor(fd.nextCursor);
-    } catch {
-      /* keep what we have */
-    } finally {
-      setLoadingMore(false);
-    }
-  };
-
   return (
-    <div className="min-h-dvh bg-background text-foreground">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-5 sm:px-8">
-          <Link to="/" aria-label="Loop In home">
-            <Logo />
-          </Link>
-          <span className="hidden text-border sm:inline" aria-hidden>/</span>
-          <span className="hidden font-mono text-xs tracking-wide text-muted-foreground sm:inline">
-            explore
-          </span>
-          <div className="ml-auto flex items-center gap-2">
-            <ThemeToggle />
-            {user ? (
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/">Dashboard</Link>
-              </Button>
-            ) : (
-              <Button variant="brand" size="sm" asChild>
-                <Link to="/">Sign in</Link>
-              </Button>
-            )}
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-6xl px-5 py-12 sm:px-8 lg:py-16">
+    <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
+      <main>
         <motion.div initial="hidden" animate="show" variants={staggerContainer(0.08)}>
           <motion.p
             variants={fadeUp}
@@ -308,104 +237,21 @@ export function Explore() {
                   )}
                 </section>
 
-                {/* Aggregated feed */}
-                <section className="mt-14" aria-labelledby="feed-heading">
-                  <h2 id="feed-heading" className={sectionLabel}>
-                    Latest across all boards
-                  </h2>
-                  {feed.length === 0 ? (
-                    <EmptyState icon={MessageSquare} title="No public feedback yet">
-                      When people post on public boards, the freshest ideas land here.
-                    </EmptyState>
-                  ) : (
+                {/* What's happening — pulse (status updates across all public boards) */}
+                {pulse.length > 0 ? (
+                  <section className="mt-14" aria-labelledby="pulse-heading">
+                    <h2 id="pulse-heading" className={`flex items-center gap-2 ${sectionLabel}`}>
+                      <Zap className="size-3.5 text-brand" /> What&apos;s happening
+                    </h2>
                     <ul className="mt-4 space-y-3">
-                      {feed.map((p) => (
-                        <li key={`${p.workspace.slug}-${p.id}`}>
-                          <Link
-                            to={`/${encodeURIComponent(p.workspace.slug)}/post/${p.id}`}
-                            className="group flex gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:-translate-y-0.5 hover:border-brand/40 sm:p-5"
-                          >
-                            <div className="flex shrink-0 flex-col items-center gap-2">
-                              <WorkspaceTile
-                                name={p.workspace.name}
-                                seed={p.workspace.slug}
-                                logoUrl={p.workspace.logoUrl}
-                                sizeClassName="size-11"
-                              />
-                              <div className="flex min-w-11 flex-col items-center gap-0.5 rounded-xl border border-border px-2 py-1.5 text-sm font-semibold text-muted-foreground">
-                                <ArrowBigUp className="size-4" strokeWidth={2} aria-hidden />
-                                <span className="tabular-nums">{p.upvoteCount}</span>
-                              </div>
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-baseline gap-2">
-                                <span className="font-display truncate text-sm font-semibold tracking-tight text-foreground group-hover:text-brand">
-                                  {p.workspace.name}
-                                </span>
-                                <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                                  /{p.workspace.slug}
-                                </span>
-                              </div>
-                              <div className="mt-1.5 flex flex-wrap items-start justify-between gap-2">
-                                <span className="text-base font-semibold tracking-tight text-foreground">
-                                  {p.title}
-                                </span>
-                                <div className="flex flex-wrap gap-1.5">
-                                  <Badge tone={categoryTone(p.category)}>{categoryLabel(p.category)}</Badge>
-                                  <Badge tone={boardTone(p.boardStatus)}>{boardLabel(p.boardStatus)}</Badge>
-                                </div>
-                              </div>
-                              {p.imageUrl ? (
-                                <div className="mt-3 flex justify-center overflow-hidden rounded-xl border border-border bg-muted/30">
-                                  <img
-                                    src={p.imageUrl}
-                                    alt={p.title}
-                                    className="h-auto max-h-[30rem] w-full object-contain"
-                                    loading="lazy"
-                                    onError={(e) => {
-                                      const wrap = e.currentTarget.parentElement;
-                                      if (wrap) wrap.style.display = "none";
-                                    }}
-                                  />
-                                </div>
-                              ) : null}
-                              {snippet(p.description) ? (
-                                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                                  {snippet(p.description)}
-                                </p>
-                              ) : null}
-                              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                <UserAvatar
-                                  name={p.author.name}
-                                  avatarUrl={p.author.avatarUrl}
-                                  seed={p.author.id}
-                                  anonymous={!p.author.id}
-                                  sizeClassName="size-5"
-                                />
-                                <span>{p.author.name}</span>
-                                <span aria-hidden>·</span>
-                                <time dateTime={p.createdAt}>
-                                  {new Date(p.createdAt).toLocaleDateString(undefined, {
-                                    month: "short",
-                                    day: "numeric",
-                                  })}
-                                </time>
-                              </div>
-                            </div>
-                          </Link>
+                      {pulse.map((item) => (
+                        <li key={item.id}>
+                          <PulseCard item={item} />
                         </li>
                       ))}
                     </ul>
-                  )}
-
-                  {nextCursor ? (
-                    <div className="mt-6 flex justify-center">
-                      <Button variant="outline" onClick={onLoadMore} disabled={loadingMore}>
-                        {loadingMore ? "Loading…" : "Load more"}
-                      </Button>
-                    </div>
-                  ) : null}
-                </section>
+                  </section>
+                ) : null}
               </>
             ) : (
               <section className="mt-12" aria-labelledby="following-heading">

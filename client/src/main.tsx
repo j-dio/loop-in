@@ -7,6 +7,7 @@ import { WorkspaceProvider } from "./context/WorkspaceContext";
 import { AppShell } from "./layouts/AppShell";
 import { Landing } from "./pages/Landing";
 import { AuthCallback } from "./pages/AuthCallback";
+import { Home } from "./pages/Home";
 import { Board } from "./pages/Board";
 import { Thread } from "./pages/Thread";
 import { Admin } from "./pages/Admin";
@@ -24,9 +25,10 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <Route path="/" element={<Landing />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/invite/accept" element={<AcceptInvite />} />
-          <Route path="/explore" element={<Explore />} />
 
           <Route element={<AppShell />}>
+            <Route path="/home" element={<Home />} />
+            <Route path="/explore" element={<Explore />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/:slug" element={<Board />} />
             <Route path="/:slug/post/:id" element={<Thread />} />
