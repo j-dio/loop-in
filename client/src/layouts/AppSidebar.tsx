@@ -3,7 +3,6 @@ import {
   Inbox,
   LayoutDashboard,
   Megaphone,
-  MessageSquare,
   PanelLeftClose,
   PanelLeft,
   Settings,
@@ -24,7 +23,7 @@ type NavLink = { to: string; label: string; icon: React.ReactNode; active: boole
 const ADMIN_PATH_RE = /^\/[^/]+\/admin(\/|$)/;
 
 function useNavLinks(): NavLink[] {
-  const { activeWorkspace, user } = useWorkspace();
+  const { activeWorkspace } = useWorkspace();
   const location = useLocation();
   const params = useParams<{ slug?: string }>();
   const slug = activeWorkspace?.slug ?? params.slug;
@@ -69,25 +68,7 @@ function useNavLinks(): NavLink[] {
     ];
   }
 
-  const isOwner = Boolean(user && activeWorkspace && user.id === activeWorkspace.ownerId);
-  const canAdmin = isOwner || activeWorkspace?.role === "admin" || activeWorkspace?.role === "owner";
-  const links: NavLink[] = [
-    {
-      to: `/${encodeURIComponent(slug)}`,
-      label: "Board",
-      icon: <MessageSquare className="size-4" />,
-      active: true,
-    },
-  ];
-  if (canAdmin) {
-    links.push({
-      to: `/${encodeURIComponent(slug)}/admin`,
-      label: "Command center",
-      icon: <LayoutDashboard className="size-4" />,
-      active: false,
-    });
-  }
-  return links;
+  return [];
 }
 
 function NavBody({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
