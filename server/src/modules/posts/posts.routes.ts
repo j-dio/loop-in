@@ -18,10 +18,12 @@ import {
   getUpvoteHandler,
   listAdminKanbanHandler,
   listAdminTriageHandler,
+  listPinnedHandler,
   listPostsHandler,
   moderatePostHandler,
   patchPostBoardStatusHandler,
   patchPostHandler,
+  pinPostHandler,
   postToggleUpvoteHandler,
 } from "./posts.controller";
 
@@ -36,6 +38,7 @@ postsScopedRouter.get("/", listPostsHandler);
 postsScopedRouter.post("/announcements", ...adminOnly, createAnnouncementHandler);
 postsScopedRouter.get("/admin/triage", ...adminOnly, listAdminTriageHandler);
 postsScopedRouter.get("/admin/kanban", ...adminOnly, listAdminKanbanHandler);
+postsScopedRouter.get("/pinned", listPinnedHandler);
 postsScopedRouter.get("/:postId/upvote", getUpvoteHandler);
 postsScopedRouter.post("/:postId/upvote", authenticate, requireParticipant, postToggleUpvoteHandler);
 postsScopedRouter.get("/:postId/updates", listPostUpdatesHandler);
@@ -47,6 +50,7 @@ postsScopedRouter.get("/:postId", getPostHandler);
 postsScopedRouter.post("/", authenticate, requireParticipant, createPostHandler);
 postsScopedRouter.patch("/:postId/moderate", ...adminOnly, moderatePostHandler);
 postsScopedRouter.patch("/:postId/status", ...adminOnly, patchPostBoardStatusHandler);
+postsScopedRouter.patch("/:postId/pin", ...adminOnly, pinPostHandler);
 postsScopedRouter.patch("/:postId", authenticate, patchPostHandler);
 postsScopedRouter.delete("/:postId", authenticate, deletePostHandler);
 

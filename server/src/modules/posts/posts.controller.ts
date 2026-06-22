@@ -6,10 +6,11 @@ import {
   ListPostsQuerySchema,
   ModeratePostBodySchema,
   PatchBoardStatusBodySchema,
+  PatchPostBodySchema,
+  PinBodySchema,
   PostCursorSchema,
   PostIdParamsSchema,
   PostsParentParamsSchema,
-  PatchPostBodySchema,
 } from "./posts.schemas";
 import { isValidPostImageUrl } from "../uploads/uploads.service";
 import { notifyAppMilestone, notifyBoardMove, notifyPostApproved } from "../notifications/notifications.service";
@@ -20,8 +21,10 @@ import {
   getPostById,
   listApprovedPostsForKanban,
   listPendingPostsForTriage,
+  listPinnedPosts,
   listPosts,
   moderatePost,
+  setPostPinned,
   softDeletePost,
   toggleUpvote,
   updatePost,
@@ -454,6 +457,52 @@ export async function createAnnouncementHandler(req: Request, res: Response, nex
     });
 
     return res.status(201).json({ post: created });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function pinPostHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });
+
+    const paramsParsed = PostIdParamsSchema.safeParse(req.params);
+    if (!paramsParsed.success) {
+      return res.status(400).json({ error: "Invalid params", details: paramsParsed.error.flatten() });
+    }
+
+    const bodyParsed = PinBodySchema.safeParse(req.body);
+    if (!bodyParsed.success) {
+      return res.status(400).json({ error: "Invalid request", details: bodyParsed.error.flatten() });
+    }
+
+    const result = await setPostPinned({
+      workspaceId: req.workspace.id,
+      postId: paramsParsed.data.postId,
+      pinned: bodyParsed.data.pinned,
+    });
+
+    if (result === "not_found") return res.status(404).json({ error: "Post not found" });
+    if (result === "cap_reached") {
+      return res.status(409).json({ error: "You can pin at most 3 posts. Unpin one first." });
+    }
+
+    return res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listPinnedHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });
+
+    const pinnedPosts = await listPinnedPosts({
+      workspaceId: req.workspace.id,
+      ctx: requesterCtx(req),
+    });
+
+    return res.json({ posts: pinnedPosts });
   } catch (err) {
     next(err);
   }

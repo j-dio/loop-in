@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { posts, upvotes, users } from "../../db/schema";
 import { redis } from "../../lib/redis";
@@ -7,6 +7,7 @@ import { logger } from "../../lib/logger";
 import type { WorkspaceRole } from "../workspaces/workspaces.service";
 import { fetchLatestUpdatesForPosts, type PostUpdateLatest } from "./postUpdates.service";
 import { isAdminOrOwner, viewerCanSeePost, type RequesterContext } from "./posts.helpers";
+import { canPin, MAX_PINNED } from "./posts.pin";
 
 export type { RequesterContext } from "./posts.helpers";
 export { viewerCanSeePost } from "./posts.helpers";
@@ -772,5 +773,49 @@ export async function listApprovedPostsForKanban(input: {
     .orderBy(desc(posts.createdAt), desc(posts.id))
     .limit(input.limit);
 
+  return rows.map((r) => mapRowToPublic(r, input.ctx));
+}
+
+export async function setPostPinned(input: {
+  workspaceId: string;
+  postId: string;
+  pinned: boolean;
+}): Promise<"ok" | "not_found" | "cap_reached"> {
+  const [post] = await db
+    .select({ id: posts.id, pinnedAt: posts.pinnedAt })
+    .from(posts)
+    .where(and(eq(posts.id, input.postId), eq(posts.workspaceId, input.workspaceId), isNull(posts.deletedAt)))
+    .limit(1);
+  if (!post) return "not_found";
+
+  if (input.pinned) {
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(posts)
+      .where(and(eq(posts.workspaceId, input.workspaceId), isNotNull(posts.pinnedAt), isNull(posts.deletedAt)));
+    if (!canPin(Number(count ?? 0), post.pinnedAt != null)) return "cap_reached";
+    await db.update(posts).set({ pinnedAt: new Date() }).where(eq(posts.id, input.postId));
+  } else {
+    await db.update(posts).set({ pinnedAt: null }).where(eq(posts.id, input.postId));
+  }
+  return "ok";
+}
+
+export async function listPinnedPosts(input: {
+  workspaceId: string;
+  ctx: RequesterContext;
+}): Promise<PostPublic[]> {
+  const rows = await db
+    .select({ post: posts, authorId: users.id, authorName: users.name, authorAvatar: users.avatarUrl })
+    .from(posts)
+    .innerJoin(users, eq(posts.authorId, users.id))
+    .where(and(
+      eq(posts.workspaceId, input.workspaceId),
+      isNotNull(posts.pinnedAt),
+      eq(posts.moderationStatus, "approved"),
+      isNull(posts.deletedAt)
+    ))
+    .orderBy(desc(posts.pinnedAt))
+    .limit(MAX_PINNED);
   return rows.map((r) => mapRowToPublic(r, input.ctx));
 }

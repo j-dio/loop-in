@@ -82,3 +82,5 @@ export const CreateAnnouncementBodySchema = z.object({
   description: z.string().trim().max(10000).optional().nullable(),
   image_url: z.string().url().max(2048).optional().nullable(),
 });
+
+export const PinBodySchema = z.object({ pinned: z.boolean() });
