@@ -2,25 +2,58 @@ import { Link } from "react-router-dom";
 import { Megaphone } from "lucide-react";
 import { WorkspaceTile } from "@/components/WorkspaceTile";
 import { snippet } from "./text";
+import type { ExploreUpdateItem, ExploreAnnouncementItem } from "@/lib/api";
 
-export interface PulseCardItem {
-  id: string;
-  content: string;
-  createdAt: Date | string;
-  post: { id: string; title: string };
-  workspace: { name: string; slug: string; logoUrl: string | null };
-}
+export type PulseCardItem = ExploreUpdateItem | ExploreAnnouncementItem;
 
 interface PulseCardProps {
   item: PulseCardItem;
 }
 
 /**
- * Status-update card rendered in the Following feed.
- * Shows an amber "Update" mono tag, the parent post title, and a body snippet.
+ * Feed card rendered in the Following / Pulse feeds.
+ * Handles two item shapes:
+ *   - "update"       → amber "Update" tag, parent post title, body snippet
+ *   - "announcement" → amber "Announcement" tag, post title, description snippet
  */
 export function PulseCard({ item }: PulseCardProps) {
-  const { workspace, post, content } = item;
+  const { workspace } = item;
+
+  if (item.type === "announcement") {
+    return (
+      <Link
+        to={`/${encodeURIComponent(workspace.slug)}/post/${item.id}`}
+        className="group flex gap-4 rounded-xl border border-brand/30 bg-brand-bright/5 p-4 transition-all hover:-translate-y-0.5 hover:border-brand/50 sm:p-5"
+      >
+        <WorkspaceTile
+          name={workspace.name}
+          seed={workspace.slug}
+          logoUrl={workspace.logoUrl}
+          sizeClassName="size-11"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="font-mono text-[11px] tracking-[0.18em] text-amber-600 uppercase dark:text-amber-400">
+            Announcement · {workspace.name}
+          </p>
+          <p className="mt-1.5 text-base font-semibold tracking-tight text-foreground">
+            {item.title}
+          </p>
+          {snippet(item.description) ? (
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              {snippet(item.description)}
+            </p>
+          ) : null}
+          {item.upvoteCount > 0 ? (
+            <p className="mt-2 text-xs text-muted-foreground tabular-nums">
+              {item.upvoteCount} {item.upvoteCount === 1 ? "upvote" : "upvotes"}
+            </p>
+          ) : null}
+        </div>
+      </Link>
+    );
+  }
+
+  const { post, content } = item;
   return (
     <Link
       to={`/${encodeURIComponent(workspace.slug)}/post/${post.id}`}

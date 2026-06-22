@@ -143,8 +143,8 @@ export function Home() {
                     <li key={`p-${item.id}`}>
                       <PostRow item={item} />
                     </li>
-                  ) : item.type === "update" ? (
-                    <li key={`u-${item.id}`}>
+                  ) : item.type === "update" || item.type === "announcement" ? (
+                    <li key={`${item.type[0]}-${item.id}`}>
                       <PulseCard item={item} />
                     </li>
                   ) : null
