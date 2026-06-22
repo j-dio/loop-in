@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { MessageSquarePlus, Search, X } from "lucide-react";
+import { Megaphone, MessageSquarePlus, Search, X } from "lucide-react";
 import { PostCard } from "@/components/PostCard";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { SubmitFeedbackDialog } from "@/components/SubmitFeedbackDialog";
+import { AnnouncementComposer } from "@/components/AnnouncementComposer";
+import { PinnedStrip } from "@/components/feed/PinnedStrip";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +54,8 @@ export function Board() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [announcementOpen, setAnnouncementOpen] = useState(false);
+  const [pinnedRefreshKey, setPinnedRefreshKey] = useState(0);
   const [pendingLocal, setPendingLocal] = useState<PostDTO[]>([]);
   const [upvotedIds, setUpvotedIds] = useState<Set<string>>(() => new Set());
   const [categoryFilter, setCategoryFilter] = useState<PostDTO["category"] | "all">("all");
@@ -150,6 +154,7 @@ export function Board() {
 
   const onCreated = useCallback((post: PostDTO) => {
     setPendingLocal((prev) => [post, ...prev.filter((p) => p.id !== post.id)]);
+    setPinnedRefreshKey((k) => k + 1);
   }, []);
 
   const onUpvoteChange = useCallback((postId: string, upvoteCount: number, upvoted: boolean) => {
@@ -188,21 +193,34 @@ export function Board() {
           </>
         }
         actions={
-          canPost ? (
-            <Button type="button" variant="brand" onClick={() => setDialogOpen(true)}>
-              <MessageSquarePlus className="size-4" />
-              Submit feedback
-            </Button>
-          ) : !user ? (
-            <Button type="button" variant="brand" asChild>
-              <Link
-                to="/"
-                onClick={() => setReturnTo(window.location.pathname + window.location.search)}
+          <>
+            {isOwner ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setAnnouncementOpen(true)}
+                className="border-amber-500/40 text-amber-600 hover:bg-amber-500/10 hover:text-amber-600 dark:border-amber-400/40 dark:text-amber-400 dark:hover:bg-amber-400/10"
               >
-                Sign in to submit
-              </Link>
-            </Button>
-          ) : null
+                <Megaphone className="size-4" />
+                + Announcement
+              </Button>
+            ) : null}
+            {canPost ? (
+              <Button type="button" variant="brand" onClick={() => setDialogOpen(true)}>
+                <MessageSquarePlus className="size-4" />
+                Submit feedback
+              </Button>
+            ) : !user ? (
+              <Button type="button" variant="brand" asChild>
+                <Link
+                  to="/"
+                  onClick={() => setReturnTo(window.location.pathname + window.location.search)}
+                >
+                  Sign in to submit
+                </Link>
+              </Button>
+            ) : null}
+          </>
         }
       />
 
@@ -213,7 +231,30 @@ export function Board() {
         onCreated={onCreated}
       />
 
+      <AnnouncementComposer
+        workspaceSlug={slug}
+        open={announcementOpen}
+        onOpenChange={setAnnouncementOpen}
+        onCreated={onCreated}
+      />
+
+      <PinnedStrip
+        slug={slug}
+        isOwner={isOwner}
+        upvotedIds={upvotedIds}
+        signedIn={Boolean(user)}
+        canUpvote={canPost}
+        onUpvoteChange={onUpvoteChange}
+        refreshKey={pinnedRefreshKey}
+      />
+
       <div className="mx-auto mt-6 w-full max-w-3xl space-y-6">
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+            All feedback
+          </span>
+          <div className="h-px flex-1 bg-border" aria-hidden />
+        </div>
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative min-w-0 flex-1 sm:max-w-xs">
