@@ -1,6 +1,6 @@
 import { and, desc, eq, ilike, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "../../db";
-import { posts, upvotes, users } from "../../db/schema";
+import { notifications, posts, upvotes, users } from "../../db/schema";
 import { redis } from "../../lib/redis";
 import { trendingRedisKey } from "../../lib/trendingKeys";
 import { logger } from "../../lib/logger";
@@ -562,6 +562,15 @@ export async function softDeletePost(input: {
   if (!canDelete) return "forbidden";
 
   await db.update(posts).set({ deletedAt: new Date() }).where(eq(posts.id, input.postId));
+
+  // The notifications.post_id FK cascades only on a hard delete; a soft delete (deletedAt) would
+  // otherwise leave dangling notifications that deep-link to a post that now 404s. Clean them up.
+  // Best-effort — the post is already gone, so a cleanup failure must not fail the request.
+  try {
+    await db.delete(notifications).where(eq(notifications.postId, input.postId));
+  } catch (err) {
+    logger.warn({ err, postId: input.postId }, "failed to clean up notifications for soft-deleted post");
+  }
 
   return "ok";
 }

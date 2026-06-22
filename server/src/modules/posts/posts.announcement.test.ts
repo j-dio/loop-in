@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "../../db";
-import { posts, users, workspaces } from "../../db/schema";
-import { createAnnouncement, getPostById, listAnnouncementsForAdmin, listPosts } from "./posts.service";
+import { notifications, posts, users, workspaces } from "../../db/schema";
+import { createAnnouncement, getPostById, listAnnouncementsForAdmin, listPosts, softDeletePost } from "./posts.service";
 import { listApprovedPostsForKanban, listPendingPostsForTriage } from "./posts.service";
 
 // ---------------------------------------------------------------------------
@@ -184,5 +184,39 @@ describe.skipIf(!process.env.DATABASE_URL)("announcements excluded from feedback
     const titles = result.map((p) => p.title);
     expect(titles).toContain("triage feedback");
     expect(titles).not.toContain("triage announcement");
+  });
+});
+
+describe.skipIf(!process.env.DATABASE_URL)("softDeletePost notification cleanup", () => {
+  it("removes notifications that deep-link to a soft-deleted post", async () => {
+    const ws = await trackedSeedWorkspace({ visibility: "public" });
+    const post = await seedPost({ workspaceId: ws.id, moderationStatus: "approved", type: "feedback" });
+    const recipient = await seedUser();
+    userIds.push(recipient.id);
+
+    await db.insert(notifications).values({
+      recipientId: recipient.id,
+      type: "post_update",
+      workspaceId: ws.id,
+      postId: post.id,
+      data: {},
+    });
+
+    const before = await db.select().from(notifications).where(eq(notifications.postId, post.id));
+    expect(before.length).toBe(1);
+
+    // Author soft-deletes their own post.
+    const result = await softDeletePost({
+      workspaceId: ws.id,
+      postId: post.id,
+      editorUserId: post.authorId,
+      workspaceRole: undefined,
+    });
+    expect(result).toBe("ok");
+
+    // The soft delete does not hard-delete the post row, so the FK cascade never fires —
+    // the service must clean the dangling notifications itself.
+    const after = await db.select().from(notifications).where(eq(notifications.postId, post.id));
+    expect(after.length).toBe(0);
   });
 });

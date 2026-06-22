@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowBigUp, ArrowLeft, Megaphone, Pin, Trash2 } from "lucide-react";
+import { ArrowBigUp, ArrowLeft, FileQuestion, Megaphone, Pin, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -332,7 +332,7 @@ export function Thread() {
       </div>
 
       <div className="mx-auto w-full max-w-3xl space-y-8">
-        {error ? (
+        {error && post ? (
           <p className="text-destructive text-sm" role="alert">
             {error}
           </p>
@@ -607,7 +607,27 @@ export function Thread() {
             ) : null}
           </section>
         </>
-      ) : null}
+        ) : (
+          <div className="flex flex-col items-center gap-4 rounded-xl border border-border bg-card px-6 py-16 text-center">
+            <span className="flex size-12 items-center justify-center rounded-full bg-secondary text-muted-foreground">
+              <FileQuestion className="size-6" aria-hidden />
+            </span>
+            <div className="space-y-1">
+              <p className="font-display text-lg font-semibold tracking-tight">
+                {error ?? "Post not found."}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                This post may have been removed. It might also be private or still awaiting review.
+              </p>
+            </div>
+            <Button variant="brand" size="sm" asChild>
+              <Link to={`/${encodeURIComponent(slug)}`}>
+                <ArrowLeft className="size-4" />
+                Back to board
+              </Link>
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
