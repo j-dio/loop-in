@@ -38,7 +38,7 @@ export type AnnouncementFeedItem = {
   description: string | null;
   imageUrl: string | null;
   upvoteCount: number;
-  author: { id?: string; name: string | null; avatarUrl: string | null };
+  author: { id?: string; name: string; avatarUrl: string | null };
   workspace: { name: string; slug: string; logoUrl: string | null };
 };
 
