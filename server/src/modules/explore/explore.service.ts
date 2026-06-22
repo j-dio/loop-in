@@ -2,7 +2,7 @@ import { and, desc, eq, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { follows, postUpdates, posts, users, workspaces } from "../../db/schema";
 import { serializeAuthorForPost } from "../posts/posts.service";
-import type { PostCategory, ModerationStatus, BoardStatus } from "../posts/posts.service";
+import type { PostCategory, ModerationStatus, BoardStatus, PostType } from "../posts/posts.service";
 
 export type ExploreWorkspace = {
   id: string;
@@ -30,6 +30,18 @@ export type ExploreFeedItem = {
   workspace: { name: string; slug: string; logoUrl: string | null };
 };
 
+export type AnnouncementFeedItem = {
+  type: "announcement";
+  id: string;
+  createdAt: Date;
+  title: string;
+  description: string | null;
+  imageUrl: string | null;
+  upvoteCount: number;
+  author: { id?: string; name: string | null; avatarUrl: string | null };
+  workspace: { name: string; slug: string; logoUrl: string | null };
+};
+
 export type FollowingFeedItem =
   | ({ type: "post" } & ExploreFeedItem)
   | {
@@ -40,7 +52,8 @@ export type FollowingFeedItem =
       post: { id: string; title: string };
       author: { id?: string; name: string; avatarUrl: string | null };
       workspace: { name: string; slug: string; logoUrl: string | null };
-    };
+    }
+  | AnnouncementFeedItem;
 
 /**
  * Directory of public workspaces. `sort="active"` (default) ranks by approved-post count;
@@ -104,6 +117,9 @@ function feedCursorWhere(createdAt: Date, id: string) {
     and(eq(posts.createdAt, createdAt), sql`${posts.id}::text < ${id}`)
   );
 }
+
+/** Same cursor logic as feedCursorWhere but aliased for announcement queries (also keyed on posts). */
+const announcementCursorWhere = feedCursorWhere;
 
 /**
  * Merge two reverse-chron sources (posts + status updates) into one page.
@@ -172,6 +188,7 @@ export async function listFollowingFeed(input: {
     eq(workspaces.visibility, "public"),
     eq(posts.moderationStatus, "approved"),
     isNull(posts.deletedAt),
+    eq(posts.type, "feedback" as PostType),
     input.minUpvotes != null ? gte(posts.upvoteCount, input.minUpvotes) : undefined
   );
   const postWhere = input.cursor
@@ -188,7 +205,18 @@ export async function listFollowingFeed(input: {
     ? and(updateBase, updateCursorWhere(input.cursor.createdAt, input.cursor.id))
     : updateBase;
 
-  const [postRows, updateRows] = await Promise.all([
+  const announcementBase = and(
+    inArray(posts.workspaceId, wsIds),
+    eq(workspaces.visibility, "public"),
+    eq(posts.moderationStatus, "approved"),
+    isNull(posts.deletedAt),
+    eq(posts.type, "announcement" as PostType)
+  );
+  const announcementWhere = input.cursor
+    ? and(announcementBase, announcementCursorWhere(input.cursor.createdAt, input.cursor.id))
+    : announcementBase;
+
+  const [postRows, updateRows, announcementRows] = await Promise.all([
     db
       .select({
         post: posts,
@@ -226,6 +254,28 @@ export async function listFollowingFeed(input: {
       .where(updateWhere)
       .orderBy(desc(postUpdates.createdAt), desc(postUpdates.id))
       .limit(fetch),
+    db
+      .select({
+        id: posts.id,
+        title: posts.title,
+        description: posts.description,
+        imageUrl: posts.imageUrl,
+        upvoteCount: posts.upvoteCount,
+        createdAt: posts.createdAt,
+        isAnonymous: posts.isAnonymous,
+        authorId: users.id,
+        authorName: users.name,
+        authorAvatar: users.avatarUrl,
+        workspaceName: workspaces.name,
+        workspaceSlug: workspaces.slug,
+        workspaceLogo: workspaces.logoUrl,
+      })
+      .from(posts)
+      .innerJoin(workspaces, eq(posts.workspaceId, workspaces.id))
+      .innerJoin(users, eq(posts.authorId, users.id))
+      .where(announcementWhere)
+      .orderBy(desc(posts.createdAt), desc(posts.id))
+      .limit(fetch),
   ]);
 
   const postItems: FollowingFeedItem[] = postRows.map((r) => ({
@@ -256,57 +306,104 @@ export async function listFollowingFeed(input: {
     workspace: { name: r.workspaceName, slug: r.workspaceSlug, logoUrl: r.workspaceLogo },
   }));
 
-  return mergeFollowingFeed(postItems, updateItems, input.limit);
+  const announcementItems: FollowingFeedItem[] = announcementRows.map((r) => ({
+    type: "announcement",
+    id: r.id,
+    createdAt: r.createdAt,
+    title: r.title,
+    description: r.description,
+    imageUrl: r.imageUrl ?? null,
+    upvoteCount: r.upvoteCount,
+    author: serializeAuthorForPost(
+      { id: r.authorId, name: r.authorName, avatarUrl: r.authorAvatar },
+      { isAnonymous: r.isAnonymous },
+      { userId: undefined, workspaceRole: undefined }
+    ),
+    workspace: { name: r.workspaceName, slug: r.workspaceSlug, logoUrl: r.workspaceLogo },
+  }));
+
+  return mergeFollowingFeed([...postItems, ...announcementItems], updateItems, input.limit);
 }
 
-export type PulseItem = Extract<FollowingFeedItem, { type: "update" }>;
+export type PulseItem = Extract<FollowingFeedItem, { type: "update" }> | AnnouncementFeedItem;
 
 /**
- * Explore pulse: reverse-chron status updates across all PUBLIC workspaces. Builder-authored
- * news only — never raw feedback posts. Parent post must be approved + not soft-deleted so a
- * hidden post never leaks via its update. (Announcements join this stream in sub-project C.)
+ * Explore pulse: reverse-chron status updates AND announcements across all PUBLIC workspaces.
+ * Builder-authored news only — never raw feedback posts. For updates, the parent post must be
+ * approved + not soft-deleted so a hidden post never leaks via its update.
  */
 export async function listPublicPulse(input: {
   limit: number;
   cursor: { createdAt: Date; id: string } | null;
 }): Promise<{ items: PulseItem[]; nextCursor: string | null }> {
-  const base = and(
+  const fetch = input.limit + 1;
+
+  const updateBase = and(
     eq(workspaces.visibility, "public"),
     eq(posts.moderationStatus, "approved"),
     isNull(posts.deletedAt)
   );
-  const whereClause = input.cursor
-    ? and(base, updateCursorWhere(input.cursor.createdAt, input.cursor.id))
-    : base;
+  const updateWhere = input.cursor
+    ? and(updateBase, updateCursorWhere(input.cursor.createdAt, input.cursor.id))
+    : updateBase;
 
-  const rows = await db
-    .select({
-      id: postUpdates.id,
-      content: postUpdates.content,
-      createdAt: postUpdates.createdAt,
-      postId: posts.id,
-      postTitle: posts.title,
-      authorId: users.id,
-      authorName: users.name,
-      authorAvatar: users.avatarUrl,
-      workspaceName: workspaces.name,
-      workspaceSlug: workspaces.slug,
-      workspaceLogo: workspaces.logoUrl,
-    })
-    .from(postUpdates)
-    .innerJoin(posts, eq(postUpdates.postId, posts.id))
-    .innerJoin(workspaces, eq(postUpdates.workspaceId, workspaces.id))
-    .innerJoin(users, eq(postUpdates.authorId, users.id))
-    .where(whereClause)
-    .orderBy(desc(postUpdates.createdAt), desc(postUpdates.id))
-    .limit(input.limit + 1);
+  const announcementBase = and(
+    eq(workspaces.visibility, "public"),
+    eq(posts.moderationStatus, "approved"),
+    isNull(posts.deletedAt),
+    eq(posts.type, "announcement" as PostType)
+  );
+  const announcementWhere = input.cursor
+    ? and(announcementBase, announcementCursorWhere(input.cursor.createdAt, input.cursor.id))
+    : announcementBase;
 
-  const page = rows.slice(0, input.limit);
-  const hasMore = rows.length > input.limit;
-  const last = page[page.length - 1];
-  const nextCursor = hasMore && last ? encodeFeedCursor(last.createdAt, last.id) : null;
+  const [updateRows, announcementRows] = await Promise.all([
+    db
+      .select({
+        id: postUpdates.id,
+        content: postUpdates.content,
+        createdAt: postUpdates.createdAt,
+        postId: posts.id,
+        postTitle: posts.title,
+        authorId: users.id,
+        authorName: users.name,
+        authorAvatar: users.avatarUrl,
+        workspaceName: workspaces.name,
+        workspaceSlug: workspaces.slug,
+        workspaceLogo: workspaces.logoUrl,
+      })
+      .from(postUpdates)
+      .innerJoin(posts, eq(postUpdates.postId, posts.id))
+      .innerJoin(workspaces, eq(postUpdates.workspaceId, workspaces.id))
+      .innerJoin(users, eq(postUpdates.authorId, users.id))
+      .where(updateWhere)
+      .orderBy(desc(postUpdates.createdAt), desc(postUpdates.id))
+      .limit(fetch),
+    db
+      .select({
+        id: posts.id,
+        title: posts.title,
+        description: posts.description,
+        imageUrl: posts.imageUrl,
+        upvoteCount: posts.upvoteCount,
+        createdAt: posts.createdAt,
+        isAnonymous: posts.isAnonymous,
+        authorId: users.id,
+        authorName: users.name,
+        authorAvatar: users.avatarUrl,
+        workspaceName: workspaces.name,
+        workspaceSlug: workspaces.slug,
+        workspaceLogo: workspaces.logoUrl,
+      })
+      .from(posts)
+      .innerJoin(workspaces, eq(posts.workspaceId, workspaces.id))
+      .innerJoin(users, eq(posts.authorId, users.id))
+      .where(announcementWhere)
+      .orderBy(desc(posts.createdAt), desc(posts.id))
+      .limit(fetch),
+  ]);
 
-  const items: PulseItem[] = page.map((r) => ({
+  const updateItems: PulseItem[] = updateRows.map((r) => ({
     type: "update",
     id: r.id,
     createdAt: r.createdAt,
@@ -316,7 +413,30 @@ export async function listPublicPulse(input: {
     workspace: { name: r.workspaceName, slug: r.workspaceSlug, logoUrl: r.workspaceLogo },
   }));
 
-  return { items, nextCursor };
+  const announcementItems: PulseItem[] = announcementRows.map((r) => ({
+    type: "announcement",
+    id: r.id,
+    createdAt: r.createdAt,
+    title: r.title,
+    description: r.description,
+    imageUrl: r.imageUrl ?? null,
+    upvoteCount: r.upvoteCount,
+    author: serializeAuthorForPost(
+      { id: r.authorId, name: r.authorName, avatarUrl: r.authorAvatar },
+      { isAnonymous: r.isAnonymous },
+      { userId: undefined, workspaceRole: undefined }
+    ),
+    workspace: { name: r.workspaceName, slug: r.workspaceSlug, logoUrl: r.workspaceLogo },
+  }));
+
+  // mergeFollowingFeed accepts two arrays; pass combined announcements+updates as the first arg.
+  const { items: merged, nextCursor } = mergeFollowingFeed(
+    [...updateItems, ...announcementItems] as FollowingFeedItem[],
+    [],
+    input.limit
+  );
+
+  return { items: merged as PulseItem[], nextCursor };
 }
 
 // Re-export for callers that only import from this module.

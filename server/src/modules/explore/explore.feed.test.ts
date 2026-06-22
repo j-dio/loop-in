@@ -103,6 +103,7 @@ async function trackedSeedPost(overrides: {
   moderationStatus?: "pending" | "approved" | "spam" | "rejected";
   upvoteCount?: number;
   title?: string;
+  type?: "feedback" | "announcement";
 }) {
   // seedPost internally calls seedUser; we need the author id for cleanup.
   // Re-implement inline so we can capture the author.
@@ -117,6 +118,7 @@ async function trackedSeedPost(overrides: {
       category: "feature_request",
       moderationStatus: overrides.moderationStatus ?? "approved",
       upvoteCount: overrides.upvoteCount ?? 0,
+      type: overrides.type ?? "feedback",
     })
     .returning();
   return row!;
@@ -240,9 +242,9 @@ describe.skipIf(!process.env.DATABASE_URL)("listPublicPulse", () => {
 
     const { items } = await listPublicPulse({ limit: 10, cursor: null });
 
-    expect(items.every((i) => i.type === "update")).toBe(true);
-    expect(items.map((i) => i.content)).toContain("Shipped it");
-    expect(items.map((i) => i.content)).not.toContain("secret");
+    expect(items.every((i) => i.type === "update" || i.type === "announcement")).toBe(true);
+    expect(items.filter((i) => i.type === "update").map((i) => (i as { content: string }).content)).toContain("Shipped it");
+    expect(items.filter((i) => i.type === "update").map((i) => (i as { content: string }).content)).not.toContain("secret");
   });
 });
 
@@ -265,5 +267,20 @@ describe.skipIf(!process.env.DATABASE_URL)("listFollowingFeed — trending thres
     expect(titles).not.toContain("cold idea");
     // the update still rides through even though its parent post is "cold"
     expect(items.some((i) => i.type === "update" && (i as { content: string }).content === "update on cold")).toBe(true);
+  });
+});
+
+describe.skipIf(!process.env.DATABASE_URL)("listPublicPulse — announcements", () => {
+  it("the public pulse includes announcements alongside status updates", async () => {
+    const ws = await trackedSeedWorkspace({ visibility: "public" });
+    const fb = await trackedSeedPost({ workspaceId: ws.id, moderationStatus: "approved", type: "feedback" });
+    await trackedSeedUpdate({ postId: fb.id, workspaceId: ws.id, content: "shipped" });
+    await trackedSeedPost({ workspaceId: ws.id, moderationStatus: "approved", type: "announcement", title: "v2 is live" });
+
+    const { items } = await listPublicPulse({ limit: 20, cursor: null });
+    expect(items.some((i) => i.type === "update" && (i as { content: string }).content === "shipped")).toBe(true);
+    expect(items.some((i) => i.type === "announcement" && (i as { title: string }).title === "v2 is live")).toBe(true);
+    // raw feedback posts never appear in the pulse (PulseItem is "update" | "announcement" only)
+    expect(items.every((i) => i.type === "update" || i.type === "announcement")).toBe(true);
   });
 });
