@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Pin } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { PostCard } from "@/components/PostCard";
 import type { PostDTO } from "@/lib/postTypes";
@@ -32,7 +31,7 @@ export function PinnedStrip({
         const data = await apiFetch<{ posts: PostDTO[] }>(
           `/api/workspaces/${encodeURIComponent(slug)}/posts/pinned`
         );
-        if (!cancelled) setPinnedPosts(data.posts.slice(0, 3));
+        if (!cancelled) setPinnedPosts(data.posts);
       } catch {
         /* silently ignore — pinned strip is non-critical */
       }
@@ -45,13 +44,7 @@ export function PinnedStrip({
   if (pinnedPosts.length === 0) return null;
 
   return (
-    <section aria-label="Pinned posts" className="mx-auto w-full max-w-3xl space-y-3">
-      <div className="flex items-center gap-2">
-        <Pin className="size-3.5 text-brand" aria-hidden />
-        <span className="font-mono text-[10px] tracking-[0.22em] text-brand uppercase">
-          Pinned
-        </span>
-      </div>
+    <section aria-label="Pinned posts" className="mx-auto w-full max-w-3xl">
       <ul className="space-y-3">
         {pinnedPosts.map((post) => (
           <li key={post.id}>

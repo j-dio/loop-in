@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Megaphone, MessageSquarePlus, Search, X } from "lucide-react";
+import { Megaphone, MessageSquarePlus, Pin, Search, X } from "lucide-react";
 import { PostCard } from "@/components/PostCard";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { SubmitFeedbackDialog } from "@/components/SubmitFeedbackDialog";
 import { AnnouncementComposer } from "@/components/AnnouncementComposer";
 import { PinnedStrip } from "@/components/feed/PinnedStrip";
-import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Segmented } from "@/components/ui/segmented";
@@ -154,6 +153,10 @@ export function Board() {
 
   const onCreated = useCallback((post: PostDTO) => {
     setPendingLocal((prev) => [post, ...prev.filter((p) => p.id !== post.id)]);
+  }, []);
+
+  const onAnnouncementCreated = useCallback((post: PostDTO) => {
+    setPendingLocal((prev) => [post, ...prev.filter((p) => p.id !== post.id)]);
     setPinnedRefreshKey((k) => k + 1);
   }, []);
 
@@ -183,46 +186,26 @@ export function Board() {
     <div className="space-y-6">
       <ProfileHeader slug={slug} isOwner={isOwner} />
 
-      <PageHeader
-        eyebrow="Feedback board"
-        title="Feedback"
-        meta={
-          <>
-            {activeWorkspace && activeWorkspace.slug === slug ? `${activeWorkspace.name} · ` : null}
-            /{slug}
-          </>
-        }
-        actions={
-          <>
-            {isOwner ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setAnnouncementOpen(true)}
-                className="border-amber-500/40 text-amber-600 hover:bg-amber-500/10 hover:text-amber-600 dark:border-amber-400/40 dark:text-amber-400 dark:hover:bg-amber-400/10"
-              >
-                <Megaphone className="size-4" />
-                + Announcement
-              </Button>
-            ) : null}
-            {canPost ? (
-              <Button type="button" variant="brand" onClick={() => setDialogOpen(true)}>
-                <MessageSquarePlus className="size-4" />
-                Submit feedback
-              </Button>
-            ) : !user ? (
-              <Button type="button" variant="brand" asChild>
-                <Link
-                  to="/"
-                  onClick={() => setReturnTo(window.location.pathname + window.location.search)}
-                >
-                  Sign in to submit
-                </Link>
-              </Button>
-            ) : null}
-          </>
-        }
-      />
+      {/* Dedicated pinned row: PINNED label (left) + Announcement button (right, owner-only) */}
+      <div className="mx-auto w-full max-w-3xl flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Pin className="size-3.5 text-brand" aria-hidden />
+          <span className="font-mono text-[10px] tracking-[0.22em] text-brand uppercase">
+            Pinned
+          </span>
+        </div>
+        {isOwner ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setAnnouncementOpen(true)}
+            className="border-amber-500/40 text-amber-600 hover:bg-amber-500/10 hover:text-amber-600 dark:border-amber-400/40 dark:text-amber-400 dark:hover:bg-amber-400/10"
+          >
+            <Megaphone className="size-4" />
+            + Announcement
+          </Button>
+        ) : null}
+      </div>
 
       <SubmitFeedbackDialog
         workspaceSlug={slug}
@@ -235,7 +218,7 @@ export function Board() {
         workspaceSlug={slug}
         open={announcementOpen}
         onOpenChange={setAnnouncementOpen}
-        onCreated={onCreated}
+        onCreated={onAnnouncementCreated}
       />
 
       <PinnedStrip
@@ -254,6 +237,21 @@ export function Board() {
             All feedback
           </span>
           <div className="h-px flex-1 bg-border" aria-hidden />
+          {canPost ? (
+            <Button type="button" variant="brand" size="sm" onClick={() => setDialogOpen(true)}>
+              <MessageSquarePlus className="size-4" />
+              Submit feedback
+            </Button>
+          ) : !user ? (
+            <Button type="button" variant="brand" size="sm" asChild>
+              <Link
+                to="/"
+                onClick={() => setReturnTo(window.location.pathname + window.location.search)}
+              >
+                Sign in to submit
+              </Link>
+            </Button>
+          ) : null}
         </div>
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
