@@ -12,6 +12,7 @@ export type { RequesterContext } from "./posts.helpers";
 export { viewerCanSeePost } from "./posts.helpers";
 
 export type PostCategory = "bug" | "feature_request" | "ui_tweak";
+export type PostType = "feedback" | "announcement";
 export type ModerationStatus = "pending" | "approved" | "spam" | "rejected";
 export type BoardStatus = "inbox" | "under_review" | "planned" | "in_progress" | "shipped";
 
@@ -27,7 +28,9 @@ export type PostPublic = {
   title: string;
   description: string | null;
   imageUrl: string | null;
-  category: PostCategory;
+  category: PostCategory | null;
+  type: PostType;
+  pinnedAt: Date | null;
   moderationStatus: ModerationStatus;
   boardStatus: BoardStatus;
   isAnonymous: boolean;
@@ -94,7 +97,9 @@ function mapRowToPublic(
     title: row.post.title,
     description: row.post.description,
     imageUrl: row.post.imageUrl ?? null,
-    category: row.post.category as PostCategory,
+    category: row.post.category as PostCategory | null,
+    type: row.post.type as PostType,
+    pinnedAt: row.post.pinnedAt ?? null,
     moderationStatus: row.post.moderationStatus as ModerationStatus,
     boardStatus: row.post.boardStatus as BoardStatus,
     isAnonymous: row.post.isAnonymous,
