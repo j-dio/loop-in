@@ -1,12 +1,14 @@
 export type PostDTO = {
   id: string;
   workspaceId: string;
+  type: "feedback" | "announcement";
   title: string;
   description: string | null;
   imageUrl: string | null;
-  category: "bug" | "feature_request" | "ui_tweak";
+  category: "bug" | "feature_request" | "ui_tweak" | null;
   moderationStatus: "pending" | "approved" | "spam" | "rejected";
   boardStatus: "inbox" | "under_review" | "planned" | "in_progress" | "shipped";
+  pinnedAt: string | null;
   isAnonymous: boolean;
   upvoteCount: number;
   createdAt: string;

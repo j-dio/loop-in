@@ -146,7 +146,9 @@ export function PostCard({
             {post.title}
           </Link>
           <div className="flex flex-wrap gap-1.5">
-            <Badge tone={categoryTone(post.category)}>{categoryLabel(post.category)}</Badge>
+            {post.category !== null ? (
+              <Badge tone={categoryTone(post.category)}>{categoryLabel(post.category)}</Badge>
+            ) : null}
             {post.moderationStatus !== "approved" ? (
               <Badge tone={moderationTone(post.moderationStatus)}>
                 {moderationLabel(post.moderationStatus)}

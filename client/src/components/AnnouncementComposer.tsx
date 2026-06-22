@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ImagePlus, X } from "lucide-react";
+import { ImagePlus, Megaphone, X } from "lucide-react";
 import { ApiError, apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,14 +14,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { PostDTO } from "@/lib/postTypes";
-
-type FeedbackCategory = "bug" | "feature_request" | "ui_tweak";
-
-const CATEGORIES: { value: FeedbackCategory; label: string }[] = [
-  { value: "bug", label: "Bug" },
-  { value: "feature_request", label: "Feature request" },
-  { value: "ui_tweak", label: "UI tweak" },
-];
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -46,12 +38,10 @@ type Props = {
   onCreated: (post: PostDTO) => void;
 };
 
-export function SubmitFeedbackDialog({ workspaceSlug, open, onOpenChange, onCreated }: Props) {
+export function AnnouncementComposer({ workspaceSlug, open, onOpenChange, onCreated }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState<FeedbackCategory>("feature_request");
-  const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,8 +62,6 @@ export function SubmitFeedbackDialog({ workspaceSlug, open, onOpenChange, onCrea
     clearImageAttachment();
     setTitle("");
     setDescription("");
-    setCategory("feature_request");
-    setIsAnonymous(false);
     setError(null);
     setSubmitting(false);
     setImageUploading(false);
@@ -127,13 +115,13 @@ export function SubmitFeedbackDialog({ workspaceSlug, open, onOpenChange, onCrea
       setAttachedImageUrl(presign.image_url);
     } catch (err) {
       if (err instanceof ApiError && err.status === 503) {
-        setImageUploadError("Image upload isn’t configured on this server yet.");
+        setImageUploadError("Image upload isn't configured on this server yet.");
       } else if (err instanceof ApiError && err.status === 400) {
-        setImageUploadError("That file isn’t accepted. Use jpg, png, gif, or webp.");
+        setImageUploadError("That file isn't accepted. Use jpg, png, gif, or webp.");
       } else if (err instanceof ApiError && err.status === 502) {
         setImageUploadError("Storage refused the upload. Try again later.");
       } else {
-        setImageUploadError("Couldn’t start upload. Try again.");
+        setImageUploadError("Couldn't start upload. Try again.");
       }
     } finally {
       setImageUploading(false);
@@ -173,12 +161,10 @@ export function SubmitFeedbackDialog({ workspaceSlug, open, onOpenChange, onCrea
     }
     setSubmitting(true);
     try {
-      const path = `/api/workspaces/${encodeURIComponent(workspaceSlug)}/posts`;
+      const path = `/api/workspaces/${encodeURIComponent(workspaceSlug)}/posts/announcements`;
       const body: Record<string, unknown> = {
         title: trimmed,
         description: description.trim() || null,
-        category,
-        is_anonymous: isAnonymous,
       };
       if (attachedImageUrl) body.image_url = attachedImageUrl;
 
@@ -191,11 +177,11 @@ export function SubmitFeedbackDialog({ workspaceSlug, open, onOpenChange, onCrea
       reset();
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
-        setError("You must be signed in to submit feedback.");
+        setError("You must be signed in to post an announcement.");
       } else if (err instanceof ApiError && err.status === 403) {
-        setError("Only workspace members can post here.");
+        setError("Only workspace admins can post announcements.");
       } else if (err instanceof ApiError && err.status === 400) {
-        setError("Couldn’t save the post. Check the image and try again.");
+        setError("Couldn't save the announcement. Check the image and try again.");
       } else {
         setError("Something went wrong. Try again.");
       }
@@ -216,21 +202,22 @@ export function SubmitFeedbackDialog({ workspaceSlug, open, onOpenChange, onCrea
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md" showClose>
         <form onSubmit={handleSubmit} className="space-y-4">
           <DialogHeader>
-            <DialogTitle className="font-display text-xl font-semibold tracking-tight">
-              Submit feedback
+            <DialogTitle className="font-display flex items-center gap-2 text-xl font-semibold tracking-tight text-amber-600 dark:text-amber-400">
+              <Megaphone className="size-5 shrink-0" aria-hidden />
+              Post an announcement
             </DialogTitle>
             <DialogDescription>
-              Your post starts as pending until a moderator approves it for the public board.
+              Announcements are published immediately and appear at the top of your board.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-2">
-            <Label htmlFor="post-title">Title</Label>
+            <Label htmlFor="announcement-title">Title</Label>
             <Input
-              id="post-title"
+              id="announcement-title"
               value={title}
               onChange={(ev) => setTitle(ev.target.value)}
-              placeholder="Short summary"
+              placeholder="What do you want to share?"
               maxLength={255}
               required
               disabled={submitting}
@@ -238,25 +225,25 @@ export function SubmitFeedbackDialog({ workspaceSlug, open, onOpenChange, onCrea
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="post-description">Description</Label>
+            <Label htmlFor="announcement-body">Body</Label>
             <Textarea
-              id="post-description"
+              id="announcement-body"
               value={description}
               onChange={(ev) => setDescription(ev.target.value)}
-              placeholder="Details, steps to reproduce, context…"
+              placeholder="Details, context, links…"
               rows={4}
               disabled={submitting}
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Screenshot (optional)</Label>
+            <Label>Image (optional)</Label>
             <input
               ref={fileInputRef}
               type="file"
               accept="image/jpeg,image/png,image/gif,image/webp"
               className="sr-only"
-              id="post-image"
+              id="announcement-image"
               disabled={submitting || imageUploading}
               onChange={handleFileInputChange}
             />
@@ -313,51 +300,19 @@ export function SubmitFeedbackDialog({ workspaceSlug, open, onOpenChange, onCrea
             {imageUploadError ? <p className="text-destructive text-xs">{imageUploadError}</p> : null}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="post-category">Category</Label>
-            <select
-              id="post-category"
-              className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-              value={category}
-              onChange={(ev) => setCategory(ev.target.value as FeedbackCategory)}
-              disabled={submitting}
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="flex cursor-pointer items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={isAnonymous}
-                onChange={(ev) => setIsAnonymous(ev.target.checked)}
-                disabled={submitting}
-                className="size-4 rounded border"
-              />
-              Post anonymously
-            </label>
-            {isAnonymous ? (
-              <p className="text-muted-foreground text-xs leading-relaxed pl-6">
-                Your identity will be hidden from other users. Workspace admins can see your identity
-                for moderation purposes. If you&apos;ve commented on other posts in this workspace under
-                your name, your identity may still be inferred.
-              </p>
-            ) : null}
-          </div>
-
           {error ? <p className="text-destructive text-sm">{error}</p> : null}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
               Cancel
             </Button>
-            <Button type="submit" variant="brand" disabled={submitting || imageUploading}>
-              {submitting ? "Submitting…" : imageUploading ? "Uploading image…" : "Submit"}
+            <Button
+              type="submit"
+              variant="brand"
+              disabled={submitting || imageUploading}
+              className="bg-amber-600 text-white hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600"
+            >
+              {submitting ? "Publishing…" : imageUploading ? "Uploading image…" : "Publish"}
             </Button>
           </DialogFooter>
         </form>

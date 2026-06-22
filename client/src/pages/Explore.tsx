@@ -281,11 +281,11 @@ export function Explore() {
                         <li key={`p-${item.id}`}>
                           <PostRow item={item} />
                         </li>
-                      ) : (
+                      ) : item.type === "update" ? (
                         <li key={`u-${item.id}`}>
                           <PulseCard item={item} />
                         </li>
-                      )
+                      ) : null
                     )}
                   </ul>
                 )}

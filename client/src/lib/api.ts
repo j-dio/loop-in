@@ -209,4 +209,16 @@ export type ExploreUpdateItem = {
   workspace: { name: string; slug: string; logoUrl: string | null };
 };
 
-export type FollowingFeedItem = ExplorePostItem | ExploreUpdateItem;
+export type ExploreAnnouncementItem = {
+  type: "announcement";
+  id: string;
+  createdAt: string;
+  title: string;
+  description: string | null;
+  imageUrl: string | null;
+  upvoteCount: number;
+  author: { id?: string; name: string; avatarUrl: string | null };
+  workspace: { name: string; slug: string; logoUrl: string | null };
+};
+
+export type FollowingFeedItem = ExplorePostItem | ExploreUpdateItem | ExploreAnnouncementItem;
