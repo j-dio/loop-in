@@ -174,7 +174,6 @@ export function AnnouncementComposer({ workspaceSlug, open, onOpenChange, onCrea
       });
       onCreated(data.post);
       onOpenChange(false);
-      reset();
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setError("You must be signed in to post an announcement.");
@@ -303,12 +302,14 @@ export function AnnouncementComposer({ workspaceSlug, open, onOpenChange, onCrea
           {error ? <p className="text-destructive text-sm">{error}</p> : null}
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+            <Button type="button" variant="outline" onClick={() => {
+              reset();
+              onOpenChange(false);
+            }} disabled={submitting}>
               Cancel
             </Button>
             <Button
               type="submit"
-              variant="brand"
               disabled={submitting || imageUploading}
               className="bg-amber-600 text-white hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600"
             >
