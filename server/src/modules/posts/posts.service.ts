@@ -158,10 +158,11 @@ export async function createPost(input: {
   });
 }
 
-/** Public feed: approved, not soft-deleted. */
+/** Public feed: feedback-type, approved, not soft-deleted. */
 function listBaseConditions(workspaceId: string) {
   return and(
     eq(posts.workspaceId, workspaceId),
+    eq(posts.type, "feedback"),
     eq(posts.moderationStatus, "approved"),
     isNull(posts.deletedAt)
   );
@@ -694,6 +695,7 @@ export async function listPendingPostsForTriage(input: {
     .where(
       and(
         eq(posts.workspaceId, input.workspaceId),
+        eq(posts.type, "feedback"),
         eq(posts.moderationStatus, "pending"),
         isNull(posts.deletedAt)
       )
@@ -721,6 +723,7 @@ export async function listApprovedPostsForKanban(input: {
     .where(
       and(
         eq(posts.workspaceId, input.workspaceId),
+        eq(posts.type, "feedback"),
         eq(posts.moderationStatus, "approved"),
         isNull(posts.deletedAt)
       )
