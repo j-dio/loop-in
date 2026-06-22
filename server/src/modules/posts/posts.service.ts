@@ -158,6 +158,47 @@ export async function createPost(input: {
   });
 }
 
+export async function createAnnouncement(input: {
+  workspaceId: string;
+  authorId: string;
+  title: string;
+  description: string | null | undefined;
+  imageUrl: string | null;
+  ctx: RequesterContext;
+}): Promise<PostPublic> {
+  const [inserted] = await db
+    .insert(posts)
+    .values({
+      workspaceId: input.workspaceId,
+      authorId: input.authorId,
+      title: input.title,
+      description: input.description ?? null,
+      category: null,
+      type: "announcement",
+      moderationStatus: "approved",
+      boardStatus: "inbox",
+      imageUrl: input.imageUrl,
+    })
+    .returning();
+  if (!inserted) throw new Error("Failed to create announcement");
+
+  const [authorRow] = await db
+    .select({ name: users.name, avatarUrl: users.avatarUrl })
+    .from(users)
+    .where(eq(users.id, input.authorId))
+    .limit(1);
+
+  return mapRowToPublic(
+    {
+      post: inserted,
+      authorId: input.authorId,
+      authorName: authorRow?.name ?? null,
+      authorAvatar: authorRow?.avatarUrl ?? null,
+    },
+    { userId: input.ctx.userId ?? input.authorId, workspaceRole: input.ctx.workspaceRole }
+  );
+}
+
 /** Public feed: feedback-type, approved, not soft-deleted. */
 function listBaseConditions(workspaceId: string) {
   return and(

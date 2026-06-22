@@ -76,3 +76,9 @@ export const PatchBoardStatusBodySchema = z.object({
 export const AdminPostsListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).optional().default(100),
 });
+
+export const CreateAnnouncementBodySchema = z.object({
+  title: z.string().trim().min(1).max(255),
+  description: z.string().trim().max(10000).optional().nullable(),
+  image_url: z.string().url().max(2048).optional().nullable(),
+});

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { inArray } from "drizzle-orm";
 import { db } from "../../db";
 import { posts, users, workspaces } from "../../db/schema";
-import { listPosts } from "./posts.service";
+import { createAnnouncement, getPostById, listPosts } from "./posts.service";
 import { listApprovedPostsForKanban, listPendingPostsForTriage } from "./posts.service";
 
 // ---------------------------------------------------------------------------
@@ -89,6 +89,26 @@ afterEach(async () => {
 // ---------------------------------------------------------------------------
 // Tests — require a live DATABASE_URL.
 // ---------------------------------------------------------------------------
+
+describe.skipIf(!process.env.DATABASE_URL)("createAnnouncement service", () => {
+  it("creates an auto-approved announcement that is openable as a thread", async () => {
+    const ws = await trackedSeedWorkspace({ visibility: "public" });
+    const owner = await seedUser();
+    userIds.push(owner.id);
+    const a = await createAnnouncement({
+      workspaceId: ws.id, authorId: owner.id, title: "v2 is live",
+      description: "offline mode + faster sync", imageUrl: null,
+      ctx: { userId: owner.id, workspaceRole: "owner" },
+    });
+    expect(a.type).toBe("announcement");
+    expect(a.moderationStatus).toBe("approved");
+
+    // openable as a normal thread (reuses getPostById — proves comments/upvotes will work)
+    const fetched = await getPostById({ workspaceId: ws.id, postId: a.id, ctx: { userId: undefined, workspaceRole: undefined } });
+    expect(fetched).not.toBe("not_found");
+    expect(fetched).not.toBe("forbidden");
+  });
+});
 
 describe.skipIf(!process.env.DATABASE_URL)("announcements excluded from feedback surfaces", () => {
   it("the feedback board feed excludes announcements", async () => {

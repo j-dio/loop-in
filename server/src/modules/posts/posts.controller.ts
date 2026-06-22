@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import {
   AdminPostsListQuerySchema,
+  CreateAnnouncementBodySchema,
   CreatePostBodySchema,
   ListPostsQuerySchema,
   ModeratePostBodySchema,
@@ -11,8 +12,9 @@ import {
   PatchPostBodySchema,
 } from "./posts.schemas";
 import { isValidPostImageUrl } from "../uploads/uploads.service";
-import { notifyBoardMove, notifyPostApproved } from "../notifications/notifications.service";
+import { notifyAppMilestone, notifyBoardMove, notifyPostApproved } from "../notifications/notifications.service";
 import {
+  createAnnouncement,
   createPost,
   getMyUpvoteState,
   getPostById,
@@ -408,6 +410,50 @@ export async function postToggleUpvoteHandler(req: Request, res: Response, next:
     if (result === "forbidden") return res.status(403).json({ error: "Forbidden" });
 
     return res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createAnnouncementHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user?.id) return res.status(401).json({ error: "Unauthorized" });
+    if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });
+
+    const parsed = CreateAnnouncementBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid request", details: parsed.error.flatten() });
+    }
+
+    const { title, description, image_url } = parsed.data;
+
+    if (image_url) {
+      if (!isValidPostImageUrl(image_url, req.workspace.id)) {
+        return res.status(400).json({ error: "Invalid image URL" });
+      }
+    }
+
+    const created = await createAnnouncement({
+      workspaceId: req.workspace.id,
+      authorId: req.user.id,
+      title,
+      description: description ?? null,
+      imageUrl: image_url ?? null,
+      ctx: requesterCtx(req),
+    });
+
+    notifyAppMilestone({
+      workspaceId: req.workspace.id,
+      workspaceSlug: req.workspace.slug,
+      postId: created.id,
+      type: "app_update",
+      excludeUserIds: req.user?.id ? [req.user.id] : [],
+      postTitle: created.title,
+      appName: req.workspace.name,
+      actorName: req.user?.name ?? undefined,
+    });
+
+    return res.status(201).json({ post: created });
   } catch (err) {
     next(err);
   }
