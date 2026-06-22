@@ -70,11 +70,19 @@ export function CreateAppWizard({ open, onOpenChange }: Props) {
     try {
       const w = await createWorkspace({ name: n, slug: s, tagline: t, platform, category });
       setActiveWorkspace(w);
-      handleOpenChange(false);
-      // Best-effort: stamp onboarding. Never block navigation.
+      // Stamp onboarding BEFORE navigating. The admin route renders through AppShell,
+      // whose OnboardingGate redirects back to /welcome while onboardingCompletedAt is null.
+      // Awaiting completeOnboarding() (which refreshes the session) ensures the gate sees the
+      // completed state on arrival, so we don't get bounced. Errors are swallowed so a failed
+      // stamp still lets the builder reach their new app.
       if (user?.onboardingCompletedAt == null) {
-        completeOnboarding().catch(() => {/* silent */});
+        try {
+          await completeOnboarding();
+        } catch {
+          /* proceed anyway */
+        }
       }
+      handleOpenChange(false);
       navigate(`/${w.slug}/admin?section=profile`);
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
