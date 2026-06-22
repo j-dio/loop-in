@@ -14,7 +14,7 @@ import { setReturnTo } from "@/lib/returnTo";
 import { cn } from "@/lib/utils";
 
 export function AppTopBar({ onToggleMobileNav }: { onToggleMobileNav: () => void }) {
-  const { user, workspaces, activeWorkspace } = useWorkspace();
+  const { user, workspaces } = useWorkspace();
   const [profileOpen, setProfileOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const location = useLocation();
@@ -36,7 +36,7 @@ export function AppTopBar({ onToggleMobileNav }: { onToggleMobileNav: () => void
         <Link to="/" className="shrink-0" aria-label="Loop In home">
           <Logo />
         </Link>
-        {workspaces.length > 0 && activeWorkspace ? (
+        {workspaces.length > 0 ? (
           <>
             <span className="hidden text-border sm:inline" aria-hidden>/</span>
             <div className="hidden sm:block">
