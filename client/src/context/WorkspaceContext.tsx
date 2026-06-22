@@ -140,9 +140,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   );
 
   const completeOnboarding = useCallback(async () => {
-    await apiFetch("/api/users/me/onboarding/complete", { method: "POST" });
-    await refreshSession();
-  }, [refreshSession]);
+    // The endpoint returns the fresh user (with a non-null onboardingCompletedAt). Apply it
+    // optimistically instead of calling refreshSession: completing onboarding doesn't change
+    // workspaces, and refreshSession's failure path wipes `user` to null + its loading flash
+    // blanks the Welcome screen — both of which let OnboardingGate bounce back to /welcome.
+    const res = await apiFetch<{ user: User }>("/api/users/me/onboarding/complete", {
+      method: "POST",
+    });
+    setUser(res.user);
+  }, []);
 
   const value = useMemo(
     () => ({
