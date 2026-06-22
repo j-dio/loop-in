@@ -3,22 +3,28 @@ import { Outlet, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { AppTopBar } from "@/layouts/AppTopBar";
 import { AppSidebar } from "@/layouts/AppSidebar";
+import { OnboardingGate } from "@/components/onboarding/OnboardingGate";
 import { useSidebar } from "@/hooks/useSidebar";
 
 export function AppShell() {
   const location = useLocation();
   const { collapsed, toggleCollapsed, mobileOpen, setMobileOpen } = useSidebar();
 
+  const isAdmin = /^\/[^/]+\/admin(\/|$)/.test(location.pathname);
+
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
+      <OnboardingGate />
       <AppTopBar onToggleMobileNav={() => setMobileOpen(true)} />
       <div className="flex flex-1">
-        <AppSidebar
-          collapsed={collapsed}
-          mobileOpen={mobileOpen}
-          onToggleCollapsed={toggleCollapsed}
-          onCloseMobile={() => setMobileOpen(false)}
-        />
+        {isAdmin && (
+          <AppSidebar
+            collapsed={collapsed}
+            mobileOpen={mobileOpen}
+            onToggleCollapsed={toggleCollapsed}
+            onCloseMobile={() => setMobileOpen(false)}
+          />
+        )}
         <motion.main
           key={location.pathname}
           initial={{ opacity: 0, y: 8 }}

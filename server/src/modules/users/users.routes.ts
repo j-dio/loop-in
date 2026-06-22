@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authenticate, optionalAuth } from "../../middleware/authenticate";
 import { createUsersRateLimiter } from "../../middleware/rateLimit";
-import { presignAvatarHandler, updateMeHandler } from "./users.controller";
+import { completeOnboardingHandler, presignAvatarHandler, updateMeHandler } from "./users.controller";
 
 /** Mounted at /api/users */
 export const usersRouter = Router();
@@ -12,3 +12,4 @@ usersRouter.use(createUsersRateLimiter());
 
 usersRouter.post("/me/avatar/presign", authenticate, presignAvatarHandler);
 usersRouter.patch("/me", authenticate, updateMeHandler);
+usersRouter.post("/me/onboarding/complete", authenticate, completeOnboardingHandler);

@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { type DropResult } from "@hello-pangea/dnd";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
-import { Segmented } from "@/components/ui/segmented";
 import { TriageInbox } from "@/components/admin/TriageInbox";
 import { KanbanBoard, type ColumnsState, type BoardColumnId } from "@/components/admin/KanbanBoard";
 import { AiDigestPanel, type DigestData } from "@/components/admin/AiDigestPanel";
 import { WorkspaceSettings, type SettingsDraft } from "@/components/admin/WorkspaceSettings";
 import { WorkspaceLogoSection } from "@/components/admin/WorkspaceLogoSection";
 import { MembersPanel } from "@/components/admin/MembersPanel";
+import { AnnouncementsManager } from "@/components/admin/AnnouncementsManager";
 import { ProfileFieldsForm } from "@/components/admin/ProfileFieldsForm";
 import { ScreenshotManager } from "@/components/admin/ScreenshotManager";
 import { LinksManager } from "@/components/admin/LinksManager";
@@ -65,8 +65,23 @@ type PostMemberInviteResponse =
   | { member: MemberRow }
   | { pending: true; email: string };
 
+type AdminSection = "triage" | "kanban" | "updates" | "settings" | "profile";
+
+const SECTION_LABELS: Record<AdminSection, string> = {
+  triage: "Triage",
+  kanban: "Board",
+  updates: "Updates",
+  settings: "Settings",
+  profile: "Profile",
+};
+
+const VALID_SECTIONS = ["triage", "kanban", "updates", "settings", "profile"] as const;
+
 export function Admin() {
   const { slug } = useParams();
+  const [searchParams] = useSearchParams();
+  const raw = searchParams.get("section");
+  const section: AdminSection = VALID_SECTIONS.includes(raw as AdminSection) ? (raw as AdminSection) : "triage";
   const {
     user,
     loading: sessionLoading,
@@ -80,7 +95,6 @@ export function Admin() {
     "unknown"
   );
   const [commandCenterRole, setCommandCenterRole] = useState<WorkspaceRole | null>(null);
-  const [tab, setTab] = useState<"triage" | "kanban" | "settings" | "profile">("triage");
   const [triagePosts, setTriagePosts] = useState<PostDTO[]>([]);
   const [kanbanColumns, setKanbanColumns] = useState<ColumnsState>(() => emptyColumns());
   const [triageLoading, setTriageLoading] = useState(false);
@@ -226,12 +240,12 @@ export function Admin() {
 
   useEffect(() => {
     if (access !== "allowed" || !slug) return;
-    if (tab === "triage") void loadTriage();
-    else if (tab === "kanban") void loadKanban();
-  }, [access, slug, tab, loadTriage, loadKanban]);
+    if (section === "triage") void loadTriage();
+    else if (section === "kanban") void loadKanban();
+  }, [access, slug, section, loadTriage, loadKanban]);
 
   useEffect(() => {
-    if (tab !== "settings" || !slug) return;
+    if (section !== "settings" || !slug) return;
     const w = workspaces.find((x) => x.slug === slug);
     if (!w) return;
     setSettingsDraft({
@@ -239,11 +253,11 @@ export function Admin() {
       visibility: w.visibility,
       requireApproval: w.requireApproval,
     });
-  }, [tab, slug, workspaces]);
+  }, [section, slug, workspaces]);
 
   useEffect(() => {
     setSettingsFeedback(null);
-  }, [tab, slug]);
+  }, [section, slug]);
 
   async function saveWorkspaceSettings() {
     if (!slug || !settingsDraft || !canEditWorkspaceSettings) return;
@@ -511,20 +525,14 @@ export function Admin() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Workspace admin"
-        title="Command center"
-        meta={<>{workspaceLabel ? <span className="text-foreground">{workspaceLabel}</span> : null}<span> · /{slug}</span></>}
+        eyebrow={SECTION_LABELS[section] ?? "Admin"}
+        title={workspaceLabel || "Command center"}
+        meta={<><span>/{slug}</span></>}
         actions={
           <Button type="button" variant="outline" size="sm" asChild>
             <Link to={`/${encodeURIComponent(slug)}`}>View public board</Link>
           </Button>
         }
-      />
-
-      <Segmented
-        options={[["triage", "Triage"], ["kanban", "Kanban"], ["profile", "Profile"], ["settings", "Settings"]] as const}
-        value={tab}
-        onChange={(v) => setTab(v as typeof tab)}
       />
 
       {listError ? (
@@ -538,7 +546,7 @@ export function Admin() {
         </p>
       ) : null}
 
-      {tab === "settings" ? (
+      {section === "settings" ? (
         <div className="max-w-2xl space-y-8">
           <WorkspaceSettings
             draft={settingsDraft}
@@ -568,13 +576,13 @@ export function Admin() {
             />
           ) : null}
         </div>
-      ) : tab === "profile" ? (
+      ) : section === "profile" ? (
         <div className="max-w-2xl">
           <ProfileFieldsForm slug={slug} canEdit={canEditWorkspaceSettings} />
           <ScreenshotManager slug={slug} />
           <LinksManager slug={slug} />
         </div>
-      ) : tab === "triage" ? (
+      ) : section === "triage" ? (
         <TriageInbox
           posts={triagePosts}
           slug={slug}
@@ -583,6 +591,8 @@ export function Admin() {
           onModerate={moderate}
           onBulkModerate={moderateMany}
         />
+      ) : section === "updates" ? (
+        <AnnouncementsManager slug={slug} />
       ) : (
         <div className="space-y-4">
           <AiDigestPanel

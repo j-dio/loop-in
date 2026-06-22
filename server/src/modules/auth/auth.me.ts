@@ -26,6 +26,7 @@ export async function getMe(req: Request, res: Response) {
         email: users.email,
         name: users.name,
         avatarUrl: users.avatarUrl,
+        onboardingCompletedAt: users.onboardingCompletedAt,
       })
       .from(users)
       .where(eq(users.id, decoded.userId))

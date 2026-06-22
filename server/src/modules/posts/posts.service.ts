@@ -1,17 +1,19 @@
-import { and, desc, eq, ilike, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "../../db";
-import { posts, upvotes, users } from "../../db/schema";
+import { notifications, posts, upvotes, users } from "../../db/schema";
 import { redis } from "../../lib/redis";
 import { trendingRedisKey } from "../../lib/trendingKeys";
 import { logger } from "../../lib/logger";
 import type { WorkspaceRole } from "../workspaces/workspaces.service";
 import { fetchLatestUpdatesForPosts, type PostUpdateLatest } from "./postUpdates.service";
 import { isAdminOrOwner, viewerCanSeePost, type RequesterContext } from "./posts.helpers";
+import { canPin, MAX_PINNED } from "./posts.pin";
 
 export type { RequesterContext } from "./posts.helpers";
 export { viewerCanSeePost } from "./posts.helpers";
 
 export type PostCategory = "bug" | "feature_request" | "ui_tweak";
+export type PostType = "feedback" | "announcement";
 export type ModerationStatus = "pending" | "approved" | "spam" | "rejected";
 export type BoardStatus = "inbox" | "under_review" | "planned" | "in_progress" | "shipped";
 
@@ -27,7 +29,9 @@ export type PostPublic = {
   title: string;
   description: string | null;
   imageUrl: string | null;
-  category: PostCategory;
+  category: PostCategory | null;
+  type: PostType;
+  pinnedAt: Date | null;
   moderationStatus: ModerationStatus;
   boardStatus: BoardStatus;
   isAnonymous: boolean;
@@ -94,7 +98,9 @@ function mapRowToPublic(
     title: row.post.title,
     description: row.post.description,
     imageUrl: row.post.imageUrl ?? null,
-    category: row.post.category as PostCategory,
+    category: row.post.category as PostCategory | null,
+    type: row.post.type as PostType,
+    pinnedAt: row.post.pinnedAt ?? null,
     moderationStatus: row.post.moderationStatus as ModerationStatus,
     boardStatus: row.post.boardStatus as BoardStatus,
     isAnonymous: row.post.isAnonymous,
@@ -153,10 +159,52 @@ export async function createPost(input: {
   });
 }
 
-/** Public feed: approved, not soft-deleted. */
+export async function createAnnouncement(input: {
+  workspaceId: string;
+  authorId: string;
+  title: string;
+  description: string | null | undefined;
+  imageUrl: string | null;
+  ctx: RequesterContext;
+}): Promise<PostPublic> {
+  const [inserted] = await db
+    .insert(posts)
+    .values({
+      workspaceId: input.workspaceId,
+      authorId: input.authorId,
+      title: input.title,
+      description: input.description ?? null,
+      category: null,
+      type: "announcement",
+      moderationStatus: "approved",
+      boardStatus: "inbox",
+      imageUrl: input.imageUrl,
+    })
+    .returning();
+  if (!inserted) throw new Error("Failed to create announcement");
+
+  const [authorRow] = await db
+    .select({ name: users.name, avatarUrl: users.avatarUrl })
+    .from(users)
+    .where(eq(users.id, input.authorId))
+    .limit(1);
+
+  return mapRowToPublic(
+    {
+      post: inserted,
+      authorId: input.authorId,
+      authorName: authorRow?.name ?? null,
+      authorAvatar: authorRow?.avatarUrl ?? null,
+    },
+    { userId: input.ctx.userId ?? input.authorId, workspaceRole: input.ctx.workspaceRole }
+  );
+}
+
+/** Public feed: feedback-type, approved, not soft-deleted. */
 function listBaseConditions(workspaceId: string) {
   return and(
     eq(posts.workspaceId, workspaceId),
+    eq(posts.type, "feedback"),
     eq(posts.moderationStatus, "approved"),
     isNull(posts.deletedAt)
   );
@@ -515,6 +563,15 @@ export async function softDeletePost(input: {
 
   await db.update(posts).set({ deletedAt: new Date() }).where(eq(posts.id, input.postId));
 
+  // The notifications.post_id FK cascades only on a hard delete; a soft delete (deletedAt) would
+  // otherwise leave dangling notifications that deep-link to a post that now 404s. Clean them up.
+  // Best-effort — the post is already gone, so a cleanup failure must not fail the request.
+  try {
+    await db.delete(notifications).where(eq(notifications.postId, input.postId));
+  } catch (err) {
+    logger.warn({ err, postId: input.postId }, "failed to clean up notifications for soft-deleted post");
+  }
+
   return "ok";
 }
 
@@ -689,6 +746,7 @@ export async function listPendingPostsForTriage(input: {
     .where(
       and(
         eq(posts.workspaceId, input.workspaceId),
+        eq(posts.type, "feedback"),
         eq(posts.moderationStatus, "pending"),
         isNull(posts.deletedAt)
       )
@@ -716,6 +774,7 @@ export async function listApprovedPostsForKanban(input: {
     .where(
       and(
         eq(posts.workspaceId, input.workspaceId),
+        eq(posts.type, "feedback"),
         eq(posts.moderationStatus, "approved"),
         isNull(posts.deletedAt)
       )
@@ -723,5 +782,66 @@ export async function listApprovedPostsForKanban(input: {
     .orderBy(desc(posts.createdAt), desc(posts.id))
     .limit(input.limit);
 
+  return rows.map((r) => mapRowToPublic(r, input.ctx));
+}
+
+export async function setPostPinned(input: {
+  workspaceId: string;
+  postId: string;
+  pinned: boolean;
+}): Promise<"ok" | "not_found" | "cap_reached"> {
+  const [post] = await db
+    .select({ id: posts.id, pinnedAt: posts.pinnedAt })
+    .from(posts)
+    .where(and(eq(posts.id, input.postId), eq(posts.workspaceId, input.workspaceId), isNull(posts.deletedAt)))
+    .limit(1);
+  if (!post) return "not_found";
+
+  if (input.pinned) {
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(posts)
+      .where(and(eq(posts.workspaceId, input.workspaceId), isNotNull(posts.pinnedAt), isNull(posts.deletedAt)));
+    if (!canPin(Number(count ?? 0), post.pinnedAt != null)) return "cap_reached";
+    await db.update(posts).set({ pinnedAt: new Date() }).where(eq(posts.id, input.postId));
+  } else {
+    await db.update(posts).set({ pinnedAt: null }).where(eq(posts.id, input.postId));
+  }
+  return "ok";
+}
+
+export async function listAnnouncementsForAdmin(input: {
+  workspaceId: string;
+  ctx: RequesterContext;
+}): Promise<PostPublic[]> {
+  const rows = await db
+    .select({ post: posts, authorId: users.id, authorName: users.name, authorAvatar: users.avatarUrl })
+    .from(posts)
+    .innerJoin(users, eq(posts.authorId, users.id))
+    .where(and(
+      eq(posts.workspaceId, input.workspaceId),
+      eq(posts.type, "announcement"),
+      isNull(posts.deletedAt)
+    ))
+    .orderBy(desc(posts.createdAt), desc(posts.id));
+  return rows.map((r) => mapRowToPublic(r, input.ctx));
+}
+
+export async function listPinnedPosts(input: {
+  workspaceId: string;
+  ctx: RequesterContext;
+}): Promise<PostPublic[]> {
+  const rows = await db
+    .select({ post: posts, authorId: users.id, authorName: users.name, authorAvatar: users.avatarUrl })
+    .from(posts)
+    .innerJoin(users, eq(posts.authorId, users.id))
+    .where(and(
+      eq(posts.workspaceId, input.workspaceId),
+      isNotNull(posts.pinnedAt),
+      eq(posts.moderationStatus, "approved"),
+      isNull(posts.deletedAt)
+    ))
+    .orderBy(desc(posts.pinnedAt))
+    .limit(MAX_PINNED);
   return rows.map((r) => mapRowToPublic(r, input.ctx));
 }

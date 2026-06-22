@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowBigUp, ArrowLeft, Megaphone, Trash2 } from "lucide-react";
+import { ArrowBigUp, ArrowLeft, FileQuestion, Megaphone, Pin, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +65,8 @@ export function Thread() {
   const [viewerIsAdminOrOwner, setViewerIsAdminOrOwner] = useState(false);
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [pinBusy, setPinBusy] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!slug) return;
@@ -281,6 +283,31 @@ export function Thread() {
     }
   }
 
+  async function handlePinToggle() {
+    if (!slug || !postId || !post || pinBusy) return;
+    const willPin = !post.pinnedAt;
+    setPinBusy(true);
+    setPinError(null);
+    // Optimistic update: set pinnedAt to now when pinning, null when unpinning.
+    setPost((p) => (p ? { ...p, pinnedAt: willPin ? new Date().toISOString() : null } : p));
+    try {
+      await apiFetch<{ ok: true }>(
+        `/api/workspaces/${encodeURIComponent(slug)}/posts/${encodeURIComponent(postId)}/pin`,
+        { method: "PATCH", body: JSON.stringify({ pinned: willPin }) }
+      );
+    } catch (err) {
+      // Revert on error.
+      setPost((p) => (p ? { ...p, pinnedAt: post.pinnedAt } : p));
+      if (err instanceof ApiError && err.status === 409) {
+        setPinError("You can pin at most 3 posts. Unpin one first.");
+      } else {
+        setPinError("Could not update pin. Please try again.");
+      }
+    } finally {
+      setPinBusy(false);
+    }
+  }
+
   if (!slug || !postId) {
     return <p className="text-muted-foreground text-sm">Missing workspace or post.</p>;
   }
@@ -305,7 +332,7 @@ export function Thread() {
       </div>
 
       <div className="mx-auto w-full max-w-3xl space-y-8">
-        {error ? (
+        {error && post ? (
           <p className="text-destructive text-sm" role="alert">
             {error}
           </p>
@@ -340,17 +367,53 @@ export function Thread() {
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{post.title}</h1>
-                  <div className="flex flex-wrap gap-1.5">
-                    <Badge tone={categoryTone(post.category)}>{categoryLabel(post.category)}</Badge>
+                  <div className="space-y-1">
+                    {post.type === "announcement" ? (
+                      <p className="flex items-center gap-1.5 font-mono text-[11px] tracking-[0.18em] text-brand uppercase">
+                        <Megaphone className="size-3.5" aria-hidden />
+                        Announcement
+                      </p>
+                    ) : null}
+                    <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{post.title}</h1>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {post.type !== "announcement" && post.category !== null ? (
+                      <Badge tone={categoryTone(post.category)}>{categoryLabel(post.category)}</Badge>
+                    ) : null}
                     {post.moderationStatus !== "approved" ? (
                       <Badge tone={moderationTone(post.moderationStatus)}>
                         {moderationLabel(post.moderationStatus)}
                       </Badge>
                     ) : null}
                     <Badge tone={boardTone(post.boardStatus)}>{boardLabel(post.boardStatus)}</Badge>
+                    {post.pinnedAt ? (
+                      <span className="inline-flex items-center gap-1 font-mono text-[11px] tracking-[0.18em] text-muted-foreground uppercase">
+                        <Pin className="size-2.5" aria-hidden />
+                        Pinned
+                      </span>
+                    ) : null}
+                    {viewerIsAdminOrOwner ? (
+                      <button
+                        type="button"
+                        onClick={() => void handlePinToggle()}
+                        disabled={pinBusy}
+                        title={post.pinnedAt ? "Unpin post" : "Pin post"}
+                        aria-label={post.pinnedAt ? "Unpin post" : "Pin post"}
+                        className={cn(
+                          "inline-flex items-center justify-center rounded border px-1.5 py-0.5 transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                          post.pinnedAt
+                            ? "border-brand/40 text-brand hover:bg-brand/10"
+                            : "border-border text-muted-foreground hover:border-brand/40 hover:text-brand"
+                        )}
+                      >
+                        <Pin className="size-3" aria-hidden />
+                      </button>
+                    ) : null}
                   </div>
                 </div>
+                {pinError ? (
+                  <p className="mt-1 text-xs text-destructive" role="alert">{pinError}</p>
+                ) : null}
 
                 {post.imageUrl ? (
                   <div className="mt-4 overflow-hidden rounded-xl border border-border bg-muted/30">
@@ -544,7 +607,27 @@ export function Thread() {
             ) : null}
           </section>
         </>
-      ) : null}
+        ) : (
+          <div className="flex flex-col items-center gap-4 rounded-xl border border-border bg-card px-6 py-16 text-center">
+            <span className="flex size-12 items-center justify-center rounded-full bg-secondary text-muted-foreground">
+              <FileQuestion className="size-6" aria-hidden />
+            </span>
+            <div className="space-y-1">
+              <p className="font-display text-lg font-semibold tracking-tight">
+                {error ?? "Post not found."}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                This post may have been removed. It might also be private or still awaiting review.
+              </p>
+            </div>
+            <Button variant="brand" size="sm" asChild>
+              <Link to={`/${encodeURIComponent(slug)}`}>
+                <ArrowLeft className="size-4" />
+                Back to board
+              </Link>
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

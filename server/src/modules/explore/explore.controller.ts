@@ -4,7 +4,7 @@ import {
   ExploreFeedQuerySchema,
   ExploreWorkspacesQuerySchema,
 } from "./explore.schemas";
-import { listFollowingFeed, listPublicFeed, listPublicWorkspaces } from "./explore.service";
+import { listFollowingFeed, listPublicPulse, listPublicWorkspaces, FOLLOWING_TRENDING_MIN } from "./explore.service";
 
 function parseFeedCursor(raw: string | undefined): { createdAt: Date; id: string } | null | "bad" {
   if (!raw) return null;
@@ -46,11 +46,13 @@ export async function exploreFeedHandler(req: Request, res: Response, next: Next
 
     if (parsed.data.tab === "following") {
       if (!req.user?.id) return res.status(401).json({ error: "Unauthorized" });
-      const result = await listFollowingFeed({ userId: req.user.id, limit: parsed.data.limit, cursor });
+      const result = await listFollowingFeed({ userId: req.user.id, limit: parsed.data.limit, cursor, minUpvotes: FOLLOWING_TRENDING_MIN });
       return res.json(result);
     }
 
-    const result = await listPublicFeed({ limit: parsed.data.limit, cursor });
+    // Default + explicit `tab=pulse`: builder news (status updates) across public boards.
+    // Raw cross-board feedback is intentionally not exposed — feedback lives on each board.
+    const result = await listPublicPulse({ limit: parsed.data.limit, cursor });
     return res.json(result);
   } catch (err) {
     next(err);

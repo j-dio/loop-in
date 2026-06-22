@@ -64,6 +64,20 @@
       "when": 1781965331188,
       "tag": "0008_powerful_daredevil",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1782045101489,
+      "tag": "0009_cuddly_makkari",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1782094141499,
+      "tag": "0010_majestic_havok",
+      "breakpoints": true
     }
   ]
 }

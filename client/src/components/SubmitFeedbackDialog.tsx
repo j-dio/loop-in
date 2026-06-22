@@ -15,7 +15,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { PostDTO } from "@/lib/postTypes";
 
-const CATEGORIES: { value: PostDTO["category"]; label: string }[] = [
+type FeedbackCategory = "bug" | "feature_request" | "ui_tweak";
+
+const CATEGORIES: { value: FeedbackCategory; label: string }[] = [
   { value: "bug", label: "Bug" },
   { value: "feature_request", label: "Feature request" },
   { value: "ui_tweak", label: "UI tweak" },
@@ -48,7 +50,7 @@ export function SubmitFeedbackDialog({ workspaceSlug, open, onOpenChange, onCrea
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState<PostDTO["category"]>("feature_request");
+  const [category, setCategory] = useState<FeedbackCategory>("feature_request");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -317,7 +319,7 @@ export function SubmitFeedbackDialog({ workspaceSlug, open, onOpenChange, onCrea
               id="post-category"
               className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
               value={category}
-              onChange={(ev) => setCategory(ev.target.value as PostDTO["category"])}
+              onChange={(ev) => setCategory(ev.target.value as FeedbackCategory)}
               disabled={submitting}
             >
               {CATEGORIES.map((c) => (

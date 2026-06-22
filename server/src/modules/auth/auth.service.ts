@@ -3,6 +3,7 @@ import { pendingInvites, sessions, users, workspaceMembers } from "../../db/sche
 import { and, eq, gt, lt, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { generateRefreshToken, hashRefreshToken, refreshTokenExpiryDate } from "./auth.tokens";
+import { autoFollowFeaturedWorkspace } from "../workspaces/workspaces.follows.service";
 
 /**
  * Lazy cleanup of expired session rows (PRD §6.2). Fire-and-forget from POST /auth/refresh.
@@ -129,6 +130,7 @@ export async function upsertOAuthUser(input: {
 
       if (!inserted) throw new Error("Failed to insert user");
       user = inserted;
+      await autoFollowFeaturedWorkspace(user.id);
     }
   }
 

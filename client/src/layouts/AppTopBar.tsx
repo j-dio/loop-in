@@ -1,35 +1,42 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { Compass, Menu } from "lucide-react";
+import { Link, NavLink, useLocation } from "react-router-dom";
+import { Menu, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/brand/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { WorkspaceSwitcher } from "@/components/WorkspaceSwitcher";
 import { UserAvatar } from "@/components/UserAvatar";
 import { ProfileDialog } from "@/components/ProfileDialog";
+import { CreateAppWizard } from "@/components/CreateAppWizard";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { setReturnTo } from "@/lib/returnTo";
+import { cn } from "@/lib/utils";
 
 export function AppTopBar({ onToggleMobileNav }: { onToggleMobileNav: () => void }) {
-  const { user, activeWorkspace } = useWorkspace();
+  const { user, workspaces } = useWorkspace();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const location = useLocation();
+  const isAdmin = /^\/[^/]+\/admin(\/|$)/.test(location.pathname);
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md">
       <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
-        <button
-          type="button"
-          onClick={onToggleMobileNav}
-          className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary/60 hover:text-foreground md:hidden"
-          aria-label="Open navigation"
-        >
-          <Menu className="size-5" />
-        </button>
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={onToggleMobileNav}
+            className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary/60 hover:text-foreground md:hidden"
+            aria-label="Open navigation"
+          >
+            <Menu className="size-5" />
+          </button>
+        )}
         <Link to="/" className="shrink-0" aria-label="Loop In home">
           <Logo />
         </Link>
-        {activeWorkspace ? (
+        {workspaces.length > 0 ? (
           <>
             <span className="hidden text-border sm:inline" aria-hidden>/</span>
             <div className="hidden sm:block">
@@ -38,13 +45,30 @@ export function AppTopBar({ onToggleMobileNav }: { onToggleMobileNav: () => void
           </>
         ) : null}
 
+        <nav className="ml-2 hidden items-center gap-1 sm:flex">
+          {([["/home", "Home"], ["/explore", "Explore"]] as const).map(([to, label]) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                cn(
+                  "rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors",
+                  isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                )
+              }
+            >
+              {label}
+            </NavLink>
+          ))}
+        </nav>
+
         <div className="ml-auto flex items-center gap-1.5">
-          <Button type="button" variant="ghost" size="sm" asChild>
-            <Link to="/explore">
-              <Compass className="size-4" />
-              <span className="hidden sm:inline">Explore</span>
-            </Link>
-          </Button>
+          {user && (
+            <Button type="button" variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="size-4" />
+              <span className="hidden sm:inline">New app</span>
+            </Button>
+          )}
           <NotificationBell />
           <ThemeToggle />
           {user ? (
@@ -79,6 +103,7 @@ export function AppTopBar({ onToggleMobileNav }: { onToggleMobileNav: () => void
           )}
         </div>
       </div>
+      {user && <CreateAppWizard open={createOpen} onOpenChange={setCreateOpen} />}
     </header>
   );
 }

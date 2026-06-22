@@ -7,7 +7,8 @@ type Tone = NonNullable<VariantProps<typeof badgeVariants>["tone"]>;
 export function categoryLabel(c: PostDTO["category"]): string {
   if (c === "bug") return "Bug";
   if (c === "feature_request") return "Feature";
-  return "UI";
+  if (c === "ui_tweak") return "UI";
+  return "";
 }
 
 export function categoryTone(c: PostDTO["category"]): Tone {

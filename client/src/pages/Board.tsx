@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { MessageSquarePlus, Search, X } from "lucide-react";
+import { Megaphone, MessageSquarePlus, Pin, Search, X } from "lucide-react";
 import { PostCard } from "@/components/PostCard";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { SubmitFeedbackDialog } from "@/components/SubmitFeedbackDialog";
-import { PageHeader } from "@/components/PageHeader";
+import { AnnouncementComposer } from "@/components/AnnouncementComposer";
+import { PinnedStrip } from "@/components/feed/PinnedStrip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Segmented } from "@/components/ui/segmented";
@@ -52,6 +53,9 @@ export function Board() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [announcementOpen, setAnnouncementOpen] = useState(false);
+  const [pinnedRefreshKey, setPinnedRefreshKey] = useState(0);
+  const [pinnedCount, setPinnedCount] = useState(0);
   const [pendingLocal, setPendingLocal] = useState<PostDTO[]>([]);
   const [upvotedIds, setUpvotedIds] = useState<Set<string>>(() => new Set());
   const [categoryFilter, setCategoryFilter] = useState<PostDTO["category"] | "all">("all");
@@ -152,6 +156,11 @@ export function Board() {
     setPendingLocal((prev) => [post, ...prev.filter((p) => p.id !== post.id)]);
   }, []);
 
+  const onAnnouncementCreated = useCallback((post: PostDTO) => {
+    setPendingLocal((prev) => [post, ...prev.filter((p) => p.id !== post.id)]);
+    setPinnedRefreshKey((k) => k + 1);
+  }, []);
+
   const onUpvoteChange = useCallback((postId: string, upvoteCount: number, upvoted: boolean) => {
     setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, upvoteCount } : p)));
     setUpvotedIds((prev) => {
@@ -178,33 +187,28 @@ export function Board() {
     <div className="space-y-6">
       <ProfileHeader slug={slug} isOwner={isOwner} />
 
-      <PageHeader
-        eyebrow="Feedback board"
-        title="Feedback"
-        meta={
-          <>
-            {activeWorkspace && activeWorkspace.slug === slug ? `${activeWorkspace.name} · ` : null}
-            /{slug}
-          </>
-        }
-        actions={
-          canPost ? (
-            <Button type="button" variant="brand" onClick={() => setDialogOpen(true)}>
-              <MessageSquarePlus className="size-4" />
-              Submit feedback
+      {/* Pinned row: PINNED label (only when posts are pinned) + Announcement button (owner-only).
+          Collapses entirely for non-owners with nothing pinned. */}
+      {pinnedCount > 0 || isOwner ? (
+        <div className="mx-auto w-full max-w-3xl flex items-center justify-between gap-2">
+          {pinnedCount > 0 ? (
+            <div className="flex items-center gap-2">
+              <Pin className="size-3.5 text-brand" aria-hidden />
+              <span className="font-mono text-[10px] tracking-[0.22em] text-brand uppercase">
+                Pinned
+              </span>
+            </div>
+          ) : (
+            <span aria-hidden />
+          )}
+          {isOwner ? (
+            <Button type="button" variant="brand" size="sm" onClick={() => setAnnouncementOpen(true)}>
+              <Megaphone className="size-4" />
+              Announcement
             </Button>
-          ) : !user ? (
-            <Button type="button" variant="brand" asChild>
-              <Link
-                to="/"
-                onClick={() => setReturnTo(window.location.pathname + window.location.search)}
-              >
-                Sign in to submit
-              </Link>
-            </Button>
-          ) : null
-        }
-      />
+          ) : null}
+        </div>
+      ) : null}
 
       <SubmitFeedbackDialog
         workspaceSlug={slug}
@@ -213,7 +217,47 @@ export function Board() {
         onCreated={onCreated}
       />
 
+      <AnnouncementComposer
+        workspaceSlug={slug}
+        open={announcementOpen}
+        onOpenChange={setAnnouncementOpen}
+        onCreated={onAnnouncementCreated}
+      />
+
+      <PinnedStrip
+        slug={slug}
+        isOwner={isOwner}
+        upvotedIds={upvotedIds}
+        signedIn={Boolean(user)}
+        canUpvote={canPost}
+        onUpvoteChange={onUpvoteChange}
+        refreshKey={pinnedRefreshKey}
+        onPinChange={() => setPinnedRefreshKey((k) => k + 1)}
+        onLoaded={setPinnedCount}
+      />
+
       <div className="mx-auto mt-6 w-full max-w-3xl space-y-6">
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+            All feedback
+          </span>
+          <div className="h-px flex-1 bg-border" aria-hidden />
+          {canPost ? (
+            <Button type="button" variant="brand" size="sm" onClick={() => setDialogOpen(true)}>
+              <MessageSquarePlus className="size-4" />
+              Submit feedback
+            </Button>
+          ) : !user ? (
+            <Button type="button" variant="brand" size="sm" asChild>
+              <Link
+                to="/"
+                onClick={() => setReturnTo(window.location.pathname + window.location.search)}
+              >
+                Sign in to submit
+              </Link>
+            </Button>
+          ) : null}
+        </div>
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative min-w-0 flex-1 sm:max-w-xs">
@@ -303,6 +347,8 @@ export function Board() {
                   canUpvote={canPost}
                   onUpvoteChange={onUpvoteChange}
                   showFounderBadge={isOwner && post.author.id === user?.id}
+                  isOwner={isOwner}
+                  onPinChange={() => setPinnedRefreshKey((k) => k + 1)}
                 />
               </motion.li>
             ))}

@@ -1,25 +1,31 @@
 import type { NextFunction, Request, Response } from "express";
 import {
   AdminPostsListQuerySchema,
+  CreateAnnouncementBodySchema,
   CreatePostBodySchema,
   ListPostsQuerySchema,
   ModeratePostBodySchema,
   PatchBoardStatusBodySchema,
+  PatchPostBodySchema,
+  PinBodySchema,
   PostCursorSchema,
   PostIdParamsSchema,
   PostsParentParamsSchema,
-  PatchPostBodySchema,
 } from "./posts.schemas";
 import { isValidPostImageUrl } from "../uploads/uploads.service";
-import { notifyBoardMove, notifyPostApproved } from "../notifications/notifications.service";
+import { notifyAppMilestone, notifyBoardMove, notifyPostApproved } from "../notifications/notifications.service";
 import {
+  createAnnouncement,
   createPost,
   getMyUpvoteState,
   getPostById,
+  listAnnouncementsForAdmin,
   listApprovedPostsForKanban,
   listPendingPostsForTriage,
+  listPinnedPosts,
   listPosts,
   moderatePost,
+  setPostPinned,
   softDeletePost,
   toggleUpvote,
   updatePost,
@@ -118,6 +124,21 @@ export async function listAdminKanbanHandler(req: Request, res: Response, next: 
     });
 
     return res.json({ posts });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listAnnouncementsHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });
+
+    const announcements = await listAnnouncementsForAdmin({
+      workspaceId: req.workspace.id,
+      ctx: requesterCtx(req),
+    });
+
+    return res.json({ posts: announcements });
   } catch (err) {
     next(err);
   }
@@ -408,6 +429,96 @@ export async function postToggleUpvoteHandler(req: Request, res: Response, next:
     if (result === "forbidden") return res.status(403).json({ error: "Forbidden" });
 
     return res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createAnnouncementHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user?.id) return res.status(401).json({ error: "Unauthorized" });
+    if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });
+
+    const parsed = CreateAnnouncementBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid request", details: parsed.error.flatten() });
+    }
+
+    const { title, description, image_url } = parsed.data;
+
+    if (image_url) {
+      if (!isValidPostImageUrl(image_url, req.workspace.id)) {
+        return res.status(400).json({ error: "Invalid image URL" });
+      }
+    }
+
+    const created = await createAnnouncement({
+      workspaceId: req.workspace.id,
+      authorId: req.user.id,
+      title,
+      description: description ?? null,
+      imageUrl: image_url ?? null,
+      ctx: requesterCtx(req),
+    });
+
+    notifyAppMilestone({
+      workspaceId: req.workspace.id,
+      workspaceSlug: req.workspace.slug,
+      postId: created.id,
+      type: "app_update",
+      excludeUserIds: req.user?.id ? [req.user.id] : [],
+      postTitle: created.title,
+      appName: req.workspace.name,
+      actorName: req.user?.name ?? undefined,
+    });
+
+    return res.status(201).json({ post: created });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function pinPostHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });
+
+    const paramsParsed = PostIdParamsSchema.safeParse(req.params);
+    if (!paramsParsed.success) {
+      return res.status(400).json({ error: "Invalid params", details: paramsParsed.error.flatten() });
+    }
+
+    const bodyParsed = PinBodySchema.safeParse(req.body);
+    if (!bodyParsed.success) {
+      return res.status(400).json({ error: "Invalid request", details: bodyParsed.error.flatten() });
+    }
+
+    const result = await setPostPinned({
+      workspaceId: req.workspace.id,
+      postId: paramsParsed.data.postId,
+      pinned: bodyParsed.data.pinned,
+    });
+
+    if (result === "not_found") return res.status(404).json({ error: "Post not found" });
+    if (result === "cap_reached") {
+      return res.status(409).json({ error: "You can pin at most 3 posts. Unpin one first." });
+    }
+
+    return res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listPinnedHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });
+
+    const pinnedPosts = await listPinnedPosts({
+      workspaceId: req.workspace.id,
+      ctx: requesterCtx(req),
+    });
+
+    return res.json({ posts: pinnedPosts });
   } catch (err) {
     next(err);
   }

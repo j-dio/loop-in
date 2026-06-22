@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowBigUp, Megaphone } from "lucide-react";
+import { ArrowBigUp, Megaphone, Pin } from "lucide-react";
 import { ApiError, apiFetch } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -32,6 +32,9 @@ type Props = {
   canUpvote: boolean;
   onUpvoteChange?: (postId: string, upvoteCount: number, upvoted: boolean) => void;
   showFounderBadge?: boolean;
+  /** Owner-only pin/unpin affordance. */
+  isOwner?: boolean;
+  onPinChange?: () => void;
 };
 
 export function PostCard({
@@ -43,10 +46,14 @@ export function PostCard({
   canUpvote,
   onUpvoteChange,
   showFounderBadge,
+  isOwner,
+  onPinChange,
 }: Props) {
   const [localUpvoted, setLocalUpvoted] = useState(upvoted);
   const [localCount, setLocalCount] = useState(post.upvoteCount);
   const [upvoteBusy, setUpvoteBusy] = useState(false);
+  const [pinBusy, setPinBusy] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
 
   useEffect(() => {
     setLocalUpvoted(upvoted);
@@ -92,6 +99,28 @@ export function PostCard({
       }
     } finally {
       setUpvoteBusy(false);
+    }
+  }
+
+  async function handlePinToggle(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (pinBusy) return;
+    setPinBusy(true);
+    setPinError(null);
+    const path = `/api/workspaces/${encodeURIComponent(workspaceSlug)}/posts/${encodeURIComponent(post.id)}/pin`;
+    try {
+      await apiFetch<{ ok: true }>(path, {
+        method: "PATCH",
+        body: JSON.stringify({ pinned: !post.pinnedAt }),
+      });
+      onPinChange?.();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setPinError("You can pin at most 3 posts. Unpin one first.");
+      }
+    } finally {
+      setPinBusy(false);
     }
   }
 
@@ -145,16 +174,50 @@ export function PostCard({
           >
             {post.title}
           </Link>
-          <div className="flex flex-wrap gap-1.5">
-            <Badge tone={categoryTone(post.category)}>{categoryLabel(post.category)}</Badge>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {post.type === "announcement" ? (
+              <Badge tone="brand">
+                <Megaphone aria-hidden />
+                Announcement
+              </Badge>
+            ) : null}
+            {post.pinnedAt ? (
+              <Badge tone="outline">
+                <Pin aria-hidden />
+                Pinned
+              </Badge>
+            ) : null}
+            {post.category !== null ? (
+              <Badge tone={categoryTone(post.category)}>{categoryLabel(post.category)}</Badge>
+            ) : null}
             {post.moderationStatus !== "approved" ? (
               <Badge tone={moderationTone(post.moderationStatus)}>
                 {moderationLabel(post.moderationStatus)}
               </Badge>
             ) : null}
             <Badge tone={boardTone(post.boardStatus)}>{boardLabel(post.boardStatus)}</Badge>
+            {isOwner ? (
+              <button
+                type="button"
+                onClick={handlePinToggle}
+                disabled={pinBusy}
+                title={post.pinnedAt ? "Unpin post" : "Pin post"}
+                aria-label={post.pinnedAt ? "Unpin post" : "Pin post"}
+                className={cn(
+                  "inline-flex items-center justify-center rounded border px-1.5 py-0.5 transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                  post.pinnedAt
+                    ? "border-brand/40 text-brand hover:bg-brand/10"
+                    : "border-border text-muted-foreground hover:border-brand/40 hover:text-brand"
+                )}
+              >
+                <Pin className="size-3" aria-hidden />
+              </button>
+            ) : null}
           </div>
         </div>
+        {pinError ? (
+          <p className="mt-1 text-xs text-destructive">{pinError}</p>
+        ) : null}
 
         {post.imageUrl ? (
           <div className="mt-3 flex justify-center overflow-hidden rounded-xl border border-border bg-muted/30">
