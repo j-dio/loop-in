@@ -11,6 +11,7 @@ type Props = {
   canUpvote: boolean;
   onUpvoteChange: (postId: string, upvoteCount: number, upvoted: boolean) => void;
   refreshKey?: number;
+  onPinChange?: () => void;
 };
 
 export function PinnedStrip({
@@ -21,6 +22,7 @@ export function PinnedStrip({
   canUpvote,
   onUpvoteChange,
   refreshKey = 0,
+  onPinChange,
 }: Props) {
   const [pinnedPosts, setPinnedPosts] = useState<PostDTO[]>([]);
 
@@ -56,6 +58,8 @@ export function PinnedStrip({
               canUpvote={canUpvote}
               onUpvoteChange={onUpvoteChange}
               showFounderBadge={isOwner}
+              isOwner={isOwner}
+              onPinChange={onPinChange}
             />
           </li>
         ))}

@@ -229,6 +229,7 @@ export function Board() {
         canUpvote={canPost}
         onUpvoteChange={onUpvoteChange}
         refreshKey={pinnedRefreshKey}
+        onPinChange={() => setPinnedRefreshKey((k) => k + 1)}
       />
 
       <div className="mx-auto mt-6 w-full max-w-3xl space-y-6">
@@ -342,6 +343,8 @@ export function Board() {
                   canUpvote={canPost}
                   onUpvoteChange={onUpvoteChange}
                   showFounderBadge={isOwner && post.author.id === user?.id}
+                  isOwner={isOwner}
+                  onPinChange={() => setPinnedRefreshKey((k) => k + 1)}
                 />
               </motion.li>
             ))}
