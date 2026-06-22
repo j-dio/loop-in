@@ -9,6 +9,7 @@ import { AiDigestPanel, type DigestData } from "@/components/admin/AiDigestPanel
 import { WorkspaceSettings, type SettingsDraft } from "@/components/admin/WorkspaceSettings";
 import { WorkspaceLogoSection } from "@/components/admin/WorkspaceLogoSection";
 import { MembersPanel } from "@/components/admin/MembersPanel";
+import { AnnouncementsManager } from "@/components/admin/AnnouncementsManager";
 import { ProfileFieldsForm } from "@/components/admin/ProfileFieldsForm";
 import { ScreenshotManager } from "@/components/admin/ScreenshotManager";
 import { LinksManager } from "@/components/admin/LinksManager";
@@ -591,12 +592,7 @@ export function Admin() {
           onBulkModerate={moderateMany}
         />
       ) : section === "updates" ? (
-        <div className="max-w-2xl rounded-lg border border-border bg-card p-6">
-          <p className="font-mono text-xs tracking-[0.18em] text-brand uppercase mb-2">Coming soon</p>
-          <p className="text-muted-foreground text-sm">
-            The Updates section will let you post and manage official status announcements.
-          </p>
-        </div>
+        <AnnouncementsManager slug={slug} />
       ) : (
         <div className="space-y-4">
           <AiDigestPanel
