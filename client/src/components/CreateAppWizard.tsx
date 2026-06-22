@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { ApiError } from "@/lib/api";
 import { isReservedSlug } from "@/lib/reservedSlugs";
+import { LoopMark } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +21,8 @@ interface Props {
 function slugifyName(name: string): string {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 100);
 }
+
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export function CreateAppWizard({ open, onOpenChange }: Props) {
   const navigate = useNavigate();
@@ -68,13 +72,17 @@ export function CreateAppWizard({ open, onOpenChange }: Props) {
 
     setCreating(true);
     try {
-      const w = await createWorkspace({ name: n, slug: s, tagline: t, platform, category });
+      // Run create against a minimum-display floor so the "Creating…" state never flickers on a
+      // fast response, but never pads beyond the real work either.
+      const [w] = await Promise.all([
+        createWorkspace({ name: n, slug: s, tagline: t, platform, category }),
+        delay(700),
+      ]);
       setActiveWorkspace(w);
-      // Stamp onboarding BEFORE navigating. The admin route renders through AppShell,
-      // whose OnboardingGate redirects back to /welcome while onboardingCompletedAt is null.
-      // Awaiting completeOnboarding() (which refreshes the session) ensures the gate sees the
-      // completed state on arrival, so we don't get bounced. Errors are swallowed so a failed
-      // stamp still lets the builder reach their new app.
+      // Stamp onboarding BEFORE navigating. The board route renders through AppShell, whose
+      // OnboardingGate redirects back to /welcome while onboardingCompletedAt is null. Awaiting
+      // completeOnboarding ensures the gate sees the completed state on arrival. Errors are
+      // swallowed so a failed stamp still lets the builder reach their new app.
       if (user?.onboardingCompletedAt == null) {
         try {
           await completeOnboarding();
@@ -83,7 +91,9 @@ export function CreateAppWizard({ open, onOpenChange }: Props) {
         }
       }
       handleOpenChange(false);
-      navigate(`/${w.slug}/admin?section=profile`);
+      // Land on the live public board — they see their app as the world does. ProfileHeader
+      // shows an "Enhance your profile →" nudge there until the deferrable fields are filled.
+      navigate(`/${w.slug}`);
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         setCreateError("That slug is already taken. Try another.");
@@ -104,6 +114,29 @@ export function CreateAppWizard({ open, onOpenChange }: Props) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
+        {creating ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center justify-center gap-5 py-14 text-center"
+          >
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+            >
+              <LoopMark className="size-10" />
+            </motion.div>
+            <div className="space-y-1">
+              <p className="font-display text-lg font-semibold tracking-tight">
+                Creating {name.trim() || "your app"}…
+              </p>
+              <p className="font-mono text-xs tracking-wide text-muted-foreground">
+                Spinning up your feedback board
+              </p>
+            </div>
+          </motion.div>
+        ) : (
+        <>
         <DialogHeader>
           <DialogTitle className="font-display text-2xl font-semibold tracking-tight">Create an app</DialogTitle>
           <DialogDescription>Set up your public feedback board.</DialogDescription>
@@ -170,9 +203,11 @@ export function CreateAppWizard({ open, onOpenChange }: Props) {
           {createError ? <p className="text-sm text-destructive" role="alert">{createError}</p> : null}
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)}>Cancel</Button>
-            <Button type="submit" variant="brand" disabled={creating}>{creating ? "Creating…" : "Create app"}</Button>
+            <Button type="submit" variant="brand" disabled={creating}>Create app</Button>
           </DialogFooter>
         </form>
+        </>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -63,14 +63,10 @@ export function ProfileHeader({ slug, isOwner }: { slug: string; isOwner: boolea
   if (!data) return null;
 
   const { workspace: w, screenshots, links } = data;
-  const isSparse =
-    !w.tagline &&
-    !w.description &&
-    !w.platform &&
-    !w.category &&
-    !w.websiteUrl &&
-    screenshots.length === 0 &&
-    links.length === 0;
+  // The create wizard already forces tagline/platform/category, so "complete" is measured by the
+  // high-impact *deferrable* fields: logo, description, and at least one screenshot. Website + links
+  // stay optional so the nudge is dismissible once the essentials are in.
+  const profileIncomplete = !w.logoUrl || !w.description || screenshots.length === 0;
 
   return (
     <section className="rounded-2xl border border-border bg-card p-6">
@@ -148,11 +144,16 @@ export function ProfileHeader({ slug, isOwner }: { slug: string; isOwner: boolea
         </div>
       ) : null}
 
-      {isOwner && isSparse ? (
-        <div className="mt-5 rounded-xl border border-dashed border-brand/40 bg-brand-bright/10 px-4 py-3 text-sm">
-          <span className="text-muted-foreground">Your app profile is empty. </span>
-          <Link to={`/${slug}/admin`} className="font-medium text-brand hover:underline">
-            Complete your profile →
+      {isOwner && profileIncomplete ? (
+        <div className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-dashed border-brand/40 bg-brand-bright/10 px-4 py-3 text-sm">
+          <span className="text-muted-foreground">
+            Add a logo, description, and screenshots so people know what you’re building.
+          </span>
+          <Link
+            to={`/${slug}/admin?section=profile`}
+            className="font-medium text-brand hover:underline"
+          >
+            Enhance your profile →
           </Link>
         </div>
       ) : null}
