@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { inArray } from "drizzle-orm";
 import { db } from "../../db";
 import { posts, users, workspaces } from "../../db/schema";
-import { createAnnouncement, getPostById, listPosts } from "./posts.service";
+import { createAnnouncement, getPostById, listAnnouncementsForAdmin, listPosts } from "./posts.service";
 import { listApprovedPostsForKanban, listPendingPostsForTriage } from "./posts.service";
 
 // ---------------------------------------------------------------------------
@@ -107,6 +107,31 @@ describe.skipIf(!process.env.DATABASE_URL)("createAnnouncement service", () => {
     const fetched = await getPostById({ workspaceId: ws.id, postId: a.id, ctx: { userId: undefined, workspaceRole: undefined } });
     expect(fetched).not.toBe("not_found");
     expect(fetched).not.toBe("forbidden");
+  });
+});
+
+describe.skipIf(!process.env.DATABASE_URL)("listAnnouncementsForAdmin", () => {
+  it("returns only announcements, not feedback posts", async () => {
+    const ws = await trackedSeedWorkspace({ visibility: "public" });
+    const owner = await seedUser();
+    userIds.push(owner.id);
+
+    await seedPost({ workspaceId: ws.id, moderationStatus: "approved", type: "feedback", title: "a feedback post" });
+    await createAnnouncement({
+      workspaceId: ws.id, authorId: owner.id, title: "an announcement",
+      description: null, imageUrl: null,
+      ctx: { userId: owner.id, workspaceRole: "owner" },
+    });
+
+    const result = await listAnnouncementsForAdmin({
+      workspaceId: ws.id,
+      ctx: { userId: owner.id, workspaceRole: "owner" },
+    });
+
+    const titles = result.map((p) => p.title);
+    expect(titles).toContain("an announcement");
+    expect(titles).not.toContain("a feedback post");
+    expect(result.every((p) => p.type === "announcement")).toBe(true);
   });
 });
 

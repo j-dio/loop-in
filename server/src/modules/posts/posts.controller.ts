@@ -19,6 +19,7 @@ import {
   createPost,
   getMyUpvoteState,
   getPostById,
+  listAnnouncementsForAdmin,
   listApprovedPostsForKanban,
   listPendingPostsForTriage,
   listPinnedPosts,
@@ -123,6 +124,21 @@ export async function listAdminKanbanHandler(req: Request, res: Response, next: 
     });
 
     return res.json({ posts });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listAnnouncementsHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });
+
+    const announcements = await listAnnouncementsForAdmin({
+      workspaceId: req.workspace.id,
+      ctx: requesterCtx(req),
+    });
+
+    return res.json({ posts: announcements });
   } catch (err) {
     next(err);
   }

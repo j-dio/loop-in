@@ -801,6 +801,23 @@ export async function setPostPinned(input: {
   return "ok";
 }
 
+export async function listAnnouncementsForAdmin(input: {
+  workspaceId: string;
+  ctx: RequesterContext;
+}): Promise<PostPublic[]> {
+  const rows = await db
+    .select({ post: posts, authorId: users.id, authorName: users.name, authorAvatar: users.avatarUrl })
+    .from(posts)
+    .innerJoin(users, eq(posts.authorId, users.id))
+    .where(and(
+      eq(posts.workspaceId, input.workspaceId),
+      eq(posts.type, "announcement"),
+      isNull(posts.deletedAt)
+    ))
+    .orderBy(desc(posts.createdAt), desc(posts.id));
+  return rows.map((r) => mapRowToPublic(r, input.ctx));
+}
+
 export async function listPinnedPosts(input: {
   workspaceId: string;
   ctx: RequesterContext;

@@ -18,6 +18,7 @@ import {
   getUpvoteHandler,
   listAdminKanbanHandler,
   listAdminTriageHandler,
+  listAnnouncementsHandler,
   listPinnedHandler,
   listPostsHandler,
   moderatePostHandler,
@@ -35,6 +36,7 @@ const adminOnly = [authenticate, requireRole("owner", "admin")] as const;
 export const postsScopedRouter = Router({ mergeParams: true });
 
 postsScopedRouter.get("/", listPostsHandler);
+postsScopedRouter.get("/announcements", ...adminOnly, listAnnouncementsHandler);
 postsScopedRouter.post("/announcements", ...adminOnly, createAnnouncementHandler);
 postsScopedRouter.get("/admin/triage", ...adminOnly, listAdminTriageHandler);
 postsScopedRouter.get("/admin/kanban", ...adminOnly, listAdminKanbanHandler);
