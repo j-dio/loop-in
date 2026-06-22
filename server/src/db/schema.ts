@@ -26,6 +26,8 @@ export const postCategory = pgEnum('post_category', [
   'ui_tweak',
 ]);
 
+export const postType = pgEnum('post_type', ['feedback', 'announcement']);
+
 export const moderationStatus = pgEnum('moderation_status', [
   'pending',
   'approved',
@@ -223,13 +225,17 @@ export const posts = pgTable('posts', {
 
   description: text('description'),
 
-  category: postCategory('category').notNull(),
+  category: postCategory('category'),
 
   moderationStatus: moderationStatus('moderation_status')
     .notNull()
     .default('pending'),
 
   boardStatus: boardStatus('board_status').notNull().default('inbox'),
+
+  type: postType('type').notNull().default('feedback'),
+
+  pinnedAt: timestamp('pinned_at', { withTimezone: true }),
 
   isAnonymous: boolean('is_anonymous').notNull().default(false),
 
@@ -268,6 +274,10 @@ export const posts = pgTable('posts', {
   publicFeedIdx: index('posts_public_feed_idx')
     .on(desc(table.createdAt), desc(table.id))
     .where(sql`moderation_status = 'approved' AND deleted_at IS NULL`),
+  // Pinned-strip query: per-workspace pinned posts ordered by pinned_at desc.
+  workspacePinnedIdx: index('posts_workspace_pinned_idx')
+    .on(table.workspaceId, desc(table.pinnedAt))
+    .where(sql`pinned_at IS NOT NULL AND deleted_at IS NULL`),
 }));
 
 export const upvotes = pgTable('upvotes', {
