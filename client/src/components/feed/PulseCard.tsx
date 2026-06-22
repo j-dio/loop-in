@@ -32,8 +32,8 @@ export function PulseCard({ item }: PulseCardProps) {
           sizeClassName="size-11"
         />
         <div className="min-w-0 flex-1">
-          <p className="font-mono text-[11px] tracking-[0.18em] text-amber-600 uppercase dark:text-amber-400">
-            Announcement · {workspace.name}
+          <p className="flex items-center gap-1.5 font-mono text-[11px] tracking-[0.18em] text-brand uppercase">
+            <Megaphone className="size-3.5" /> Announcement · {workspace.name}
           </p>
           <p className="mt-1.5 text-base font-semibold tracking-tight text-foreground">
             {item.title}

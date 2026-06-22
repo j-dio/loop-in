@@ -369,7 +369,8 @@ export function Thread() {
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="space-y-1">
                     {post.type === "announcement" ? (
-                      <p className="font-mono text-[11px] tracking-[0.18em] text-amber-600 uppercase dark:text-amber-400">
+                      <p className="flex items-center gap-1.5 font-mono text-[11px] tracking-[0.18em] text-brand uppercase">
+                        <Megaphone className="size-3.5" aria-hidden />
                         Announcement
                       </p>
                     ) : null}

@@ -12,6 +12,8 @@ type Props = {
   onUpvoteChange: (postId: string, upvoteCount: number, upvoted: boolean) => void;
   refreshKey?: number;
   onPinChange?: () => void;
+  /** Reports how many posts are pinned after each fetch, so the parent can hide its header. */
+  onLoaded?: (count: number) => void;
 };
 
 export function PinnedStrip({
@@ -23,6 +25,7 @@ export function PinnedStrip({
   onUpvoteChange,
   refreshKey = 0,
   onPinChange,
+  onLoaded,
 }: Props) {
   const [pinnedPosts, setPinnedPosts] = useState<PostDTO[]>([]);
 
@@ -33,7 +36,10 @@ export function PinnedStrip({
         const data = await apiFetch<{ posts: PostDTO[] }>(
           `/api/workspaces/${encodeURIComponent(slug)}/posts/pinned`
         );
-        if (!cancelled) setPinnedPosts(data.posts);
+        if (!cancelled) {
+          setPinnedPosts(data.posts);
+          onLoaded?.(data.posts.length);
+        }
       } catch {
         /* silently ignore — pinned strip is non-critical */
       }
@@ -41,7 +47,7 @@ export function PinnedStrip({
     return () => {
       cancelled = true;
     };
-  }, [slug, refreshKey]);
+  }, [slug, refreshKey, onLoaded]);
 
   if (pinnedPosts.length === 0) return null;
 

@@ -55,6 +55,7 @@ export function Board() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [announcementOpen, setAnnouncementOpen] = useState(false);
   const [pinnedRefreshKey, setPinnedRefreshKey] = useState(0);
+  const [pinnedCount, setPinnedCount] = useState(0);
   const [pendingLocal, setPendingLocal] = useState<PostDTO[]>([]);
   const [upvotedIds, setUpvotedIds] = useState<Set<string>>(() => new Set());
   const [categoryFilter, setCategoryFilter] = useState<PostDTO["category"] | "all">("all");
@@ -186,26 +187,28 @@ export function Board() {
     <div className="space-y-6">
       <ProfileHeader slug={slug} isOwner={isOwner} />
 
-      {/* Dedicated pinned row: PINNED label (left) + Announcement button (right, owner-only) */}
-      <div className="mx-auto w-full max-w-3xl flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Pin className="size-3.5 text-brand" aria-hidden />
-          <span className="font-mono text-[10px] tracking-[0.22em] text-brand uppercase">
-            Pinned
-          </span>
+      {/* Pinned row: PINNED label (only when posts are pinned) + Announcement button (owner-only).
+          Collapses entirely for non-owners with nothing pinned. */}
+      {pinnedCount > 0 || isOwner ? (
+        <div className="mx-auto w-full max-w-3xl flex items-center justify-between gap-2">
+          {pinnedCount > 0 ? (
+            <div className="flex items-center gap-2">
+              <Pin className="size-3.5 text-brand" aria-hidden />
+              <span className="font-mono text-[10px] tracking-[0.22em] text-brand uppercase">
+                Pinned
+              </span>
+            </div>
+          ) : (
+            <span aria-hidden />
+          )}
+          {isOwner ? (
+            <Button type="button" variant="brand" size="sm" onClick={() => setAnnouncementOpen(true)}>
+              <Megaphone className="size-4" />
+              Announcement
+            </Button>
+          ) : null}
         </div>
-        {isOwner ? (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setAnnouncementOpen(true)}
-            className="border-amber-500/40 text-amber-600 hover:bg-amber-500/10 hover:text-amber-600 dark:border-amber-400/40 dark:text-amber-400 dark:hover:bg-amber-400/10"
-          >
-            <Megaphone className="size-4" />
-            + Announcement
-          </Button>
-        ) : null}
-      </div>
+      ) : null}
 
       <SubmitFeedbackDialog
         workspaceSlug={slug}
@@ -230,6 +233,7 @@ export function Board() {
         onUpvoteChange={onUpvoteChange}
         refreshKey={pinnedRefreshKey}
         onPinChange={() => setPinnedRefreshKey((k) => k + 1)}
+        onLoaded={setPinnedCount}
       />
 
       <div className="mx-auto mt-6 w-full max-w-3xl space-y-6">

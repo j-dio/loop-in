@@ -176,15 +176,16 @@ export function PostCard({
           </Link>
           <div className="flex flex-wrap items-center gap-1.5">
             {post.type === "announcement" ? (
-              <span className="text-xs font-mono uppercase tracking-wider text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-700 px-1.5 py-0.5 rounded">
+              <Badge tone="brand">
+                <Megaphone aria-hidden />
                 Announcement
-              </span>
+              </Badge>
             ) : null}
             {post.pinnedAt ? (
-              <span className="inline-flex items-center gap-1 text-xs font-mono uppercase tracking-wider text-muted-foreground border border-border px-1.5 py-0.5 rounded">
-                <Pin className="size-2.5" aria-hidden />
+              <Badge tone="outline">
+                <Pin aria-hidden />
                 Pinned
-              </span>
+              </Badge>
             ) : null}
             {post.category !== null ? (
               <Badge tone={categoryTone(post.category)}>{categoryLabel(post.category)}</Badge>

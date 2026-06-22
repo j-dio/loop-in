@@ -201,7 +201,7 @@ export function AnnouncementComposer({ workspaceSlug, open, onOpenChange, onCrea
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md" showClose>
         <form onSubmit={handleSubmit} className="space-y-4">
           <DialogHeader>
-            <DialogTitle className="font-display flex items-center gap-2 text-xl font-semibold tracking-tight text-amber-600 dark:text-amber-400">
+            <DialogTitle className="font-display flex items-center gap-2 text-xl font-semibold tracking-tight text-brand">
               <Megaphone className="size-5 shrink-0" aria-hidden />
               Post an announcement
             </DialogTitle>
@@ -308,11 +308,7 @@ export function AnnouncementComposer({ workspaceSlug, open, onOpenChange, onCrea
             }} disabled={submitting}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={submitting || imageUploading}
-              className="bg-amber-600 text-white hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600"
-            >
+            <Button type="submit" variant="brand" disabled={submitting || imageUploading}>
               {submitting ? "Publishing…" : imageUploading ? "Uploading image…" : "Publish"}
             </Button>
           </DialogFooter>
