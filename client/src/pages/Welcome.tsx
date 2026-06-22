@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Compass, Hammer } from "lucide-react";
+import { Navigate, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { ArrowRight, Compass, Hammer } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Logo } from "@/components/brand/Logo";
 import { AppCard, type AppCardWorkspace } from "@/components/feed/AppCard";
+import { SkeletonAppCard } from "@/components/feed/FeedSkeletons";
 import { CreateAppWizard } from "@/components/CreateAppWizard";
 import { Button } from "@/components/ui/button";
+import { fadeUp, staggerContainer } from "@/lib/motion";
 
 type Stage = "fork" | "follow";
 
@@ -44,7 +48,8 @@ export function Welcome() {
   }, [stage]);
 
   if (loading) return null;
-  if (!user) { navigate("/"); return null; }
+  // Redirect declaratively — never call navigate() during render.
+  if (!user) return <Navigate to="/" replace />;
 
   async function finish() {
     if (finishing) return;
@@ -72,15 +77,13 @@ export function Welcome() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
-      {/* Minimal top bar */}
-      <header className="flex h-12 items-center justify-between border-b border-border px-4">
-        <span className="font-display text-base font-semibold tracking-tight">
-          ◉ Loop In
-        </span>
+      {/* Minimal top bar — brand mark + theme only, no app nav (focused first run) */}
+      <header className="flex h-14 items-center justify-between border-b border-border px-5 sm:px-8">
+        <Logo />
         <ThemeToggle />
       </header>
 
-      <main className="flex flex-1 flex-col items-center px-4 py-12">
+      <main className="flex flex-1 flex-col items-center justify-center px-5 py-14 sm:px-8">
         {stage === "fork" && (
           <ForkStage
             onFollowDiscover={() => setStage("follow")}
@@ -95,6 +98,7 @@ export function Welcome() {
             workspaces={workspaces}
             loading={followLoading}
             onFollowChange={handleFollowChange}
+            onBack={() => setStage("fork")}
             onDone={finish}
             finishing={finishing}
           />
@@ -122,70 +126,91 @@ function ForkStage({
   finishing: boolean;
 }) {
   return (
-    <div className="w-full max-w-lg space-y-8">
-      <div className="space-y-2 text-center">
-        <p className="font-mono text-xs tracking-widest uppercase text-brand">
-          Get started
-        </p>
-        <h1 className="font-display text-3xl font-semibold tracking-tight">
+    <motion.div
+      initial="hidden"
+      animate="show"
+      variants={staggerContainer(0.1)}
+      className="w-full max-w-xl space-y-10"
+    >
+      <motion.div variants={fadeUp} className="space-y-3 text-center">
+        <p className="font-mono text-xs tracking-[0.22em] text-brand uppercase">Get started</p>
+        <h1 className="font-display text-[clamp(2rem,5vw,2.75rem)] leading-[1.02] font-semibold tracking-[-0.02em]">
           Welcome to Loop In
         </h1>
-        <p className="text-sm text-muted-foreground">
-          What brings you here today?
+        <p className="mx-auto max-w-sm text-sm leading-relaxed text-muted-foreground">
+          Two ways in. Follow the apps you use and never miss an update, or open a board and start
+          collecting feedback. You can do both later — pick where to start.
         </p>
-      </div>
+      </motion.div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <motion.div variants={fadeUp} className="grid gap-4 sm:grid-cols-2">
         <ChoiceCard
-          icon={<Compass className="size-7" />}
-          title="Follow & discover apps"
-          description="Browse what others are building and follow the ones that interest you."
+          icon={<Compass className="size-6" />}
+          eyebrow="Follower"
+          title="Follow & discover"
+          description="Browse what people are building and follow the apps that matter to you."
           onClick={onFollowDiscover}
         />
         <ChoiceCard
-          icon={<Hammer className="size-7" />}
+          icon={<Hammer className="size-6" />}
+          eyebrow="Builder"
           title="I'm building an app"
-          description="Set up a feedback board for your project in under a minute."
+          description="Spin up a public feedback board for your project in under a minute."
           onClick={onBuildApp}
         />
-      </div>
+      </motion.div>
 
-      <div className="flex justify-center">
+      <motion.div variants={fadeUp} className="flex justify-center">
         <button
           type="button"
           onClick={onSkip}
           disabled={finishing}
-          className="text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+          className="group inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
         >
-          Just exploring →
+          {finishing ? "One moment…" : "Just exploring"}
+          <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
         </button>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
 function ChoiceCard({
   icon,
+  eyebrow,
   title,
   description,
   onClick,
 }: {
   icon: React.ReactNode;
+  eyebrow: string;
   title: string;
   description: string;
   onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex flex-col items-start gap-4 rounded-xl border border-border bg-card p-6 text-left transition-all hover:-translate-y-0.5 hover:border-brand/50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      <span className="text-brand">{icon}</span>
-      <div className="space-y-1">
-        <p className="font-display text-base font-semibold tracking-tight">{title}</p>
-        <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
-      </div>
+    <button type="button" onClick={onClick} className="group relative text-left">
+      {/* Signature stark offset rule — reveals on hover (matches Landing). */}
+      <span
+        className="absolute inset-0 translate-x-2 translate-y-2 border border-brand/40 opacity-0 transition-all duration-200 group-hover:translate-x-1.5 group-hover:translate-y-1.5 group-hover:opacity-100"
+        aria-hidden
+      />
+      <span className="relative flex h-full flex-col gap-4 rounded-xl border border-border bg-card p-6 transition-colors group-hover:border-brand/60 group-focus-visible:border-brand/60">
+        <span className="flex size-11 items-center justify-center rounded-xl border border-border text-brand transition-colors group-hover:border-brand/50">
+          {icon}
+        </span>
+        <span className="space-y-1.5">
+          <span className="block font-mono text-[11px] tracking-[0.18em] text-muted-foreground uppercase">
+            {eyebrow}
+          </span>
+          <span className="block font-display text-lg font-semibold tracking-tight">{title}</span>
+          <span className="block text-xs leading-relaxed text-muted-foreground">{description}</span>
+        </span>
+        <span className="mt-auto inline-flex items-center gap-1.5 pt-1 font-mono text-xs tracking-wide text-brand">
+          Continue
+          <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" />
+        </span>
+      </span>
     </button>
   );
 }
@@ -198,63 +223,89 @@ function FollowStage({
   workspaces,
   loading,
   onFollowChange,
+  onBack,
   onDone,
   finishing,
 }: {
   workspaces: AppCardWorkspace[];
   loading: boolean;
   onFollowChange: (slug: string, data: { following: boolean; followerCount: number }) => void;
+  onBack: () => void;
   onDone: () => void;
   finishing: boolean;
 }) {
+  const followingCount = workspaces.filter((w) => w.isFollowing).length;
+
   return (
-    <div className="w-full max-w-3xl space-y-8">
-      <div className="space-y-2 text-center">
-        <p className="font-mono text-xs tracking-widest uppercase text-brand">
-          Discover
-        </p>
-        <h1 className="font-display text-3xl font-semibold tracking-tight">
+    <motion.div
+      initial="hidden"
+      animate="show"
+      variants={staggerContainer(0.08)}
+      className="w-full max-w-3xl space-y-8"
+    >
+      <motion.div variants={fadeUp} className="space-y-3 text-center">
+        <p className="font-mono text-xs tracking-[0.22em] text-brand uppercase">Discover</p>
+        <h1 className="font-display text-[clamp(1.75rem,4vw,2.5rem)] leading-[1.02] font-semibold tracking-[-0.02em]">
           Follow apps you care about
         </h1>
-        <p className="text-sm text-muted-foreground">
-          Your Following feed will surface their latest updates and posts.
+        <p className="mx-auto max-w-md text-sm leading-relaxed text-muted-foreground">
+          Your Home feed surfaces their latest updates and posts. Follow a few to fill it — you can
+          always find more in Explore.
         </p>
-      </div>
+      </motion.div>
 
       {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-32 animate-pulse rounded-xl border border-border bg-card"
-            />
+            <SkeletonAppCard key={i} />
           ))}
         </div>
       ) : workspaces.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <motion.div variants={fadeUp} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {workspaces.map((w) => (
             <AppCard key={w.slug} workspace={w} onFollowChange={onFollowChange} />
           ))}
-        </div>
+        </motion.div>
       ) : (
-        <p className="text-center text-sm text-muted-foreground">
-          No apps to suggest right now — check back later.
-        </p>
+        <motion.p variants={fadeUp} className="text-center text-sm text-muted-foreground">
+          No apps to suggest right now — you can discover them anytime from Explore.
+        </motion.p>
       )}
 
-      <div className="flex flex-col items-center gap-3 pt-2">
-        <Button variant="brand" onClick={onDone} disabled={finishing} className="w-full max-w-xs">
-          Done
-        </Button>
-        <button
-          type="button"
+      <motion.div variants={fadeUp} className="flex flex-col items-center gap-3 pt-2">
+        <Button
+          variant="brand"
+          size="xl"
           onClick={onDone}
           disabled={finishing}
-          className="text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+          className="w-full max-w-xs rounded-full"
         >
-          Skip
-        </button>
-      </div>
-    </div>
+          {finishing
+            ? "Setting up…"
+            : followingCount > 0
+              ? `Continue with ${followingCount} ${followingCount === 1 ? "app" : "apps"}`
+              : "Continue to Home"}
+        </Button>
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <button
+            type="button"
+            onClick={onBack}
+            disabled={finishing}
+            className="transition-colors hover:text-foreground disabled:opacity-50"
+          >
+            ← Back
+          </button>
+          <span aria-hidden className="text-border">·</span>
+          <button
+            type="button"
+            onClick={onDone}
+            disabled={finishing}
+            className="transition-colors hover:text-foreground disabled:opacity-50"
+          >
+            Skip for now
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
