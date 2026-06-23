@@ -4,6 +4,14 @@ import { ArrowBigUp, ArrowLeft, FileQuestion, Megaphone, Pin, Trash2 } from "luc
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import {
   boardLabel,
@@ -71,6 +79,7 @@ export function Thread() {
   const [pinError, setPinError] = useState<string | null>(null);
   const [deletingPost, setDeletingPost] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
@@ -314,8 +323,6 @@ export function Thread() {
 
   async function handleDeletePost() {
     if (!slug || !postId || deletingPost) return;
-    // Soft delete is reversible at the DB level, but irreversible from the UI — confirm first.
-    if (!window.confirm("Delete this post? It will be removed from the board.")) return;
     setDeletingPost(true);
     setDeleteError(null);
     try {
@@ -435,7 +442,10 @@ export function Thread() {
                     {viewerIsAdminOrOwner || Boolean(user && post.author.id && post.author.id === user.id) ? (
                       <button
                         type="button"
-                        onClick={() => void handleDeletePost()}
+                        onClick={() => {
+                          setDeleteError(null);
+                          setConfirmDeleteOpen(true);
+                        }}
                         disabled={deletingPost}
                         title="Delete post"
                         aria-label="Delete post"
@@ -449,9 +459,40 @@ export function Thread() {
                 {pinError ? (
                   <p className="mt-1 text-xs text-destructive" role="alert">{pinError}</p>
                 ) : null}
-                {deleteError ? (
-                  <p className="mt-1 text-xs text-destructive" role="alert">{deleteError}</p>
-                ) : null}
+                <Dialog
+                  open={confirmDeleteOpen}
+                  onOpenChange={(o) => {
+                    if (!deletingPost) setConfirmDeleteOpen(o);
+                  }}
+                >
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Delete this post?</DialogTitle>
+                      <DialogDescription>
+                        It will be removed from the board. This can’t be undone from here.
+                      </DialogDescription>
+                    </DialogHeader>
+                    {deleteError ? (
+                      <p className="text-sm text-destructive" role="alert">{deleteError}</p>
+                    ) : null}
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => setConfirmDeleteOpen(false)}
+                        disabled={deletingPost}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={() => void handleDeletePost()}
+                        disabled={deletingPost}
+                      >
+                        {deletingPost ? "Deleting…" : "Delete post"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
 
                 {post.imageUrl ? (
                   <div className="mt-4 overflow-hidden rounded-xl border border-border bg-muted/30">
