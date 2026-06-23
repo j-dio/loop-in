@@ -39,6 +39,12 @@ export type PostPublic = {
   upvoteCount: number;
   createdAt: Date;
   author: PostAuthorPublic;
+  /**
+   * True when the requester is the post's author. Computed server-side so the author can
+   * act on their own post (e.g. delete) even when it's anonymous and `author.id` is masked
+   * from everyone — anonymity to other viewers is preserved.
+   */
+  viewerIsAuthor: boolean;
   latestUpdate: PostUpdateLatest | null;
 };
 
@@ -108,6 +114,7 @@ function mapRowToPublic(
     upvoteCount: row.post.upvoteCount,
     createdAt: row.post.createdAt,
     author: serializeAuthorForPost(author, { isAnonymous: row.post.isAnonymous }, ctx),
+    viewerIsAuthor: ctx.userId !== undefined && ctx.userId === row.authorId,
     latestUpdate,
   };
 }

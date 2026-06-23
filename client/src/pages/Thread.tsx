@@ -439,7 +439,9 @@ export function Thread() {
                         <Pin className="size-3" aria-hidden />
                       </button>
                     ) : null}
-                    {viewerIsAdminOrOwner || Boolean(user && post.author.id && post.author.id === user.id) ? (
+                    {viewerIsAdminOrOwner ||
+                    post.viewerIsAuthor ||
+                    Boolean(user && post.author.id && post.author.id === user.id) ? (
                       <button
                         type="button"
                         onClick={() => {
