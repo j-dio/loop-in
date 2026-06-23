@@ -470,3 +470,59 @@ export const notifications = pgTable('notifications', {
     table.readAt,
   ),
 }));
+
+/**
+ * Kind of moderation action recorded in `moderation_events`. `moderation_status` and
+ * `board_status` carry from/to values; `pin`/`unpin`/`delete` are state transitions with no
+ * meaningful prior value (from/to left null).
+ */
+export const moderationAction = pgEnum('moderation_action', [
+  'moderation_status',
+  'board_status',
+  'pin',
+  'unpin',
+  'delete',
+]);
+
+/**
+ * Append-only audit trail for staff moderation actions (accountability across multi-admin
+ * workspaces). Written in the SAME transaction as the mutation it records, so an audit row can
+ * never silently go missing. Never updated or deleted by app code — only cascade-removed if the
+ * post or workspace is hard-deleted. `actorId` is set null (not cascade) so the trail survives
+ * a removed admin (shows up as "deleted user" rather than vanishing).
+ */
+export const moderationEvents = pgTable('moderation_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  workspaceId: uuid('workspace_id')
+    .notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+
+  postId: uuid('post_id')
+    .notNull()
+    .references(() => posts.id, { onDelete: 'cascade' }),
+
+  // Nullable + set null so removing an admin user does not erase their moderation history.
+  actorId: uuid('actor_id')
+    .references(() => users.id, { onDelete: 'set null' }),
+
+  action: moderationAction('action').notNull(),
+
+  fromValue: text('from_value'),
+  toValue: text('to_value'),
+
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+}, (table) => ({
+  // Per-post history drawer: newest first.
+  postIdx: index('moderation_events_post_id_created_at_idx').on(
+    table.postId,
+    desc(table.createdAt),
+  ),
+  // Workspace-wide audit view (future): newest first.
+  workspaceIdx: index('moderation_events_workspace_id_created_at_idx').on(
+    table.workspaceId,
+    desc(table.createdAt),
+  ),
+}));

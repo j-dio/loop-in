@@ -8,6 +8,7 @@ import type { WorkspaceRole } from "../workspaces/workspaces.service";
 import { fetchLatestUpdatesForPosts, type PostUpdateLatest } from "./postUpdates.service";
 import { isAdminOrOwner, viewerCanSeePost, type RequesterContext } from "./posts.helpers";
 import { canPin, MAX_PINNED } from "./posts.pin";
+import { recordModerationEvent } from "./moderationEvents.service";
 
 export type { RequesterContext } from "./posts.helpers";
 export { viewerCanSeePost } from "./posts.helpers";
@@ -558,10 +559,25 @@ export async function softDeletePost(input: {
   if (!row || row.deletedAt) return "not_found";
 
   const isAuthor = row.authorId === input.editorUserId;
-  const canDelete = isAuthor || isAdminOrOwner(input.workspaceRole);
+  const isStaff = isAdminOrOwner(input.workspaceRole);
+  const canDelete = isAuthor || isStaff;
   if (!canDelete) return "forbidden";
 
-  await db.update(posts).set({ deletedAt: new Date() }).where(eq(posts.id, input.postId));
+  await db.transaction(async (tx) => {
+    await tx.update(posts).set({ deletedAt: new Date() }).where(eq(posts.id, input.postId));
+    // Audit staff removals only — an author deleting their own post is not a moderation action.
+    if (isStaff) {
+      await recordModerationEvent(
+        {
+          workspaceId: input.workspaceId,
+          postId: input.postId,
+          actorId: input.editorUserId,
+          action: "delete",
+        },
+        tx,
+      );
+    }
+  });
 
   // The notifications.post_id FK cascades only on a hard delete; a soft delete (deletedAt) would
   // otherwise leave dangling notifications that deep-link to a post that now 404s. Clean them up.
@@ -664,11 +680,29 @@ export async function moderatePost(input: {
   // no-op — don't churn the row or re-fire notifications.
   if (previousStatus === input.moderationStatus) return "no_change";
 
-  const [updated] = await db
-    .update(posts)
-    .set({ moderationStatus: input.moderationStatus })
-    .where(eq(posts.id, input.postId))
-    .returning();
+  // Mutate the status and append the audit row atomically — the trail can never disappear.
+  const updated = await db.transaction(async (tx) => {
+    const [u] = await tx
+      .update(posts)
+      .set({ moderationStatus: input.moderationStatus })
+      .where(eq(posts.id, input.postId))
+      .returning();
+    if (!u) return null;
+    if (input.ctx.userId) {
+      await recordModerationEvent(
+        {
+          workspaceId: input.workspaceId,
+          postId: input.postId,
+          actorId: input.ctx.userId,
+          action: "moderation_status",
+          fromValue: previousStatus,
+          toValue: input.moderationStatus,
+        },
+        tx,
+      );
+    }
+    return u;
+  });
 
   if (!updated) return "not_found";
 
@@ -704,13 +738,33 @@ export async function updatePostBoardStatus(input: {
   if (!row || row.deletedAt) return "not_found";
   if (row.moderationStatus !== "approved") return "not_approved";
 
-  const [updated] = await db
-    .update(posts)
-    .set({ boardStatus: input.boardStatus })
-    .where(eq(posts.id, input.postId))
-    .returning();
-
-  if (!updated) return "not_found";
+  const previousBoardStatus = row.boardStatus as BoardStatus;
+  // Skip the write + audit on a no-op move, but still return the post (existing behavior).
+  if (previousBoardStatus !== input.boardStatus) {
+    const updated = await db.transaction(async (tx) => {
+      const [u] = await tx
+        .update(posts)
+        .set({ boardStatus: input.boardStatus })
+        .where(eq(posts.id, input.postId))
+        .returning();
+      if (!u) return null;
+      if (input.ctx.userId) {
+        await recordModerationEvent(
+          {
+            workspaceId: input.workspaceId,
+            postId: input.postId,
+            actorId: input.ctx.userId,
+            action: "board_status",
+            fromValue: previousBoardStatus,
+            toValue: input.boardStatus,
+          },
+          tx,
+        );
+      }
+      return u;
+    });
+    if (!updated) return "not_found";
+  }
 
   const [joined] = await db
     .select({
@@ -789,6 +843,8 @@ export async function setPostPinned(input: {
   workspaceId: string;
   postId: string;
   pinned: boolean;
+  /** Staff member toggling the pin — recorded in the moderation audit trail. */
+  actorId: string;
 }): Promise<"ok" | "not_found" | "cap_reached"> {
   const [post] = await db
     .select({ id: posts.id, pinnedAt: posts.pinnedAt })
@@ -797,16 +853,33 @@ export async function setPostPinned(input: {
     .limit(1);
   if (!post) return "not_found";
 
+  // No-op (already in the requested pin state): don't churn the row or write a redundant audit row.
+  const alreadyPinned = post.pinnedAt != null;
+  if (alreadyPinned === input.pinned) return "ok";
+
   if (input.pinned) {
     const [{ count }] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(posts)
       .where(and(eq(posts.workspaceId, input.workspaceId), isNotNull(posts.pinnedAt), isNull(posts.deletedAt)));
     if (!canPin(Number(count ?? 0), post.pinnedAt != null)) return "cap_reached";
-    await db.update(posts).set({ pinnedAt: new Date() }).where(eq(posts.id, input.postId));
-  } else {
-    await db.update(posts).set({ pinnedAt: null }).where(eq(posts.id, input.postId));
   }
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(posts)
+      .set({ pinnedAt: input.pinned ? new Date() : null })
+      .where(eq(posts.id, input.postId));
+    await recordModerationEvent(
+      {
+        workspaceId: input.workspaceId,
+        postId: input.postId,
+        actorId: input.actorId,
+        action: input.pinned ? "pin" : "unpin",
+      },
+      tx,
+    );
+  });
   return "ok";
 }
 

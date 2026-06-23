@@ -175,6 +175,34 @@ export async function deleteProfileLink(slug: string, id: string): Promise<{ ok:
   return apiFetch(`${ws(slug)}/links/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
+export type ModerationActionKind =
+  | "moderation_status"
+  | "board_status"
+  | "pin"
+  | "unpin"
+  | "delete";
+
+export type ModerationEventDTO = {
+  id: string;
+  action: ModerationActionKind;
+  fromValue: string | null;
+  toValue: string | null;
+  createdAt: string;
+  /** Null when the acting admin has since been deleted. */
+  actor: { id: string; name: string; avatarUrl: string | null } | null;
+};
+
+/** Staff-only: the moderation audit trail for a single post (newest first). */
+export async function listModerationEvents(
+  slug: string,
+  postId: string
+): Promise<ModerationEventDTO[]> {
+  const res = await apiFetch<{ events: ModerationEventDTO[] }>(
+    `${ws(slug)}/posts/${encodeURIComponent(postId)}/moderation-events`
+  );
+  return res.events;
+}
+
 export type FollowResult = { following: boolean; followerCount: number };
 
 export async function followWorkspace(slug: string): Promise<FollowResult> {
