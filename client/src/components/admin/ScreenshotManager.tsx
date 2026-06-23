@@ -78,14 +78,18 @@ export function ScreenshotManager({ slug }: { slug: string }) {
 
   async function onDragEnd(result: DropResult) {
     if (!result.destination) return;
+    const prev = shots;
     const next = Array.from(shots);
     const [moved] = next.splice(result.source.index, 1);
     next.splice(result.destination.index, 0, moved);
+    setError(null);
     setShots(next);
     try {
       await reorderScreenshots(slug, next.map((s) => s.id));
     } catch {
-      setError("Couldn’t save the new order. Refresh to re-sync.");
+      // Revert so the visible order matches the server (which kept the old order).
+      setShots(prev);
+      setError("Couldn’t save the new order. Please try again.");
     }
   }
 
