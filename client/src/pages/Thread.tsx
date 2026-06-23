@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowBigUp, ArrowLeft, FileQuestion, Megaphone, Pin, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -48,6 +48,7 @@ function ThreadSkeleton() {
 
 export function Thread() {
   const { slug, id: postId } = useParams();
+  const navigate = useNavigate();
   const { workspaces, setActiveWorkspace, activeWorkspace, user } = useWorkspace();
 
   const [post, setPost] = useState<PostDTO | null>(null);
@@ -68,6 +69,8 @@ export function Thread() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [pinBusy, setPinBusy] = useState(false);
   const [pinError, setPinError] = useState<string | null>(null);
+  const [deletingPost, setDeletingPost] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!slug) return;
@@ -309,6 +312,25 @@ export function Thread() {
     }
   }
 
+  async function handleDeletePost() {
+    if (!slug || !postId || deletingPost) return;
+    // Soft delete is reversible at the DB level, but irreversible from the UI — confirm first.
+    if (!window.confirm("Delete this post? It will be removed from the board.")) return;
+    setDeletingPost(true);
+    setDeleteError(null);
+    try {
+      await apiFetch(
+        `/api/workspaces/${encodeURIComponent(slug)}/posts/${encodeURIComponent(postId)}`,
+        { method: "DELETE" }
+      );
+      // Back to the board; the deleted post no longer appears in any feed.
+      navigate(`/${encodeURIComponent(slug)}`);
+    } catch {
+      setDeleteError("Could not delete this post. Please try again.");
+      setDeletingPost(false);
+    }
+  }
+
   if (!slug || !postId) {
     return <p className="text-muted-foreground text-sm">Missing workspace or post.</p>;
   }
@@ -410,10 +432,25 @@ export function Thread() {
                         <Pin className="size-3" aria-hidden />
                       </button>
                     ) : null}
+                    {viewerIsAdminOrOwner || Boolean(user && post.author.id && post.author.id === user.id) ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleDeletePost()}
+                        disabled={deletingPost}
+                        title="Delete post"
+                        aria-label="Delete post"
+                        className="inline-flex items-center justify-center rounded border border-border px-1.5 py-0.5 text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Trash2 className="size-3" aria-hidden />
+                      </button>
+                    ) : null}
                   </div>
                 </div>
                 {pinError ? (
                   <p className="mt-1 text-xs text-destructive" role="alert">{pinError}</p>
+                ) : null}
+                {deleteError ? (
+                  <p className="mt-1 text-xs text-destructive" role="alert">{deleteError}</p>
                 ) : null}
 
                 {post.imageUrl ? (
