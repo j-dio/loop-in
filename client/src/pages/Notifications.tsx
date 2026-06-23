@@ -66,14 +66,17 @@ export function Notifications() {
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [markingAll, setMarkingAll] = useState(false);
   const activeTab = useRef(tab);
   activeTab.current = tab;
 
   const loadPage = useCallback(async (filter: Tab, cur: string | null) => {
     const isFirst = cur == null;
-    if (isFirst) setLoading(true);
-    else setLoadingMore(true);
+    if (isFirst) {
+      setLoading(true);
+      setError(null);
+    } else setLoadingMore(true);
     try {
       const res = await fetchNotifications({
         limit: 20,
@@ -84,7 +87,9 @@ export function Notifications() {
       setCursor(res.nextCursor);
       setHasMore(res.nextCursor != null);
     } catch {
-      /* silent */
+      // Only the initial load drives the full-page error; a "load more" failure leaves
+      // the already-shown list intact (silent — the user can retry the button).
+      if (isFirst) setError("Couldn't load your notifications.");
     } finally {
       if (isFirst) setLoading(false);
       else setLoadingMore(false);
@@ -160,6 +165,21 @@ export function Notifications() {
 
       {loading ? (
         <SkeletonRows />
+      ) : error ? (
+        <div
+          className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-8 text-center"
+          role="alert"
+        >
+          <p className="text-sm text-destructive">{error}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-4"
+            onClick={() => void loadPage(tab, null)}
+          >
+            Try again
+          </Button>
+        </div>
       ) : displayed.length === 0 ? (
         <div className="rounded-xl border border-border py-16 text-center">
           <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-secondary">
