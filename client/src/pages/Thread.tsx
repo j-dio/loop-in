@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowBigUp, ArrowLeft, FileQuestion, Megaphone, Pin, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import {
   boardLabel,
@@ -15,6 +23,7 @@ import {
 } from "@/lib/postDisplay";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { UserAvatar } from "@/components/UserAvatar";
+import { ModerationHistory } from "@/components/admin/ModerationHistory";
 import { ApiError, apiFetch } from "@/lib/api";
 import { setReturnTo } from "@/lib/returnTo";
 import type { CommentDTO } from "@/lib/commentTypes";
@@ -47,6 +56,7 @@ function ThreadSkeleton() {
 
 export function Thread() {
   const { slug, id: postId } = useParams();
+  const navigate = useNavigate();
   const { workspaces, setActiveWorkspace, activeWorkspace, user } = useWorkspace();
 
   const [post, setPost] = useState<PostDTO | null>(null);
@@ -67,6 +77,9 @@ export function Thread() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [pinBusy, setPinBusy] = useState(false);
   const [pinError, setPinError] = useState<string | null>(null);
+  const [deletingPost, setDeletingPost] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
@@ -308,6 +321,23 @@ export function Thread() {
     }
   }
 
+  async function handleDeletePost() {
+    if (!slug || !postId || deletingPost) return;
+    setDeletingPost(true);
+    setDeleteError(null);
+    try {
+      await apiFetch(
+        `/api/workspaces/${encodeURIComponent(slug)}/posts/${encodeURIComponent(postId)}`,
+        { method: "DELETE" }
+      );
+      // Back to the board; the deleted post no longer appears in any feed.
+      navigate(`/${encodeURIComponent(slug)}`);
+    } catch {
+      setDeleteError("Could not delete this post. Please try again.");
+      setDeletingPost(false);
+    }
+  }
+
   if (!slug || !postId) {
     return <p className="text-muted-foreground text-sm">Missing workspace or post.</p>;
   }
@@ -409,11 +439,62 @@ export function Thread() {
                         <Pin className="size-3" aria-hidden />
                       </button>
                     ) : null}
+                    {viewerIsAdminOrOwner ||
+                    post.viewerIsAuthor ||
+                    Boolean(user && post.author.id && post.author.id === user.id) ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeleteError(null);
+                          setConfirmDeleteOpen(true);
+                        }}
+                        disabled={deletingPost}
+                        title="Delete post"
+                        aria-label="Delete post"
+                        className="inline-flex items-center justify-center rounded border border-border px-1.5 py-0.5 text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Trash2 className="size-3" aria-hidden />
+                      </button>
+                    ) : null}
                   </div>
                 </div>
                 {pinError ? (
                   <p className="mt-1 text-xs text-destructive" role="alert">{pinError}</p>
                 ) : null}
+                <Dialog
+                  open={confirmDeleteOpen}
+                  onOpenChange={(o) => {
+                    if (!deletingPost) setConfirmDeleteOpen(o);
+                  }}
+                >
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Delete this post?</DialogTitle>
+                      <DialogDescription>
+                        It will be removed from the board. This can’t be undone from here.
+                      </DialogDescription>
+                    </DialogHeader>
+                    {deleteError ? (
+                      <p className="text-sm text-destructive" role="alert">{deleteError}</p>
+                    ) : null}
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => setConfirmDeleteOpen(false)}
+                        disabled={deletingPost}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={() => void handleDeletePost()}
+                        disabled={deletingPost}
+                      >
+                        {deletingPost ? "Deleting…" : "Delete post"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
 
                 {post.imageUrl ? (
                   <div className="mt-4 overflow-hidden rounded-xl border border-border bg-muted/30">
@@ -511,6 +592,10 @@ export function Thread() {
               )}
             </section>
           )}
+
+          {viewerIsAdminOrOwner && slug && postId ? (
+            <ModerationHistory slug={slug} postId={postId} />
+          ) : null}
 
           <section className="space-y-3" aria-labelledby="comments-heading">
             <h2 id="comments-heading" className="text-xl font-medium tracking-tight">

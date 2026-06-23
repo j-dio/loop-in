@@ -8,18 +8,43 @@ export type { RateLimitResult } from "../lib/rateLimitSlidingRedis";
 
 export type RateLimitBucket = "auth" | "createPost" | "upvote" | "comment" | "upload" | "default";
 
-/** Per roadmap Step 7 / PRD — single source of truth for limits. */
+/**
+ * Optional per-bucket env overrides: `RL_<BUCKET>_LIMIT` and `RL_<BUCKET>_WINDOW_MS`
+ * (bucket upper-cased, e.g. `RL_CREATEPOST_LIMIT`, `RL_DEFAULT_LIMIT`). Lets dev/test loosen
+ * limits — and prod tune them — without a code change. Falls back to the documented default
+ * when unset or non-numeric. Read once at module load (env is loaded before this imports).
+ */
+function envLimit(
+  bucket: string,
+  defLimit: number,
+  defWindowMs: number,
+): { limit: number; windowMs: number } {
+  const key = bucket.toUpperCase();
+  const limit = Number(process.env[`RL_${key}_LIMIT`]);
+  const windowMs = Number(process.env[`RL_${key}_WINDOW_MS`]);
+  return {
+    limit: Number.isFinite(limit) && limit > 0 ? limit : defLimit,
+    windowMs: Number.isFinite(windowMs) && windowMs > 0 ? windowMs : defWindowMs,
+  };
+}
+
+/** Per roadmap Step 7 / PRD — single source of truth for limits (env-overridable, see `envLimit`). */
 export const RATE_LIMITS: Record<
   RateLimitBucket,
   { limit: number; windowMs: number }
 > = {
-  auth: { limit: 10, windowMs: 60_000 },
-  createPost: { limit: 5, windowMs: 3_600_000 },
-  upvote: { limit: 30, windowMs: 60_000 },
-  comment: { limit: 20, windowMs: 60_000 },
+  auth: envLimit("auth", 10, 60_000),
+  // Per-user post cap. The real spam backstop is hold-for-mod (moderation_status=pending) +
+  // the per-IP ceiling in PARTICIPANT_IP_LIMITS; this just blunts a single account.
+  createPost: envLimit("createPost", 20, 3_600_000),
+  upvote: envLimit("upvote", 30, 60_000),
+  comment: envLimit("comment", 20, 60_000),
   // Presigned-upload minting: tighter than default so a user can't mint a flood of PUT URLs.
-  upload: { limit: 20, windowMs: 60_000 },
-  default: { limit: 100, windowMs: 60_000 },
+  upload: envLimit("upload", 20, 60_000),
+  // Cheap public reads (explore GETs + workspace/notification GETs all classify here). A
+  // read-heavy SPA fans out several parallel calls per page (×2 under React StrictMode in dev),
+  // so this must be generous; 600/min still caps a scraper without 429-ing normal browsing.
+  default: envLimit("default", 600, 60_000),
 };
 
 /**

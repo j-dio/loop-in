@@ -19,6 +19,7 @@ import {
   listAdminKanbanHandler,
   listAdminTriageHandler,
   listAnnouncementsHandler,
+  listModerationEventsHandler,
   listPinnedHandler,
   listPostsHandler,
   moderatePostHandler,
@@ -45,6 +46,7 @@ postsScopedRouter.get("/:postId/upvote", getUpvoteHandler);
 postsScopedRouter.post("/:postId/upvote", authenticate, requireParticipant, postToggleUpvoteHandler);
 postsScopedRouter.get("/:postId/updates", listPostUpdatesHandler);
 postsScopedRouter.post("/:postId/updates", ...adminOnly, createPostUpdateHandler);
+postsScopedRouter.get("/:postId/moderation-events", ...adminOnly, listModerationEventsHandler);
 postsScopedRouter.get("/:postId/comments", listCommentsHandler);
 postsScopedRouter.post("/:postId/comments", authenticate, requireParticipant, createCommentHandler);
 postsScopedRouter.delete("/:postId/comments/:commentId", authenticate, deleteCommentHandler);

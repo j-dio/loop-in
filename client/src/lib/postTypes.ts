@@ -13,6 +13,9 @@ export type PostDTO = {
   upvoteCount: number;
   createdAt: string;
   author: { id?: string; name: string; avatarUrl: string | null };
+  // Server-computed: true when the requester authored this post, even for anonymous posts
+  // where author.id is masked. Lets the author delete their own anonymous post.
+  viewerIsAuthor?: boolean;
   latestUpdate: { content: string; createdAt: string } | null;
 };
 

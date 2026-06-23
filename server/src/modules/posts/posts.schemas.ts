@@ -84,3 +84,7 @@ export const CreateAnnouncementBodySchema = z.object({
 });
 
 export const PinBodySchema = z.object({ pinned: z.boolean() });
+
+export const ModerationEventsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+});

@@ -17,14 +17,14 @@ export function AppShell() {
       <OnboardingGate />
       <AppTopBar onToggleMobileNav={() => setMobileOpen(true)} />
       <div className="flex flex-1">
-        {isAdmin && (
-          <AppSidebar
-            collapsed={collapsed}
-            mobileOpen={mobileOpen}
-            onToggleCollapsed={toggleCollapsed}
-            onCloseMobile={() => setMobileOpen(false)}
-          />
-        )}
+        {/* Drawer renders on every page (mobile global nav); the desktop rail is admin-only. */}
+        <AppSidebar
+          isAdmin={isAdmin}
+          collapsed={collapsed}
+          mobileOpen={mobileOpen}
+          onToggleCollapsed={toggleCollapsed}
+          onCloseMobile={() => setMobileOpen(false)}
+        />
         <motion.main
           key={location.pathname}
           initial={{ opacity: 0, y: 8 }}
