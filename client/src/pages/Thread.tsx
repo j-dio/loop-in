@@ -15,6 +15,7 @@ import {
 } from "@/lib/postDisplay";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { UserAvatar } from "@/components/UserAvatar";
+import { ModerationHistory } from "@/components/admin/ModerationHistory";
 import { ApiError, apiFetch } from "@/lib/api";
 import { setReturnTo } from "@/lib/returnTo";
 import type { CommentDTO } from "@/lib/commentTypes";
@@ -511,6 +512,10 @@ export function Thread() {
               )}
             </section>
           )}
+
+          {viewerIsAdminOrOwner && slug && postId ? (
+            <ModerationHistory slug={slug} postId={postId} />
+          ) : null}
 
           <section className="space-y-3" aria-labelledby="comments-heading">
             <h2 id="comments-heading" className="text-xl font-medium tracking-tight">

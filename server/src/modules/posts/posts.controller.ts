@@ -4,6 +4,7 @@ import {
   CreateAnnouncementBodySchema,
   CreatePostBodySchema,
   ListPostsQuerySchema,
+  ModerationEventsQuerySchema,
   ModeratePostBodySchema,
   PatchBoardStatusBodySchema,
   PatchPostBodySchema,
@@ -32,6 +33,7 @@ import {
   updatePostBoardStatus,
   type ListPostsSort,
 } from "./posts.service";
+import { listModerationEvents } from "./moderationEvents.service";
 
 function parseCursor(raw: string | undefined, sort: ListPostsSort):
   | { k: "newest"; createdAt: Date; id: string }
@@ -481,6 +483,7 @@ export async function createAnnouncementHandler(req: Request, res: Response, nex
 export async function pinPostHandler(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });
+    if (!req.user?.id) return res.status(401).json({ error: "Unauthorized" });
 
     const paramsParsed = PostIdParamsSchema.safeParse(req.params);
     if (!paramsParsed.success) {
@@ -496,6 +499,7 @@ export async function pinPostHandler(req: Request, res: Response, next: NextFunc
       workspaceId: req.workspace.id,
       postId: paramsParsed.data.postId,
       pinned: bodyParsed.data.pinned,
+      actorId: req.user.id,
     });
 
     if (result === "not_found") return res.status(404).json({ error: "Post not found" });
@@ -504,6 +508,33 @@ export async function pinPostHandler(req: Request, res: Response, next: NextFunc
     }
 
     return res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** GET /:slug/posts/:postId/moderation-events — staff-only audit trail for a post. */
+export async function listModerationEventsHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.workspace) return res.status(404).json({ error: "Workspace not found" });
+
+    const paramsParsed = PostIdParamsSchema.safeParse(req.params);
+    if (!paramsParsed.success) {
+      return res.status(400).json({ error: "Invalid params", details: paramsParsed.error.flatten() });
+    }
+
+    const queryParsed = ModerationEventsQuerySchema.safeParse(req.query);
+    if (!queryParsed.success) {
+      return res.status(400).json({ error: "Invalid query", details: queryParsed.error.flatten() });
+    }
+
+    const events = await listModerationEvents({
+      workspaceId: req.workspace.id,
+      postId: paramsParsed.data.postId,
+      limit: queryParsed.data.limit,
+    });
+
+    return res.json({ events });
   } catch (err) {
     next(err);
   }
