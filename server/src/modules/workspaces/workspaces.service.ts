@@ -3,6 +3,7 @@ import { and, eq, gt, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { pendingInvites, users, workspaceMembers, workspaces } from "../../db/schema";
 import { sendAddedToWorkspaceEmail, sendPendingInviteEmail } from "../email/email.service";
+import { notifyWorkspaceInvite } from "../notifications/notifications.service";
 
 export type WorkspaceVisibility = "public" | "invite_only";
 export type WorkspaceRole = "owner" | "admin" | "member";
@@ -180,6 +181,7 @@ export async function findUserByEmailCaseInsensitive(email: string): Promise<{ i
 async function addExistingUserAsMember(input: {
   workspaceId: string;
   userId: string;
+  role: "admin" | "member";
 }): Promise<WorkspaceMemberPublic | "already_member"> {
   const [existing] = await db
     .select({ role: workspaceMembers.role })
@@ -199,7 +201,7 @@ async function addExistingUserAsMember(input: {
     .values({
       workspaceId: input.workspaceId,
       userId: input.userId,
-      role: "member",
+      role: input.role,
     })
     .returning();
 
@@ -230,6 +232,7 @@ export async function inviteUserAsMember(input: {
   workspaceId: string;
   email: string;
   invitedByUserId: string;
+  role: "admin" | "member";
 }): Promise<
   WorkspaceMemberPublic | { pending: true; email: string } | "already_member" | "already_pending"
 > {
@@ -257,6 +260,7 @@ export async function inviteUserAsMember(input: {
     const result = await addExistingUserAsMember({
       workspaceId: input.workspaceId,
       userId: invitedUser.id,
+      role: input.role,
     });
     if (result !== "already_member") {
       await sendAddedToWorkspaceEmail({
@@ -264,6 +268,16 @@ export async function inviteUserAsMember(input: {
         workspaceName,
         inviterName,
         workspaceUrl: `${clientUrl}/${workspaceSlug}`,
+      });
+      // In-app ping for the newly-added user (fire-and-forget; copy varies by role).
+      notifyWorkspaceInvite({
+        recipientId: invitedUser.id,
+        workspaceId: input.workspaceId,
+        workspaceSlug,
+        workspaceName,
+        actorId: input.invitedByUserId,
+        actorName: inviterName,
+        role: input.role,
       });
     }
     return result;
@@ -288,7 +302,7 @@ export async function inviteUserAsMember(input: {
   await db.insert(pendingInvites).values({
     workspaceId: input.workspaceId,
     email: normalizedEmail,
-    role: "member",
+    role: input.role,
     invitedBy: input.invitedByUserId,
     token,
     expiresAt,
@@ -397,6 +411,7 @@ export async function acceptInviteByToken(input: {
       id: pendingInvites.id,
       workspaceId: pendingInvites.workspaceId,
       email: pendingInvites.email,
+      role: pendingInvites.role,
       expiresAt: pendingInvites.expiresAt,
       workspaceName: workspaces.name,
       workspaceSlug: workspaces.slug,
@@ -416,6 +431,7 @@ export async function acceptInviteByToken(input: {
   const result = await addExistingUserAsMember({
     workspaceId: row.workspaceId,
     userId: input.userId,
+    role: row.role === "admin" ? "admin" : "member",
   });
 
   if (result === "already_member") return "already_member";

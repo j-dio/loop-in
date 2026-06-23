@@ -245,6 +245,7 @@ export async function postWorkspaceMember(req: Request, res: Response, next: Nex
       workspaceId: req.workspace.id,
       email: bodyParsed.data.email,
       invitedByUserId: req.user.id,
+      role: bodyParsed.data.role,
     });
 
     if (result === "already_member") {

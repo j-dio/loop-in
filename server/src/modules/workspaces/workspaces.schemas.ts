@@ -68,8 +68,11 @@ export const WorkspaceMembersParamsSchema = z.object({
   slug: WorkspaceSlugSchema,
 });
 
+// Invites mint collaborators (admins) by default. `member` is for non-staff
+// participants on invite_only boards (owner role cannot be granted via invite).
 export const InviteMemberBodySchema = z.object({
   email: z.string().trim().email().max(255),
+  role: z.enum(["admin", "member"]).optional().default("admin"),
 });
 
 export const RemoveMemberParamsSchema = z.object({
