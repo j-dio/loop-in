@@ -39,7 +39,8 @@ export function validateEnv(): void {
     "S3_BUCKET",
     "AWS_REGION",
     "GEMINI_API_KEY",
-    "SES_FROM_EMAIL",
+    "RESEND_API_KEY",
+    "FROM_EMAIL",
     "SENTRY_DSN",
   ];
   const degraded = recommended.filter((name) => !process.env[name]?.trim());

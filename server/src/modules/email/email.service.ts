@@ -1,19 +1,19 @@
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
+import { Resend } from "resend";
 import { logger } from "../../lib/logger";
 
-let sesClient: SESClient | null = null;
+let resendClient: Resend | null = null;
 
 export function isEmailConfigured(): boolean {
-  return Boolean(process.env.SES_FROM_EMAIL?.trim() && process.env.AWS_REGION?.trim());
+  return Boolean(process.env.RESEND_API_KEY?.trim() && process.env.FROM_EMAIL?.trim());
 }
 
-function getClient(): SESClient {
-  if (!sesClient) {
-    const region = process.env.AWS_REGION?.trim();
-    if (!region) throw new Error("AWS_REGION is required for SES");
-    sesClient = new SESClient({ region });
+function getClient(): Resend {
+  if (!resendClient) {
+    const apiKey = process.env.RESEND_API_KEY?.trim();
+    if (!apiKey) throw new Error("RESEND_API_KEY is required");
+    resendClient = new Resend(apiKey);
   }
-  return sesClient;
+  return resendClient;
 }
 
 async function sendEmail(input: {
@@ -22,22 +22,18 @@ async function sendEmail(input: {
   html: string;
   text: string;
 }): Promise<void> {
-  const from = process.env.SES_FROM_EMAIL?.trim();
-  if (!from) throw new Error("SES_FROM_EMAIL is not configured");
+  const from = process.env.FROM_EMAIL?.trim();
+  if (!from) throw new Error("FROM_EMAIL is not configured");
 
-  const command = new SendEmailCommand({
-    Source: `Loop In <${from}>`,
-    Destination: { ToAddresses: [input.to] },
-    Message: {
-      Subject: { Data: input.subject, Charset: "UTF-8" },
-      Body: {
-        Html: { Data: input.html, Charset: "UTF-8" },
-        Text: { Data: input.text, Charset: "UTF-8" },
-      },
-    },
+  const { error } = await getClient().emails.send({
+    from: `Loop In <${from}>`,
+    to: [input.to],
+    subject: input.subject,
+    html: input.html,
+    text: input.text,
   });
 
-  await getClient().send(command);
+  if (error) throw new Error(error.message);
 }
 
 export async function sendPendingInviteEmail(input: {
