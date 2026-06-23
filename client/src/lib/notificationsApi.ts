@@ -7,6 +7,7 @@ export type NotificationData = {
   actorName?: string;
   commentPreview?: string;
   boardStatus?: string;
+  role?: "admin" | "member";
 };
 
 export type NotificationType =
@@ -17,7 +18,8 @@ export type NotificationType =
   | "post_update"
   | "post_comment"
   | "app_shipped"
-  | "app_update";
+  | "app_update"
+  | "workspace_invite";
 
 export type Notification = {
   id: string;
@@ -64,6 +66,10 @@ export function notificationDeepLink(
 ): string {
   const slug = n.data.appSlug ?? "";
   if (n.postId && slug) return `/${slug}/post/${n.postId}`;
+  // Admins land on the admin console; members land on the public board.
+  if (n.type === "workspace_invite" && slug) {
+    return n.data.role === "admin" ? `/${slug}/admin` : `/${slug}`;
+  }
   return slug ? `/${slug}` : "/";
 }
 
@@ -81,6 +87,10 @@ export function notificationText(n: Pick<Notification, "type" | "data">): string
     case "post_comment":     return `${actor} commented on ${title}`;
     case "app_shipped":      return `${app} shipped: ${title}`;
     case "app_update":       return `${app} posted an update on ${title}`;
+    case "workspace_invite": {
+      const seat = data.role === "member" ? "a member" : "an admin";
+      return `${actor} added you as ${seat} of ${app}`;
+    }
     default:                 return "New notification";
   }
 }

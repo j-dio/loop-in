@@ -8,7 +8,7 @@ import { KanbanBoard, type ColumnsState, type BoardColumnId } from "@/components
 import { AiDigestPanel, type DigestData } from "@/components/admin/AiDigestPanel";
 import { WorkspaceSettings, type SettingsDraft } from "@/components/admin/WorkspaceSettings";
 import { WorkspaceLogoSection } from "@/components/admin/WorkspaceLogoSection";
-import { MembersPanel } from "@/components/admin/MembersPanel";
+import { MembersPanel, type InviteRole } from "@/components/admin/MembersPanel";
 import { AnnouncementsManager } from "@/components/admin/AnnouncementsManager";
 import { ProfileFieldsForm } from "@/components/admin/ProfileFieldsForm";
 import { ScreenshotManager } from "@/components/admin/ScreenshotManager";
@@ -125,6 +125,7 @@ export function Admin() {
   const [cancellingInviteId, setCancellingInviteId] = useState<string | null>(null);
 
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<InviteRole>("admin");
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
   const [inviteFeedback, setInviteFeedback] = useState<{ kind: "ok" | "err"; text: string } | null>(
     null
@@ -299,7 +300,7 @@ export function Admin() {
     try {
       const data = await apiFetch<PostMemberInviteResponse>(
         `/api/workspaces/${encodeURIComponent(slug)}/members`,
-        { method: "POST", body: JSON.stringify({ email: inviteEmail.trim() }) }
+        { method: "POST", body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }) }
       );
       if ("pending" in data && data.pending) {
         setInviteFeedback({
@@ -567,11 +568,13 @@ export function Admin() {
               removingId={removingId}
               cancellingInviteId={cancellingInviteId}
               inviteEmail={inviteEmail}
+              inviteRole={inviteRole}
               inviteSubmitting={inviteSubmitting}
               inviteFeedback={inviteFeedback}
               onRemove={(userId) => void removeMember(userId)}
               onCancelInvite={(inviteId) => void cancelInvite(inviteId)}
               onInviteEmailChange={setInviteEmail}
+              onInviteRoleChange={setInviteRole}
               onSubmitInvite={(ev) => void submitMemberInvite(ev)}
             />
           ) : null}

@@ -2,7 +2,15 @@ import type { FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Segmented } from "@/components/ui/segmented";
 import { Section } from "@/components/admin/Section";
+
+export type InviteRole = "admin" | "member";
+
+const INVITE_ROLE_OPTIONS = [
+  ["admin", "Admin"],
+  ["member", "Member"],
+] as const;
 
 type WorkspaceRole = "owner" | "admin" | "member";
 
@@ -29,11 +37,13 @@ export function MembersPanel({
   removingId,
   cancellingInviteId,
   inviteEmail,
+  inviteRole,
   inviteSubmitting,
   inviteFeedback,
   onRemove,
   onCancelInvite,
   onInviteEmailChange,
+  onInviteRoleChange,
   onSubmitInvite,
 }: {
   members: MemberRow[];
@@ -43,11 +53,13 @@ export function MembersPanel({
   removingId: string | null;
   cancellingInviteId: string | null;
   inviteEmail: string;
+  inviteRole: InviteRole;
   inviteSubmitting: boolean;
   inviteFeedback: { kind: "ok" | "err"; text: string } | null;
   onRemove: (userId: string) => void;
   onCancelInvite: (inviteId: string) => void;
   onInviteEmailChange: (email: string) => void;
+  onInviteRoleChange: (role: InviteRole) => void;
   onSubmitInvite: (e: FormEvent) => void;
 }) {
   return (
@@ -108,7 +120,7 @@ export function MembersPanel({
       ) : null}
 
       {canInvite ? (
-        <Section title="Invite member">
+        <Section title="Invite collaborator">
           <p className="text-sm text-muted-foreground">
             Add someone by email. If they do not have a LoopIn account yet, they will join this
             workspace when they first sign in with this email.
@@ -125,6 +137,20 @@ export function MembersPanel({
                 onChange={(ev) => onInviteEmailChange(ev.target.value)}
                 disabled={inviteSubmitting}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <Segmented
+                options={INVITE_ROLE_OPTIONS}
+                value={inviteRole}
+                onChange={(v) => onInviteRoleChange(v as InviteRole)}
+                size="sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                {inviteRole === "admin"
+                  ? "Admins can triage, moderate, and manage this app."
+                  : "Members can read and participate on private boards. No admin access."}
+              </p>
             </div>
             {inviteFeedback ? (
               <p
