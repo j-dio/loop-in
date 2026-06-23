@@ -146,4 +146,22 @@ describe("buildNotificationData", () => {
   it("returns empty object for empty input", () => {
     expect(buildNotificationData({})).toEqual({});
   });
+
+  it.each(["admin", "member"] as const)(
+    "carries role=%s for a workspace_invite snapshot",
+    (role) => {
+      const data = buildNotificationData({
+        appName: "Orbit Notes",
+        appSlug: "orbit-notes",
+        actorName: "Maya",
+        role,
+      });
+      expect(data).toEqual({
+        appName: "Orbit Notes",
+        appSlug: "orbit-notes",
+        actorName: "Maya",
+        role,
+      });
+    },
+  );
 });

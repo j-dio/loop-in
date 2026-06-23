@@ -14,6 +14,7 @@ export type NotificationData = {
   actorName?: string;
   commentPreview?: string;
   boardStatus?: string;
+  role?: "admin" | "member";
 };
 
 type NewNotification = InferInsertModel<typeof notifications>;
@@ -52,6 +53,7 @@ export function buildNotificationData(input: Partial<NotificationData>): Notific
         : input.commentPreview;
   }
   if (input.boardStatus !== undefined)   data.boardStatus = input.boardStatus;
+  if (input.role !== undefined)          data.role = input.role;
   return data;
 }
 
@@ -304,6 +306,43 @@ export function notifyAppMilestone(input: {
       await createNotifications(rows);
     } catch (err) {
       logger.error({ err, workspaceId: input.workspaceId }, "Failed to fan-out app milestone notification");
+    }
+  })();
+}
+
+/**
+ * Fire when an existing user is added to a workspace (direct-add path only).
+ * Pending-invite acceptance is user-initiated, so no in-app ping there.
+ * Message copy is role-dependent on the client (data.role).
+ */
+export function notifyWorkspaceInvite(input: {
+  recipientId: string;
+  workspaceId: string;
+  workspaceSlug: string;
+  workspaceName: string;
+  actorId: string;
+  actorName?: string | null;
+  role: "admin" | "member";
+}): void {
+  if (input.recipientId === input.actorId) return; // self-add guard
+  void (async () => {
+    try {
+      const actorName = input.actorName ?? (await resolveActorName(input.actorId));
+      await createNotifications([{
+        recipientId: input.recipientId,
+        type: "workspace_invite",
+        workspaceId: input.workspaceId,
+        postId: null,
+        actorId: input.actorId,
+        data: buildNotificationData({
+          appName: input.workspaceName,
+          appSlug: input.workspaceSlug,
+          actorName: actorName ?? undefined,
+          role: input.role,
+        }),
+      }]);
+    } catch (err) {
+      logger.error({ err, workspaceId: input.workspaceId }, "Failed to create workspace-invite notification");
     }
   })();
 }

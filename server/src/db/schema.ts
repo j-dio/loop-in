@@ -425,6 +425,7 @@ export const notificationType = pgEnum('notification_type', [
   'post_comment',
   'app_shipped',
   'app_update',
+  'workspace_invite',
 ]);
 
 export const notifications = pgTable('notifications', {
