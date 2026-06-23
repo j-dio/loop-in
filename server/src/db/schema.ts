@@ -326,6 +326,12 @@ export const postUpdates = pgTable('post_updates', {
 }, (table) => ({
   postIdIdx: index('post_updates_post_id_idx').on(table.postId),
   workspaceIdIdx: index('post_updates_workspace_id_idx').on(table.workspaceId),
+  // Explore pulse (default Explore feed, uncached) sorts updates globally by
+  // (created_at desc, id desc); supports that order so it's an index scan, not a full sort.
+  pulseFeedIdx: index('post_updates_created_at_desc_idx').on(
+    desc(table.createdAt),
+    desc(table.id),
+  ),
 }));
 
 export const comments = pgTable('comments', {
