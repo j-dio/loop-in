@@ -1,0 +1,1 @@
+CREATE INDEX "post_updates_created_at_desc_idx" ON "post_updates" USING btree ("created_at" desc,"id" desc);
