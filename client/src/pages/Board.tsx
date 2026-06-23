@@ -85,7 +85,14 @@ export function Board() {
   // readable board (no access error) + a signed-in user means participation is allowed — whether
   // they're a member of an invite_only board or an outside participant on a public one.
   const canPost = Boolean(slug && user && !error);
-  const isOwner = Boolean(user && activeWorkspace && activeWorkspace.slug === slug && user.id === activeWorkspace.ownerId);
+  const canManage = Boolean(
+    user &&
+    activeWorkspace &&
+    activeWorkspace.slug === slug &&
+    (activeWorkspace.role === "owner" || activeWorkspace.role === "admin")
+  );
+  // Founder badge: only the actual workspace owner's posts get the badge, not admins.
+  const isOwner = Boolean(user && activeWorkspace && activeWorkspace.slug === slug && activeWorkspace.role === "owner");
 
   const fetchPage = useCallback(
     async (opts: { sort: PostSort; cursor?: string | undefined; append: boolean; q?: string }) => {
@@ -185,11 +192,11 @@ export function Board() {
 
   return (
     <div className="space-y-6">
-      <ProfileHeader slug={slug} isOwner={isOwner} />
+      <ProfileHeader slug={slug} canManage={canManage} />
 
       {/* Pinned row: PINNED label (only when posts are pinned) + Announcement button (owner-only).
           Collapses entirely for non-owners with nothing pinned. */}
-      {pinnedCount > 0 || isOwner ? (
+      {pinnedCount > 0 || canManage ? (
         <div className="mx-auto w-full max-w-3xl flex items-center justify-between gap-2">
           {pinnedCount > 0 ? (
             <div className="flex items-center gap-2">
@@ -201,7 +208,7 @@ export function Board() {
           ) : (
             <span aria-hidden />
           )}
-          {isOwner ? (
+          {canManage ? (
             <Button type="button" variant="brand" size="sm" onClick={() => setAnnouncementOpen(true)}>
               <Megaphone className="size-4" />
               Announcement
@@ -226,7 +233,7 @@ export function Board() {
 
       <PinnedStrip
         slug={slug}
-        isOwner={isOwner}
+        canManage={canManage}
         upvotedIds={upvotedIds}
         signedIn={Boolean(user)}
         canUpvote={canPost}
@@ -347,7 +354,7 @@ export function Board() {
                   canUpvote={canPost}
                   onUpvoteChange={onUpvoteChange}
                   showFounderBadge={isOwner && post.author.id === user?.id}
-                  isOwner={isOwner}
+                  canManage={canManage}
                   onPinChange={() => setPinnedRefreshKey((k) => k + 1)}
                 />
               </motion.li>

@@ -5,7 +5,7 @@ import type { PostDTO } from "@/lib/postTypes";
 
 type Props = {
   slug: string;
-  isOwner: boolean;
+  canManage: boolean;
   upvotedIds: Set<string>;
   signedIn: boolean;
   canUpvote: boolean;
@@ -18,7 +18,7 @@ type Props = {
 
 export function PinnedStrip({
   slug,
-  isOwner,
+  canManage,
   upvotedIds,
   signedIn,
   canUpvote,
@@ -63,8 +63,8 @@ export function PinnedStrip({
               signedIn={signedIn}
               canUpvote={canUpvote}
               onUpvoteChange={onUpvoteChange}
-              showFounderBadge={isOwner}
-              isOwner={isOwner}
+              showFounderBadge={canManage}
+              canManage={canManage}
               onPinChange={onPinChange}
             />
           </li>

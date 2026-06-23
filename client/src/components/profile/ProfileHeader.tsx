@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Apple, Globe, Link as LinkIcon, Play } from "lucide-react";
+import { Apple, Globe, Link as LinkIcon, Play, Settings } from "lucide-react";
 import { ApiError, getWorkspaceProfile } from "@/lib/api";
 import { WorkspaceTile } from "@/components/WorkspaceTile";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { FollowButton } from "@/components/FollowButton";
 import type { LinkDTO, WorkspaceProfileDTO } from "@/lib/profileTypes";
 
@@ -29,7 +30,7 @@ function linkMeta(kind: LinkDTO["kind"]): { label: string; Icon: typeof Globe } 
   }
 }
 
-export function ProfileHeader({ slug, isOwner }: { slug: string; isOwner: boolean }) {
+export function ProfileHeader({ slug, canManage }: { slug: string; canManage: boolean }) {
   const [data, setData] = useState<WorkspaceProfileDTO | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
@@ -81,12 +82,21 @@ export function ProfileHeader({ slug, isOwner }: { slug: string; isOwner: boolea
           </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
-          <FollowButton
-            slug={slug}
-            initialFollowing={data.isFollowing}
-            initialCount={data.followerCount}
-            onChange={(s) => setFollowerCount(s.followerCount)}
-          />
+          {canManage ? (
+            <Button asChild variant="outline" size="sm" className="gap-1.5">
+              <Link to={`/${slug}/admin`}>
+                <Settings className="size-3.5" />
+                Manage
+              </Link>
+            </Button>
+          ) : (
+            <FollowButton
+              slug={slug}
+              initialFollowing={data.isFollowing}
+              initialCount={data.followerCount}
+              onChange={(s) => setFollowerCount(s.followerCount)}
+            />
+          )}
           <span className="font-mono text-xs text-muted-foreground">
             {followerCount} {followerCount === 1 ? "follower" : "followers"}
           </span>
@@ -144,7 +154,7 @@ export function ProfileHeader({ slug, isOwner }: { slug: string; isOwner: boolea
         </div>
       ) : null}
 
-      {isOwner && profileIncomplete ? (
+      {canManage && profileIncomplete ? (
         <div className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-dashed border-brand/40 bg-brand-bright/10 px-4 py-3 text-sm">
           <span className="text-muted-foreground">
             Add a logo, description, and screenshots so people know what you’re building.

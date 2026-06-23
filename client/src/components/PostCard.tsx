@@ -33,7 +33,7 @@ type Props = {
   onUpvoteChange?: (postId: string, upvoteCount: number, upvoted: boolean) => void;
   showFounderBadge?: boolean;
   /** Owner-only pin/unpin affordance. */
-  isOwner?: boolean;
+  canManage?: boolean;
   onPinChange?: () => void;
 };
 
@@ -46,7 +46,7 @@ export function PostCard({
   canUpvote,
   onUpvoteChange,
   showFounderBadge,
-  isOwner,
+  canManage,
   onPinChange,
 }: Props) {
   const [localUpvoted, setLocalUpvoted] = useState(upvoted);
@@ -196,7 +196,7 @@ export function PostCard({
               </Badge>
             ) : null}
             <Badge tone={boardTone(post.boardStatus)}>{boardLabel(post.boardStatus)}</Badge>
-            {isOwner ? (
+            {canManage ? (
               <button
                 type="button"
                 onClick={handlePinToggle}
