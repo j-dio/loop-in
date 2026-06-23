@@ -23,16 +23,19 @@ export function AppTopBar({ onToggleMobileNav }: { onToggleMobileNav: () => void
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md">
       <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
-        {isAdmin && (
-          <button
-            type="button"
-            onClick={onToggleMobileNav}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary/60 hover:text-foreground md:hidden"
-            aria-label="Open navigation"
-          >
-            <Menu className="size-5" />
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onToggleMobileNav}
+          className={cn(
+            "rounded-lg p-1.5 text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
+            // Admin keeps the drawer up to `md` (section nav lives there until the rail
+            // appears at ≥md); other pages only need it below `sm` where the inline nav hides.
+            isAdmin ? "md:hidden" : "sm:hidden"
+          )}
+          aria-label="Open navigation"
+        >
+          <Menu className="size-5" />
+        </button>
         <Link to="/" className="shrink-0" aria-label="Loop In home">
           <Logo />
         </Link>
