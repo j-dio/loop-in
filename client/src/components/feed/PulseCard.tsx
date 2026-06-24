@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Megaphone } from "lucide-react";
+import { Megaphone, Radio } from "lucide-react";
 import { WorkspaceTile } from "@/components/WorkspaceTile";
 import { snippet } from "./text";
 import type { ExploreUpdateItem, ExploreAnnouncementItem } from "@/lib/api";
@@ -11,70 +11,58 @@ interface PulseCardProps {
 }
 
 /**
- * Feed card rendered in the Following / Pulse feeds.
- * Handles two item shapes:
- *   - "update"       → amber "Update" tag, parent post title, body snippet
- *   - "announcement" → amber "Announcement" tag, post title, description snippet
+ * Editorial pulse row (Signal Stark) for the Following / Pulse feeds.
+ * Builder news — no boxed card; an amber left rule signals an official update/announcement.
+ * Parent supplies the dividing hairline (`divide-y divide-border`).
+ *   - "update"       → "Update" eyebrow, parent post title, body snippet
+ *   - "announcement" → "Announcement" eyebrow, post title, description snippet
  */
 export function PulseCard({ item }: PulseCardProps) {
   const { workspace } = item;
+  const isAnnouncement = item.type === "announcement";
+  const to = isAnnouncement
+    ? `/${encodeURIComponent(workspace.slug)}/post/${item.id}`
+    : `/${encodeURIComponent(workspace.slug)}/post/${item.post.id}`;
+  const title = isAnnouncement ? item.title : item.post.title;
+  const body = isAnnouncement ? snippet(item.description) : snippet(item.content);
+  const Icon = isAnnouncement ? Megaphone : Radio;
+  const eyebrow = isAnnouncement ? "Announcement" : "Update";
 
-  if (item.type === "announcement") {
-    return (
-      <Link
-        to={`/${encodeURIComponent(workspace.slug)}/post/${item.id}`}
-        className="group flex gap-4 rounded-xl border border-brand/30 bg-brand-bright/5 p-4 transition-all hover:-translate-y-0.5 hover:border-brand/50 sm:p-5"
-      >
-        <WorkspaceTile
-          name={workspace.name}
-          seed={workspace.slug}
-          logoUrl={workspace.logoUrl}
-          sizeClassName="size-11"
-        />
-        <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1.5 font-mono text-[11px] tracking-[0.18em] text-brand uppercase">
-            <Megaphone className="size-3.5" /> Announcement · {workspace.name}
-          </p>
-          <p className="mt-1.5 text-base font-semibold tracking-tight text-foreground">
-            {item.title}
-          </p>
-          {snippet(item.description) ? (
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              {snippet(item.description)}
-            </p>
-          ) : null}
-          {item.upvoteCount > 0 ? (
-            <p className="mt-2 text-xs text-muted-foreground tabular-nums">
-              {item.upvoteCount} {item.upvoteCount === 1 ? "upvote" : "upvotes"}
-            </p>
-          ) : null}
-        </div>
-      </Link>
-    );
-  }
-
-  const { post, content } = item;
   return (
-    <Link
-      to={`/${encodeURIComponent(workspace.slug)}/post/${post.id}`}
-      className="group flex gap-4 rounded-xl border border-brand/30 bg-brand-bright/5 p-4 transition-all hover:-translate-y-0.5 hover:border-brand/50 sm:p-5"
-    >
+    <Link to={to} className="group flex gap-4 border-l-2 border-brand/60 py-5 pl-4 transition-colors hover:border-brand sm:gap-5">
       <WorkspaceTile
         name={workspace.name}
         seed={workspace.slug}
         logoUrl={workspace.logoUrl}
-        sizeClassName="size-11"
+        sizeClassName="size-10"
       />
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-1.5 font-mono text-[11px] tracking-[0.18em] text-brand uppercase">
-          <Megaphone className="size-3.5" /> Update · {workspace.name}
+          <Icon className="size-3.5" aria-hidden /> {eyebrow} · {workspace.name}
         </p>
-        <p className="mt-1.5 text-base font-semibold tracking-tight text-foreground">
-          {post.title}
+        <p className="mt-1.5 font-display text-base font-semibold tracking-tight text-foreground transition-colors group-hover:text-brand">
+          {title}
         </p>
-        {snippet(content) ? (
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            {snippet(content)}
+        {body ? (
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{body}</p>
+        ) : null}
+        {isAnnouncement && item.imageUrl ? (
+          <div className="mt-3 flex overflow-hidden rounded-lg border border-border bg-muted/30">
+            <img
+              src={item.imageUrl}
+              alt={item.title}
+              loading="lazy"
+              className="h-auto max-h-72 w-full object-contain"
+              onError={(e) => {
+                const wrap = e.currentTarget.parentElement;
+                if (wrap) wrap.style.display = "none";
+              }}
+            />
+          </div>
+        ) : null}
+        {isAnnouncement && item.upvoteCount > 0 ? (
+          <p className="mt-2 font-mono text-[11px] text-muted-foreground tabular-nums">
+            {item.upvoteCount} {item.upvoteCount === 1 ? "upvote" : "upvotes"}
           </p>
         ) : null}
       </div>

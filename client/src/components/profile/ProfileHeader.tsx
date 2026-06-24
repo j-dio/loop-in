@@ -59,7 +59,7 @@ export function ProfileHeader({ slug, canManage }: { slug: string; canManage: bo
   }, [slug]);
 
   if (!loaded) {
-    return <div className="h-28 animate-pulse rounded-2xl border border-border bg-card" aria-hidden />;
+    return <div className="h-28 animate-pulse border-b border-border" aria-hidden />;
   }
   if (!data) return null;
 
@@ -70,18 +70,26 @@ export function ProfileHeader({ slug, canManage }: { slug: string; canManage: bo
   const profileIncomplete = !w.logoUrl || !w.description || screenshots.length === 0;
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-6">
-      <div className="flex items-start gap-4">
-        <WorkspaceTile name={w.name} seed={w.slug} logoUrl={w.logoUrl} sizeClassName="size-16" />
+    <section className="border-b border-border pb-8">
+      <div className="flex items-start gap-5">
+        <WorkspaceTile
+          name={w.name}
+          seed={w.slug}
+          logoUrl={w.logoUrl}
+          sizeClassName="size-16 sm:size-20"
+          monogramClassName="text-2xl sm:text-3xl"
+        />
         <div className="min-w-0 flex-1">
-          <h1 className="font-display text-2xl font-bold leading-tight">{w.name}</h1>
-          {w.tagline ? <p className="mt-1 text-muted-foreground">{w.tagline}</p> : null}
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <h1 className="font-display text-[clamp(1.6rem,3.4vw,2.5rem)] font-semibold leading-[1.04] tracking-tight">
+            {w.name}
+          </h1>
+          {w.tagline ? <p className="mt-1.5 text-pretty text-muted-foreground">{w.tagline}</p> : null}
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
             {w.platform ? <Badge tone="outline">{PLATFORM_LABEL[w.platform]}</Badge> : null}
             {w.category ? <Badge tone="neutral">{w.category}</Badge> : null}
           </div>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
           {canManage ? (
             <Button asChild variant="outline" size="sm" className="gap-1.5">
               <Link to={`/${slug}/admin`}>
@@ -155,7 +163,7 @@ export function ProfileHeader({ slug, canManage }: { slug: string; canManage: bo
       ) : null}
 
       {canManage && profileIncomplete ? (
-        <div className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-dashed border-brand/40 bg-brand-bright/10 px-4 py-3 text-sm">
+        <div className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 border-l-2 border-brand bg-brand-bright/5 px-4 py-3 text-sm">
           <span className="text-muted-foreground">
             Add a logo, description, and screenshots so people know what you’re building.
           </span>

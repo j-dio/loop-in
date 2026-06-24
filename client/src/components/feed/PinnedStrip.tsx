@@ -53,7 +53,7 @@ export function PinnedStrip({
 
   return (
     <section aria-label="Pinned posts" className="mx-auto w-full max-w-3xl">
-      <ul className="space-y-3">
+      <ul className="divide-y divide-border border-y border-border">
         {pinnedPosts.map((post) => (
           <li key={post.id}>
             <PostCard
