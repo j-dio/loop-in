@@ -52,9 +52,15 @@ const FEATURES = [
   },
   {
     n: "05",
+    tag: "Explore",
+    title: "A directory of apps being built in the open",
+    body: "Browse a live feed of public apps, sorted by followers or newest. Follow what catches your eye — their updates land directly in your feed.",
+  },
+  {
+    n: "06",
     tag: "Spaces",
     title: "A board per product or community",
-    body: "Run many workspaces with roles, invites, and public or invite-only access.",
+    body: "Run many workspaces with roles, invites, and public or invite-only access. Works for teams, solo builders, and open communities alike.",
   },
 ];
 
@@ -81,6 +87,86 @@ type LandingMarketingProps = {
 export function LandingMarketing({ googleHref, githubHref }: LandingMarketingProps) {
   return (
     <div className="bg-background text-foreground">
+      {/* Two audiences ------------------------------------------------------- */}
+      <section className="border-t border-border bg-secondary/40">
+        <div className="mx-auto max-w-7xl px-5 py-24 sm:px-8 lg:py-32">
+          <motion.p
+            initial="hidden"
+            whileInView="show"
+            viewport={viewport}
+            variants={fadeUp}
+            className="font-mono text-xs tracking-[0.22em] text-brand uppercase"
+          >
+            Two problems, one platform
+          </motion.p>
+          <motion.div
+            initial="hidden"
+            whileInView="show"
+            viewport={viewport}
+            variants={staggerContainer(0.1)}
+            className="mt-14 grid gap-16 lg:grid-cols-2"
+          >
+            <motion.div variants={fadeUp}>
+              <div className="border-t-2 border-brand pt-8">
+                <p className="font-mono text-[11px] tracking-[0.22em] text-brand uppercase">
+                  For builders
+                </p>
+                <h3 className="font-display mt-5 text-2xl font-semibold tracking-tight sm:text-3xl">
+                  Your app deserves to be found.
+                </h3>
+                <p className="mt-4 leading-relaxed text-muted-foreground">
+                  Give your app a public board. Collect feedback, let signal rise through
+                  upvotes, and track everything on a Kanban roadmap — from inbox to shipped.
+                  Every supporter hears back the moment you do.
+                </p>
+                <ul className="mt-8 space-y-3">
+                  {[
+                    "Public board — collect and upvote feedback",
+                    "AI digest — one click, backlog ranked by signal",
+                    "Kanban roadmap: Inbox → Planned → In Progress → Shipped",
+                    "Auto-notify everyone who cared when you ship",
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-3 text-sm">
+                      <span className="mt-0.5 shrink-0 font-bold text-brand">⟳</span>
+                      <span className="text-muted-foreground">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </motion.div>
+
+            <motion.div variants={fadeUp}>
+              <div className="border-t-2 border-border pt-8">
+                <p className="font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+                  For the community
+                </p>
+                <h3 className="font-display mt-5 text-2xl font-semibold tracking-tight sm:text-3xl">
+                  Stop missing what's being built.
+                </h3>
+                <p className="mt-4 leading-relaxed text-muted-foreground">
+                  Indie apps get buried in social media posts. LoopIn is where you discover
+                  what's being built, follow the apps you love, and get notified when your
+                  feature request actually ships.
+                </p>
+                <ul className="mt-8 space-y-3">
+                  {[
+                    "Explore a live directory of indie apps",
+                    "Follow apps and see their updates in your feed",
+                    "Submit feedback that devs can directly act on",
+                    "Get notified the moment your request ships",
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-3 text-sm">
+                      <span className="mt-0.5 shrink-0 text-foreground/30">→</span>
+                      <span className="text-muted-foreground">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* The loop ------------------------------------------------------------ */}
       <section id="how" className="border-t border-border">
         <div className="mx-auto max-w-7xl px-5 py-24 sm:px-8 lg:py-32">

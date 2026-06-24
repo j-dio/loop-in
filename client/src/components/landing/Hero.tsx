@@ -21,7 +21,7 @@ const NAV = [
   { label: "The board", href: "#board" },
 ];
 
-const TAGS = ["Submit", "Upvote", "Triage", "Roadmap", "Notify", "Ship"];
+const TAGS = ["Discover", "Follow", "Submit", "Upvote", "Roadmap", "Ship"];
 
 export function Hero({ onPrimary }: HeroProps) {
   const root = useRef<HTMLElement>(null);
@@ -134,7 +134,7 @@ export function Hero({ onPrimary }: HeroProps) {
 
         <div className="lg:col-span-7">
         <p className="hero-eyebrow mb-7 font-mono text-xs tracking-[0.22em] text-brand uppercase">
-          A feedback board for teams who ship
+          Built for the indie dev era
         </p>
 
         <h1 className="font-display max-w-[14ch] text-[clamp(2.75rem,8.5vw,7rem)] leading-[0.9] font-semibold tracking-[-0.03em]">
@@ -152,8 +152,9 @@ export function Hero({ onPrimary }: HeroProps) {
         </h1>
 
         <p className="hero-sub mt-9 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-          Collect what people actually want, let the best ideas rise, and keep everyone posted
-          from submitted to shipped. Nobody shouts into the void.
+          Indie apps get buried in social media posts. LoopIn gives every app a permanent
+          home — where users discover it, follow its journey, and submit feedback that
+          actually shapes what ships.
         </p>
 
         <div className="mt-10 flex flex-wrap items-center gap-6">
