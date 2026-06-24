@@ -1,25 +1,21 @@
 import { Link, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import type { Variants } from "framer-motion";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { getApiBase } from "@/lib/api";
 import { Logo, LoopMark } from "@/components/brand/Logo";
 import { GoogleIcon, GithubIcon } from "@/components/brand/AuthIcons";
 import { HeroLoopGraphic } from "@/components/landing/HeroLoopGraphic";
+import { ease, fadeUp, staggerContainer } from "@/lib/motion";
 
-const stagger = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.09 } },
-};
+const stagger = staggerContainer(0.09);
 
-const up = {
-  hidden: { opacity: 0, y: 22 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.16, 1, 0.3, 1] } },
-};
+const up: Variants = fadeUp;
 
-const slideLeft = {
+const slideLeft: Variants = {
   hidden: { opacity: 0, x: -32 },
-  show: { opacity: 1, x: 0, transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } },
+  show: { opacity: 1, x: 0, transition: { duration: 0.7, ease } },
 };
 
 export function SignIn() {
