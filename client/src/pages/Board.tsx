@@ -19,13 +19,10 @@ import type { PostDTO, PostSort } from "@/lib/postTypes";
 
 function FeedSkeleton() {
   return (
-    <ul className="space-y-3" aria-hidden>
+    <ul className="divide-y divide-border" aria-hidden>
       {Array.from({ length: 4 }).map((_, i) => (
-        <li
-          key={i}
-          className="flex gap-4 rounded-2xl border border-border bg-card p-5"
-        >
-          <div className="h-14 w-12 shrink-0 animate-pulse rounded-xl bg-muted" />
+        <li key={i} className="flex gap-4 py-5">
+          <div className="h-12 w-10 shrink-0 animate-pulse rounded bg-muted" />
           <div className="flex-1 space-y-3 py-1">
             <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
             <div className="h-3 w-full animate-pulse rounded bg-muted" />
@@ -326,9 +323,11 @@ export function Board() {
         {loading ? (
           <FeedSkeleton />
         ) : visibleFeed.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border py-16 text-center">
-            <Search className="mx-auto size-7 text-muted-foreground/50" />
-            <p className="mt-4 text-sm text-muted-foreground">
+          <div className="flex items-start gap-4 border-y border-border py-12">
+            <span className="flex size-10 shrink-0 items-center justify-center border border-border text-muted-foreground/60">
+              <Search className="size-4" />
+            </span>
+            <p className="pt-2 text-sm text-muted-foreground">
               {searchQuery
                 ? `No posts match "${searchQuery}".`
                 : categoryFilter !== "all"
@@ -338,7 +337,7 @@ export function Board() {
           </div>
         ) : (
           <motion.ul
-            className="space-y-3"
+            className="divide-y divide-border"
             initial="hidden"
             animate="show"
             variants={staggerContainer(0.05)}
