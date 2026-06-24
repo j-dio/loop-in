@@ -108,7 +108,7 @@ export function Home() {
               <h2 id="home-pulse-heading" className={`flex items-center gap-2 ${sectionLabel}`}>
                 <Zap className="size-3.5 text-brand" /> What&apos;s happening
               </h2>
-              <ul className="mt-4 space-y-3">
+              <ul className="mt-2 divide-y divide-border">
                 {pulse.map((item) => (
                   <li key={item.id}>
                     <PulseCard item={item} />
@@ -137,7 +137,7 @@ export function Home() {
             <h2 id="home-following-heading" className={sectionLabel}>
               From apps you follow
             </h2>
-            <ul className="mt-4 space-y-3">
+            <ul className="mt-2 divide-y divide-border">
                 {following.map((item) =>
                   item.type === "post" ? (
                     <li key={`p-${item.id}`}>
