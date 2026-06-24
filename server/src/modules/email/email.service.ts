@@ -26,7 +26,7 @@ async function sendEmail(input: {
   if (!from) throw new Error("FROM_EMAIL is not configured");
 
   const { error } = await getClient().emails.send({
-    from: `Loop In <${from}>`,
+    from: `LoopIn <${from}>`,
     to: [input.to],
     subject: input.subject,
     html: input.html,
@@ -47,12 +47,12 @@ export async function sendPendingInviteEmail(input: {
     return;
   }
 
-  const subject = `You've been invited to join ${input.workspaceName} on Loop In`;
+  const subject = `You've been invited to join ${input.workspaceName} on LoopIn`;
 
   const html = `
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
       <h2 style="margin-bottom:8px">You're invited!</h2>
-      <p style="color:#374151"><strong>${input.inviterName}</strong> invited you to join <strong>${input.workspaceName}</strong> on Loop In.</p>
+      <p style="color:#374151"><strong>${input.inviterName}</strong> invited you to join <strong>${input.workspaceName}</strong> on LoopIn.</p>
       <a href="${input.acceptUrl}"
          style="display:inline-block;margin-top:16px;padding:12px 24px;background:#0F172A;color:#fff;text-decoration:none;border-radius:6px;font-weight:600">
         Accept Invite
@@ -67,7 +67,7 @@ export async function sendPendingInviteEmail(input: {
   `;
 
   const text =
-    `You've been invited to join ${input.workspaceName} on Loop In.\n\n` +
+    `You've been invited to join ${input.workspaceName} on LoopIn.\n\n` +
     `${input.inviterName} sent you this invite.\n\n` +
     `Accept here: ${input.acceptUrl}\n\n` +
     `This invite expires in 7 days.`;
@@ -92,12 +92,12 @@ export async function sendAddedToWorkspaceEmail(input: {
     return;
   }
 
-  const subject = `You've been added to ${input.workspaceName} on Loop In`;
+  const subject = `You've been added to ${input.workspaceName} on LoopIn`;
 
   const html = `
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
       <h2 style="margin-bottom:8px">You're in!</h2>
-      <p style="color:#374151"><strong>${input.inviterName}</strong> added you to <strong>${input.workspaceName}</strong> on Loop In.</p>
+      <p style="color:#374151"><strong>${input.inviterName}</strong> added you to <strong>${input.workspaceName}</strong> on LoopIn.</p>
       <a href="${input.workspaceUrl}"
          style="display:inline-block;margin-top:16px;padding:12px 24px;background:#0F172A;color:#fff;text-decoration:none;border-radius:6px;font-weight:600">
         View Workspace
@@ -109,7 +109,7 @@ export async function sendAddedToWorkspaceEmail(input: {
   `;
 
   const text =
-    `${input.inviterName} added you to ${input.workspaceName} on Loop In.\n\n` +
+    `${input.inviterName} added you to ${input.workspaceName} on LoopIn.\n\n` +
     `View it here: ${input.workspaceUrl}`;
 
   try {
