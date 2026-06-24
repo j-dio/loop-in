@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { Globe, Lock } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { ApiError } from "@/lib/api";
 import { isReservedSlug } from "@/lib/reservedSlugs";
@@ -33,6 +35,7 @@ export function CreateAppWizard({ open, onOpenChange }: Props) {
   const [tagline, setTagline] = useState("");
   const [category, setCategory] = useState("");
   const [platform, setPlatform] = useState<"web" | "mobile" | "desktop" | "other">("web");
+  const [visibility, setVisibility] = useState<"public" | "invite_only">("public");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -43,6 +46,7 @@ export function CreateAppWizard({ open, onOpenChange }: Props) {
     setTagline("");
     setCategory("");
     setPlatform("web");
+    setVisibility("public");
     setCreating(false);
     setCreateError(null);
   }
@@ -75,7 +79,7 @@ export function CreateAppWizard({ open, onOpenChange }: Props) {
       // Run create against a minimum-display floor so the "Creating…" state never flickers on a
       // fast response, but never pads beyond the real work either.
       const [w] = await Promise.all([
-        createWorkspace({ name: n, slug: s, tagline: t, platform, category }),
+        createWorkspace({ name: n, slug: s, tagline: t, platform, category, visibility }),
         delay(700),
       ]);
       setActiveWorkspace(w);
@@ -139,7 +143,7 @@ export function CreateAppWizard({ open, onOpenChange }: Props) {
         <>
         <DialogHeader>
           <DialogTitle className="font-display text-2xl font-semibold tracking-tight">Create an app</DialogTitle>
-          <DialogDescription>Set up your public feedback board.</DialogDescription>
+          <DialogDescription>Set up your feedback board.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleCreateWorkspace} className="space-y-4">
           <div className="space-y-2">
@@ -199,6 +203,41 @@ export function CreateAppWizard({ open, onOpenChange }: Props) {
               <option value="desktop">Desktop</option>
               <option value="other">Other</option>
             </select>
+          </div>
+          <div className="space-y-2">
+            <Label>Visibility</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                ["public", Globe, "Public", "Anyone can find, follow, and post feedback."],
+                ["invite_only", Lock, "Private", "Invite-only — hidden from Explore; members only."],
+              ] as const).map(([val, Icon, title, desc]) => {
+                const active = visibility === val;
+                return (
+                  <button
+                    key={val}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setVisibility(val)}
+                    className={cn(
+                      "flex flex-col gap-1.5 rounded-md border p-3 text-left transition-colors",
+                      active
+                        ? "border-brand/50 bg-brand-bright/10"
+                        : "border-border hover:border-brand/30 hover:bg-muted/40"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex items-center gap-1.5 font-mono text-[11px] tracking-[0.14em] uppercase",
+                        active ? "text-brand" : "text-muted-foreground"
+                      )}
+                    >
+                      <Icon className="size-3.5" /> {title}
+                    </span>
+                    <span className="text-xs leading-snug text-muted-foreground">{desc}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
           {createError ? <p className="text-sm text-destructive" role="alert">{createError}</p> : null}
           <DialogFooter>
