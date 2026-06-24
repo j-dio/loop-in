@@ -16,11 +16,12 @@ type Props = {
   slug: string;
   loading: boolean;
   moderatingId: string | null;
+  requireApproval: boolean;
   onModerate: (postId: string, status: ModStatus) => void | Promise<void>;
   onBulkModerate: (ids: string[], status: ModStatus) => Promise<{ failed: string[] }>;
 };
 
-export function TriageInbox({ posts, slug, loading, moderatingId, onModerate, onBulkModerate }: Props) {
+export function TriageInbox({ posts, slug, loading, moderatingId, requireApproval, onModerate, onBulkModerate }: Props) {
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [sort, setSort] = useState<Sort>("newest");
 
@@ -48,8 +49,26 @@ export function TriageInbox({ posts, slug, loading, moderatingId, onModerate, on
   }
 
   if (loading) return <p className="text-sm text-muted-foreground">Loading triage…</p>;
-  if (posts.length === 0)
+  if (posts.length === 0) {
+    if (!requireApproval) {
+      return (
+        <div className="space-y-2 rounded-xl border border-border bg-muted/40 px-5 py-6">
+          <p className="text-sm font-medium">Approval not required</p>
+          <p className="text-sm text-muted-foreground">
+            New posts publish immediately and land directly in the{" "}
+            <Link
+              to={`/${encodeURIComponent(slug)}/admin?section=kanban`}
+              className="underline underline-offset-2 hover:text-foreground"
+            >
+              Kanban inbox
+            </Link>
+            . Enable &ldquo;Require approval&rdquo; in Settings to hold posts for review first.
+          </p>
+        </div>
+      );
+    }
     return <p className="text-sm text-muted-foreground">No posts waiting for review. Inbox zero.</p>;
+  }
 
   return (
     <div className="space-y-3">

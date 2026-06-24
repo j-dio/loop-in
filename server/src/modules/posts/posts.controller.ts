@@ -14,7 +14,7 @@ import {
   PostsParentParamsSchema,
 } from "./posts.schemas";
 import { isValidPostImageUrl } from "../uploads/uploads.service";
-import { notifyAppMilestone, notifyBoardMove, notifyPostApproved } from "../notifications/notifications.service";
+import { notifyAdminNewPost, notifyAppMilestone, notifyBoardMove, notifyPostApproved } from "../notifications/notifications.service";
 import {
   createAnnouncement,
   createPost,
@@ -321,6 +321,17 @@ export async function createPostHandler(req: Request, res: Response, next: NextF
       requireApproval: req.workspace.requireApproval,
       ctx: requesterCtx(req),
     });
+
+    if (req.workspace.requireApproval) {
+      notifyAdminNewPost({
+        postId: post.id,
+        workspaceId: req.workspace.id,
+        workspaceSlug: req.workspace.slug,
+        workspaceName: req.workspace.name,
+        postTitle: post.title,
+        authorId: req.user.id,
+      });
+    }
 
     return res.status(201).json({ post });
   } catch (err) {

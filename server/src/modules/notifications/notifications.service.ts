@@ -1,7 +1,7 @@
 import type { InferInsertModel } from "drizzle-orm";
-import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "../../db";
-import { follows, notifications, posts, users, workspaces } from "../../db/schema";
+import { follows, notifications, posts, users, workspaceMembers, workspaces } from "../../db/schema";
 import { logger } from "../../lib/logger";
 import { encodeFeedCursor } from "../explore/explore.service";
 
@@ -306,6 +306,58 @@ export function notifyAppMilestone(input: {
       await createNotifications(rows);
     } catch (err) {
       logger.error({ err, workspaceId: input.workspaceId }, "Failed to fan-out app milestone notification");
+    }
+  })();
+}
+
+/**
+ * Fire when a new post lands in triage (requireApproval=true). Notifies all workspace
+ * owners and admins except the submitter so they know triage has a new item to review.
+ */
+export function notifyAdminNewPost(input: {
+  postId: string;
+  workspaceId: string;
+  workspaceSlug: string;
+  workspaceName: string;
+  postTitle: string;
+  authorId: string;
+}): void {
+  void (async () => {
+    try {
+      const rows = await db
+        .select({ userId: workspaceMembers.userId })
+        .from(workspaceMembers)
+        .where(
+          and(
+            eq(workspaceMembers.workspaceId, input.workspaceId),
+            inArray(workspaceMembers.role, ["owner", "admin"])
+          )
+        );
+
+      const recipientIds = rows
+        .map((r) => r.userId)
+        .filter((id) => id !== input.authorId);
+
+      if (recipientIds.length === 0) return;
+
+      const data = buildNotificationData({
+        postTitle: input.postTitle,
+        appName: input.workspaceName,
+        appSlug: input.workspaceSlug,
+      });
+
+      const newRows: NewNotification[] = recipientIds.map((recipientId) => ({
+        recipientId,
+        type: "new_pending_post" as const,
+        workspaceId: input.workspaceId,
+        postId: input.postId,
+        actorId: input.authorId,
+        data,
+      }));
+
+      await createNotifications(newRows);
+    } catch (err) {
+      logger.error({ err, postId: input.postId }, "Failed to create new-pending-post notifications");
     }
   })();
 }

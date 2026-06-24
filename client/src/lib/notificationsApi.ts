@@ -19,7 +19,8 @@ export type NotificationType =
   | "post_comment"
   | "app_shipped"
   | "app_update"
-  | "workspace_invite";
+  | "workspace_invite"
+  | "new_pending_post";
 
 export type Notification = {
   id: string;
@@ -65,6 +66,7 @@ export function notificationDeepLink(
   n: Pick<Notification, "type" | "postId" | "data">
 ): string {
   const slug = n.data.appSlug ?? "";
+  if (n.type === "new_pending_post" && slug) return `/${slug}/admin?section=triage`;
   if (n.postId && slug) return `/${slug}/post/${n.postId}`;
   // Admins land on the admin console; members land on the public board.
   if (n.type === "workspace_invite" && slug) {
@@ -91,6 +93,7 @@ export function notificationText(n: Pick<Notification, "type" | "data">): string
       const seat = data.role === "member" ? "a member" : "an admin";
       return `${actor} added you as ${seat} of ${app}`;
     }
+    case "new_pending_post": return `New post needs review in ${app}: ${title}`;
     default:                 return "New notification";
   }
 }

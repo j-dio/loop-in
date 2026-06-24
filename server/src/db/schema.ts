@@ -432,6 +432,7 @@ export const notificationType = pgEnum('notification_type', [
   'app_shipped',
   'app_update',
   'workspace_invite',
+  'new_pending_post',
 ]);
 
 export const notifications = pgTable('notifications', {
