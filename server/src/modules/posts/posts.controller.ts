@@ -330,6 +330,7 @@ export async function createPostHandler(req: Request, res: Response, next: NextF
         workspaceName: req.workspace.name,
         postTitle: post.title,
         authorId: req.user.id,
+        isAnonymous: post.isAnonymous,
       });
     }
 

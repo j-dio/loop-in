@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Calendar, CheckCircle2, Megaphone, MessageCircle, Rocket, UserPlus, Zap } from "lucide-react";
+import { Calendar, CheckCircle2, Inbox, Megaphone, MessageCircle, Rocket, UserPlus, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/UserAvatar";
 import { WorkspaceTile } from "@/components/WorkspaceTile";
@@ -26,8 +26,9 @@ function TypeIcon({ type }: { type: NotificationType }) {
     case "post_comment":     return <MessageCircle className={cn(cls, "text-muted-foreground")} strokeWidth={2} />;
     case "app_shipped":      return <Rocket className={cn(cls, "text-brand-bright")} strokeWidth={2} />;
     case "app_update":       return <Megaphone className={cn(cls, "text-brand")} strokeWidth={2} />;
-    case "workspace_invite": return <UserPlus className={cn(cls, "text-brand")} strokeWidth={2} />;
-    default:                 return null;
+    case "workspace_invite":  return <UserPlus className={cn(cls, "text-brand")} strokeWidth={2} />;
+    case "new_pending_post":  return <Inbox className={cn(cls, "text-muted-foreground")} strokeWidth={2} />;
+    default:                  return null;
   }
 }
 

@@ -612,7 +612,7 @@ export function Admin() {
           slug={slug}
           loading={triageLoading}
           moderatingId={moderatingId}
-          requireApproval={workspaces.find((w) => w.slug === slug)?.requireApproval ?? true}
+          requireApproval={activeWorkspace?.requireApproval ?? true}
           onModerate={moderate}
           onBulkModerate={moderateMany}
         />

@@ -321,6 +321,7 @@ export function notifyAdminNewPost(input: {
   workspaceName: string;
   postTitle: string;
   authorId: string;
+  isAnonymous: boolean;
 }): void {
   void (async () => {
     try {
@@ -334,9 +335,7 @@ export function notifyAdminNewPost(input: {
           )
         );
 
-      const recipientIds = rows
-        .map((r) => r.userId)
-        .filter((id) => id !== input.authorId);
+      const recipientIds = filterFollowerIds(rows.map((r) => r.userId), [input.authorId]);
 
       if (recipientIds.length === 0) return;
 
@@ -346,12 +345,16 @@ export function notifyAdminNewPost(input: {
         appSlug: input.workspaceSlug,
       });
 
+      // Never reveal the real author ID when the post is anonymous — admins receive
+      // the notification but must not be able to identify the submitter via actorId.
+      const actorId = input.isAnonymous ? null : input.authorId;
+
       const newRows: NewNotification[] = recipientIds.map((recipientId) => ({
         recipientId,
         type: "new_pending_post" as const,
         workspaceId: input.workspaceId,
         postId: input.postId,
-        actorId: input.authorId,
+        actorId,
         data,
       }));
 
