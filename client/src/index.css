@@ -252,6 +252,29 @@
     }
   }
 
+  /* Nav Explore link — periodic shine sweep over brand color */
+  @keyframes nav-shine {
+    0%, 55%   { background-position: -150% center; }
+    75%, 100% { background-position: 250% center; }
+  }
+  .nav-explore {
+    background: linear-gradient(
+      90deg,
+      var(--brand),
+      var(--brand) 30%,
+      #fff 50%,
+      var(--brand) 70%,
+      var(--brand)
+    );
+    background-size: 300% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    font-weight: 600;
+    animation: nav-shine 4s ease-in-out infinite;
+  }
+
   /* Rotating "sticker" badge in the hero (qclay-style circular caption) */
   @keyframes spin-slow {
     to {

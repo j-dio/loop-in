@@ -85,10 +85,7 @@ export function Hero({ onPrimary }: HeroProps) {
               {n.label}
             </a>
           ))}
-          <Link
-            to="/explore"
-            className="text-sm font-medium tracking-tight text-muted-foreground transition-colors hover:text-foreground"
-          >
+          <Link to="/explore" className="nav-explore text-sm tracking-tight">
             Explore
           </Link>
         </nav>
@@ -153,7 +150,7 @@ export function Hero({ onPrimary }: HeroProps) {
 
         <p className="hero-sub mt-9 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
           Indie apps get buried in social media posts. LoopIn gives every app a permanent
-          home — where users discover it, follow its journey, and submit feedback that
+          home where users discover it, follow its journey, and submit feedback that
           actually shapes what ships.
         </p>
 

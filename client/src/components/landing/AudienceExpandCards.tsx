@@ -14,12 +14,13 @@ const AUDIENCES = [
     labelClass: "text-brand",
     accentClass: "border-brand",
     bulletClass: "font-bold text-brand",
+    bulletExpandedClass: "font-bold text-brand",
     bullet: "⟳",
     headline: "Your app deserves to be found.",
-    body: "Give your app a public board. Collect feedback, let signal rise through upvotes, and track everything on a Kanban roadmap — from inbox to shipped. Every supporter hears back the moment you do.",
+    body: "Give your app a public board. Collect feedback, let signal rise through upvotes, and track everything on a Kanban roadmap from inbox to shipped. Every supporter hears back the moment you do.",
     items: [
-      "Public board — collect and upvote feedback",
-      "AI digest — one click, backlog ranked by signal",
+      "Public board: collect and upvote feedback",
+      "AI digest: one-click backlog ranked by signal",
       "Kanban roadmap: Inbox → Planned → In Progress → Shipped",
       "Auto-notify everyone who cared when you ship",
     ],
@@ -30,6 +31,7 @@ const AUDIENCES = [
     labelClass: "text-muted-foreground",
     accentClass: "border-border",
     bulletClass: "text-foreground/30",
+    bulletExpandedClass: "text-foreground/70",
     bullet: "→",
     headline: "Stop missing what's being built.",
     body: "Indie apps get buried in social media posts. LoopIn is where you discover what's being built, follow the apps you love, and get notified when your feature request actually ships.",
@@ -50,22 +52,49 @@ function flexGrowFor(id: AudienceId, hovered: AudienceId | null) {
   return hovered === id ? 2.75 : 0.65;
 }
 
-function AudienceCardBody({ audience }: { audience: (typeof AUDIENCES)[number] }) {
+function AudienceCardBody({
+  audience,
+  isExpanded = true,
+}: {
+  audience: (typeof AUDIENCES)[number];
+  isExpanded?: boolean;
+}) {
   return (
     <>
-      <h3 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">
+      <motion.h3
+        className="font-display tracking-tight"
+        animate={
+          isExpanded
+            ? { fontSize: "1.375rem", fontWeight: 700, color: "var(--foreground)" }
+            : { fontSize: "1.25rem", fontWeight: 600, color: "var(--foreground)" }
+        }
+        transition={{ duration: 0.35, ease }}
+      >
         {audience.headline}
-      </h3>
-      <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
+      </motion.h3>
+      <motion.p
+        className="mt-3 text-sm leading-relaxed sm:text-base"
+        animate={{ color: isExpanded ? "var(--foreground)" : "var(--muted-foreground)" }}
+        transition={{ duration: 0.35, ease }}
+      >
         {audience.body}
-      </p>
+      </motion.p>
       <ul className="mt-5 space-y-2.5">
         {audience.items.map((item) => (
           <li key={item} className="flex items-start gap-3 text-sm">
-            <span className={["mt-0.5 shrink-0", audience.bulletClass].join(" ")}>
+            <motion.span
+              className={["mt-0.5 shrink-0", isExpanded ? audience.bulletExpandedClass : audience.bulletClass].join(" ")}
+              animate={{ opacity: isExpanded ? 1 : 0.4 }}
+              transition={{ duration: 0.35, ease }}
+            >
               {audience.bullet}
-            </span>
-            <span className="text-muted-foreground">{item}</span>
+            </motion.span>
+            <motion.span
+              animate={{ color: isExpanded ? "var(--foreground)" : "var(--muted-foreground)" }}
+              transition={{ duration: 0.35, ease }}
+            >
+              {item}
+            </motion.span>
           </li>
         ))}
       </ul>
@@ -165,7 +194,7 @@ function InteractiveAudienceCard({
         }}
         aria-hidden={!isExpanded}
       >
-        <AudienceCardBody audience={audience} />
+        <AudienceCardBody audience={audience} isExpanded={isExpanded} />
       </motion.div>
     </motion.article>
   );

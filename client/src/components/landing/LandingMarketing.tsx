@@ -12,12 +12,12 @@ const STEPS = [
   {
     n: "01",
     title: "They submit",
-    body: "Users post ideas, bugs, and requests on a public board — with screenshots, anonymously if they prefer.",
+    body: "Users post ideas, bugs, and requests on a public board. Screenshots welcome, anonymous if they prefer.",
   },
   {
     n: "02",
     title: "The best rise",
-    body: "Upvotes and a trending score push real signal to the top, so you build what actually matters — not just the loudest voice.",
+    body: "Upvotes and a trending score push real signal to the top, so you build what actually matters. Not just the loudest voice.",
   },
   {
     n: "03",
@@ -37,7 +37,7 @@ const FEATURES = [
     n: "02",
     tag: "AI",
     title: "A backlog that prioritizes itself",
-    body: "Turn a noisy pile of requests into a ranked plan in one click — with complexity and rationale for each item.",
+    body: "Turn a noisy pile of requests into a ranked plan in one click, with complexity and rationale for each item.",
   },
   {
     n: "03",
@@ -55,7 +55,7 @@ const FEATURES = [
     n: "05",
     tag: "Explore",
     title: "A directory of apps being built in the open",
-    body: "Browse a live feed of public apps, sorted by followers or newest. Follow what catches your eye — their updates land directly in your feed.",
+    body: "Browse a live feed of public apps, sorted by followers or newest. Follow what catches your eye. Their updates land directly in your feed.",
   },
   {
     n: "06",
@@ -302,7 +302,7 @@ export function LandingMarketing({ googleHref, githubHref }: LandingMarketingPro
               </div>
             </div>
             <p className="mt-6 font-mono text-[11px] tracking-[0.18em] text-muted-foreground uppercase">
-              Fig. 01 — The public board
+              Fig. 01: The public board
             </p>
           </motion.div>
         </div>
@@ -336,7 +336,7 @@ export function LandingMarketing({ googleHref, githubHref }: LandingMarketingPro
               the <span className="text-brand">loop?</span>
             </motion.h2>
             <motion.p variants={fadeUp} className="mt-7 max-w-md text-[#f3f3f0]/60">
-              Create a workspace in seconds. Free to start — sign in and spin up your first board.
+              Create a workspace in seconds. Free to start. Sign in and spin up your first board.
             </motion.p>
             <motion.div variants={fadeUp} className="mt-10 flex flex-wrap items-center gap-3">
               <Button variant="brand" size="xl" className="rounded-full px-7" asChild>
