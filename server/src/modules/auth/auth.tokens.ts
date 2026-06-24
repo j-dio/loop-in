@@ -11,7 +11,7 @@ export type AccessTokenClaims = {
 };
 
 export function signAccessToken(claims: AccessTokenClaims): string {
-  return jwt.sign(claims, JWT_SECRET, { expiresIn: "15m" });
+  return jwt.sign(claims, JWT_SECRET, { expiresIn: "1h" });
 }
 
 export function generateRefreshToken(): string {

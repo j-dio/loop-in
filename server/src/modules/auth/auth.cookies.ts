@@ -14,7 +14,7 @@ export function setAuthCookies(res: Response, accessToken: string, refreshToken:
     secure: isProd(),
     sameSite: "lax",
     path: "/",
-    maxAge: 15 * 60 * 1000,
+    maxAge: 60 * 60 * 1000,
   });
 
   res.cookie(REFRESH_COOKIE, refreshToken, {
