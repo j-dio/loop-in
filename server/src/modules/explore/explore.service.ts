@@ -8,6 +8,7 @@ export type ExploreWorkspace = {
   id: string;
   name: string;
   slug: string;
+  tagline: string | null;
   logoUrl: string | null;
   createdAt: Date;
   postCount: number;
@@ -55,27 +56,65 @@ export type FollowingFeedItem =
     }
   | AnnouncementFeedItem;
 
+export type ListPublicWorkspacesOpts = {
+  limit: number;
+  offset?: number;
+  viewerId?: string;
+  sort?: "active" | "newest" | "followers";
+  /** Free-text search over name + slug (case-insensitive substring). */
+  q?: string;
+};
+
+export type ListPublicWorkspacesResult = {
+  workspaces: ExploreWorkspace[];
+  hasMore: boolean;
+};
+
 /**
- * Directory of public workspaces. `sort="active"` (default) ranks by approved-post count;
- * `sort="newest"` ranks by recency (powers the Explore "new apps" strip). The
- * `visibility='public'` filter is identical in both modes — invite-only never leaks.
+ * Directory of public workspaces.
+ *   - `sort="active"` (default) ranks by approved-post count
+ *   - `sort="newest"` ranks by recency (powers the "just launched" strip)
+ *   - `sort="followers"` ranks by follower count (powers the editorial directory + featured)
+ * `q` filters by name/slug; `offset` paginates. The `visibility='public'` filter is
+ * identical in every mode — invite-only never leaks. Fetches `limit + 1` to report `hasMore`
+ * without a second count query.
  */
 export async function listPublicWorkspaces(
-  limit: number,
-  viewerId?: string,
-  sort: "active" | "newest" = "active"
-): Promise<ExploreWorkspace[]> {
+  opts: ListPublicWorkspacesOpts
+): Promise<ListPublicWorkspacesResult> {
+  const { limit, offset = 0, viewerId, sort = "active", q } = opts;
+
   const approvedPosts = sql<number>`count(${posts.id}) filter (where ${posts.moderationStatus} = 'approved' and ${posts.deletedAt} is null)`;
   const followerCount = sql<number>`(select count(*)::int from ${follows} where ${follows.workspaceId} = ${workspaces.id})`;
   const isFollowing = viewerId
     ? sql<boolean>`exists(select 1 from ${follows} where ${follows.workspaceId} = ${workspaces.id} and ${follows.userId} = ${viewerId})`
     : sql<boolean>`false`;
 
+  const where = [eq(workspaces.visibility, "public")];
+  if (q) {
+    // Escape LIKE wildcards in user input so `%`/`_` are matched literally.
+    const term = `%${q.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
+    where.push(
+      or(
+        sql`${workspaces.name} ilike ${term}`,
+        sql`${workspaces.slug} ilike ${term}`
+      )!
+    );
+  }
+
+  const orderBy =
+    sort === "newest"
+      ? [desc(workspaces.createdAt)]
+      : sort === "followers"
+        ? [desc(followerCount), desc(workspaces.createdAt)]
+        : [desc(approvedPosts), desc(workspaces.createdAt)];
+
   const rows = await db
     .select({
       id: workspaces.id,
       name: workspaces.name,
       slug: workspaces.slug,
+      tagline: workspaces.tagline,
       logoUrl: workspaces.logoUrl,
       createdAt: workspaces.createdAt,
       postCount: approvedPosts,
@@ -84,25 +123,29 @@ export async function listPublicWorkspaces(
     })
     .from(workspaces)
     .leftJoin(posts, eq(posts.workspaceId, workspaces.id))
-    .where(eq(workspaces.visibility, "public"))
+    .where(and(...where))
     .groupBy(workspaces.id)
-    .orderBy(
-      ...(sort === "newest"
-        ? [desc(workspaces.createdAt)]
-        : [desc(approvedPosts), desc(workspaces.createdAt)])
-    )
-    .limit(limit);
+    .orderBy(...orderBy)
+    .limit(limit + 1)
+    .offset(offset);
 
-  return rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    slug: r.slug,
-    logoUrl: r.logoUrl,
-    createdAt: r.createdAt,
-    postCount: Number(r.postCount ?? 0),
-    followerCount: Number(r.followerCount ?? 0),
-    isFollowing: Boolean(r.isFollowing),
-  }));
+  const hasMore = rows.length > limit;
+  const page = hasMore ? rows.slice(0, limit) : rows;
+
+  return {
+    workspaces: page.map((r) => ({
+      id: r.id,
+      name: r.name,
+      slug: r.slug,
+      tagline: r.tagline,
+      logoUrl: r.logoUrl,
+      createdAt: r.createdAt,
+      postCount: Number(r.postCount ?? 0),
+      followerCount: Number(r.followerCount ?? 0),
+      isFollowing: Boolean(r.isFollowing),
+    })),
+    hasMore,
+  };
 }
 
 /** Opaque base64url newest-cursor (createdAt, id). Shared by the discover + following feeds. */
