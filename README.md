@@ -1,151 +1,222 @@
 # LoopIn
 
-**LoopIn** is a multi-tenant **Feedback Hub** for teams and communities. Feedback is scattered across chats, DMs, and reviews; LoopIn centralizes it so users can submit and upvote ideas, and builders can triage, approve, and track work on a Kanban roadmap—then notify supporters when something ships.
+> Where indie apps get discovered — and feedback actually lands.
 
-The app is a progressive web app: a public **board** per workspace (`/:slug`) for submissions and discussion, plus an **admin command center** (`/:slug/admin`) for triage, board status, and workspace settings.
+LoopIn is an open-source platform that solves two problems at once:
 
----
+**1. Indie app visibility** — apps built by indie devs get buried in Facebook group posts and social feeds. LoopIn gives every app a permanent, searchable home where users can discover it, follow it, and stay updated on what ships.
 
-## What it looks like
+**2. The feedback loop** — users submit ideas and bug reports, other users upvote what resonates, and builders triage the signal onto a Kanban roadmap — then notify every supporter the moment something ships.
 
-LoopIn ships with a custom design system — the **"Signal"** identity: a warm paper-and-ink
-palette with an amber signal accent, Fraunces (serif display) + Geist (UI), full light/dark
-mode, and motion that literally loops. See [`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md).
+Think Canny × Product Hunt, but open-source and built for the indie dev era.
 
-- **Landing**: a cinematic marketing page (GSAP hero with a draw-on loop mark + scroll
-  parallax, Framer Motion scroll reveals) for logged-out visitors; a branded workspace
-  picker once you're signed in.
-- **Public board**: serif header, branded search + segmented sort, skeleton loaders, a
-  staggered feed of feedback cards (upvote rail, category/status badges), submit modal,
-  and a threaded post view with comments and official updates.
-- **Admin command center**: triage inbox (approve / reject / spam), drag-and-drop Kanban
-  (Inbox → Shipped, amber drop targets), AI digest, settings, and member invites.
-
-*(No screenshot is bundled in-repo; run `cd client && npm run dev` to see the UI.)*
+**Live demo:** [https://zucchini-laughter-production.up.railway.app](https://zucchini-laughter-production.up.railway.app)
 
 ---
 
-## Prerequisites
+## Features
 
-- **Node.js 20** (LTS)
-- **Docker** and Docker Compose (local Postgres + Redis)
-- A **Google OAuth** client (Google Cloud Console) — authorized redirect URI must match your `SERVER_URL` callback path
-- A **GitHub OAuth** app — same for GitHub’s callback URL
+**For builders**
+- Public feedback board — collect submissions, upvotes, and threaded comments
+- Admin triage inbox — approve, reject, or flag posts as spam
+- Kanban roadmap — drag from Inbox → Under Review → Planned → In Progress → Shipped
+- Announcements and pinned posts
+- AI digest — one click turns a noisy backlog into a ranked, reasoned plan
+- Auto-notify supporters on approval and when something ships
+- Moderation audit trail
+- App profile with screenshots, platform tags, and links
+
+**For the community**
+- Explore feed — discover public apps sorted by followers or newest
+- "Just launched" strip — see what indie devs shipped recently
+- Follow apps you care about
+- Following feed — feedback, updates, and announcements from apps you follow
+- In-app notification center
+
+---
+
+## Stack
+
+| Layer | Tech |
+|---|---|
+| **Frontend** | React 19, React Router 7, Tailwind CSS v4, shadcn/ui, Vite |
+| **Backend** | Node.js, TypeScript, Express (controller–service–route) |
+| **Database** | PostgreSQL + Drizzle ORM |
+| **Cache** | Redis (sliding-window rate limiting, trending scores) |
+| **Storage** | AWS S3 (presigned uploads — avatars, post images, screenshots) |
+| **Auth** | Google + GitHub OAuth via Passport.js; JWT httpOnly cookies with refresh rotation |
+| **Email** | Resend (transactional — approvals, ship notifications, invites) |
+| **AI** | Google Gemini (AI digest; OpenRouter as fallback) |
+| **Monitoring** | Sentry (optional), Pino structured logging |
+| **Deployment** | Railway (Railpack monorepo — migrations run on start) |
 
 ---
 
 ## Local setup
 
-1. **Clone** the repository and open the project root.
+### Prerequisites
 
-2. **Environment**
+- **Node.js 20** (LTS)
+- **Docker + Docker Compose** — runs PostgreSQL and Redis locally
+- **Google OAuth app** — [console.cloud.google.com](https://console.cloud.google.com)
+  - Authorized redirect URI: `http://localhost:3001/auth/google/callback`
+- **GitHub OAuth app** — [github.com/settings/developers](https://github.com/settings/developers)
+  - Callback URL: `http://localhost:3001/auth/github/callback`
 
-   ```bash
-   cp .env.example .env
-   ```
+Optional (app works without these, features degrade gracefully):
+- AWS S3 bucket — for image uploads (avatars, post images, app screenshots)
+- Resend account — for transactional email
+- Google Gemini API key — for the AI digest feature
 
-   Edit `.env` and set at least: `DATABASE_URL`, `JWT_SECRET`, Google/GitHub OAuth IDs and secrets, `CLIENT_URL`, `SERVER_URL`, and `VITE_API_URL` (see [Environment variables](#environment-variables) below). For local Docker Postgres, `DATABASE_URL` typically looks like:
+### Steps
 
-   `postgresql://loopin:localdev@localhost:5432/loopin`
+**1. Clone**
 
-3. **Install dependencies**
+```bash
+git clone https://github.com/j-dio/loop-in.git
+cd loop-in
+```
 
-   ```bash
-   cd server && npm install
-   cd ../client && npm install
-   ```
+**2. Environment**
 
-4. **Infrastructure**
+```bash
+cp .env.example .env
+```
 
-   From the repo root:
+Open `.env` and fill in at minimum: `DATABASE_URL`, `JWT_SECRET`, Google + GitHub OAuth credentials, `CLIENT_URL`, `SERVER_URL`, and `VITE_API_URL`. See [Environment variables](#environment-variables) below.
 
-   ```bash
-   docker compose up -d
-   ```
+**3. Install dependencies**
 
-   This starts PostgreSQL and Redis as defined in `docker-compose.yml`.
+```bash
+cd server && npm install
+cd ../client && npm install
+```
 
-5. **Database migrations**
+**4. Start infrastructure** (from repo root)
 
-   ```bash
-   cd server && npm run migrate
-   ```
+```bash
+docker compose up -d
+```
 
-6. **Run the API**
+This starts PostgreSQL and Redis as defined in `docker-compose.yml`.
 
-   ```bash
-   cd server && npm run dev
-   ```
+**5. Run migrations**
 
-   API defaults to port **3001** (health: `GET /health`).
+```bash
+cd server && npm run migrate
+```
 
-7. **Run the client**
+**6. (Optional) Seed demo data**
 
-   ```bash
-   cd client && npm run dev
-   ```
+```bash
+cd server && SEED_CONFIRM=1 npx tsx src/db/seed.ts
+```
 
-   Open the URL Vite prints (usually **http://localhost:5173**). Use the same hostname in `CLIENT_URL` / `VITE_API_URL` as in the browser tab so auth cookies attach correctly.
+Creates demo workspaces, users, posts, and follow edges so the Explore feed looks populated.
+
+**7. Start the API**
+
+```bash
+cd server && npm run dev
+```
+
+Runs on port **3001**. Health check: `GET /health`
+
+**8. Start the client**
+
+```bash
+cd client && npm run dev
+```
+
+Open the URL Vite prints — usually **http://localhost:5173**.
+
+> **Cookie gotcha:** `CLIENT_URL`, `SERVER_URL`, and `VITE_API_URL` must all use the same hostname (`localhost`, not `127.0.0.1`). Auth cookies are host-scoped, so a mismatch silently breaks login.
 
 ---
 
 ## Environment variables
 
+See `.env.example` for the full annotated list. Required to boot:
+
 | Variable | Purpose |
-|----------|---------|
-| `DATABASE_URL` | PostgreSQL connection string for Drizzle / the API. |
-| `REDIS_URL` | Redis URL (reserved for Phase 2: trending, distributed rate limits). |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth app credentials. |
-| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | GitHub OAuth app credentials. |
-| `JWT_SECRET` | Secret used to sign short-lived access JWTs (use a long random value in production). |
-| `S3_BUCKET` | S3 bucket name (Phase 2: image uploads). |
-| `AWS_REGION` | AWS region for S3 / SES (Phase 2). |
-| `SES_FROM_EMAIL` | Verified SES sender (Phase 2: ship notifications). |
-| `SENTRY_DSN` | Optional; when set, unhandled server errors are reported to Sentry. |
-| `LOG_LEVEL` | Pino log level (e.g. `info`). |
-| `LOG_PRETTY` | Optional; in development, pretty-print logs unless disabled. |
-| `NODE_ENV` | `development`, `production`, or `test`. |
-| `CLIENT_URL` | Public browser origin of the React app (OAuth redirects, CORS). |
-| `SERVER_URL` | Public base URL of the API (OAuth callback configuration). |
-| `VITE_API_URL` | Base URL the Vite client uses for API requests (must match how you open the app in the browser). |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `REDIS_URL` | Redis URL (default: `redis://127.0.0.1:6379`) |
+| `JWT_SECRET` | Long random string for signing JWTs |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth app credentials |
+| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | GitHub OAuth app credentials |
+| `CLIENT_URL` | Browser app origin (e.g. `http://localhost:5173`) |
+| `SERVER_URL` | API base URL (e.g. `http://localhost:3001`) |
+| `VITE_API_URL` | Client-side API base URL (must match browser tab hostname) |
+
+Optional features:
+
+| Variable | Purpose |
+|---|---|
+| `S3_BUCKET` / `AWS_REGION` | AWS S3 bucket for image uploads |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | IAM credentials for S3 (local dev only; use instance role in prod) |
+| `RESEND_API_KEY` / `FROM_EMAIL` | Transactional email via Resend |
+| `GEMINI_API_KEY` | Google Gemini for the AI digest feature |
+| `OPENROUTER_API_KEY` | Optional AI fallback when Gemini key is absent |
+| `SENTRY_DSN` | Sentry error monitoring |
+| `ONBOARDING_FEATURED_SLUG` | Workspace slug that brand-new users auto-follow on signup. Leave blank in local dev unless you create that workspace first. |
 
 ---
 
 ## Project structure
 
-| Path | Role |
-|------|------|
-| `client/` | Vite + React + TypeScript frontend; Tailwind and shadcn-style UI; routes for board, thread, admin, auth callback. |
-| `server/` | Express API: auth (OAuth, JWT cookies, refresh), workspaces, posts, comments, upvotes, moderation, Drizzle models. |
-| `drizzle/` | Versioned SQL migrations generated by Drizzle Kit; applied with `npm run migrate` in `server/`. |
-| `infra/` | Placeholder for Terraform / Ansible (Phase 4). |
-| `.env.example` | Documented template for required and future env vars. |
+```
+loop-in/
+├── client/                  # React + Vite frontend
+│   └── src/
+│       ├── components/      # UI components (landing, admin, brand, shared)
+│       ├── pages/           # Route-level pages (Board, Thread, Admin, Explore, Home, …)
+│       └── lib/             # apiFetch, theme, motion, workspace color utils
+├── server/                  # Express API
+│   └── src/
+│       ├── db/schema.ts     # All Drizzle table + enum definitions (single source of truth)
+│       ├── middleware/      # authenticate, requireWorkspace, requireRole, rateLimit
+│       └── modules/         # auth, users, workspaces, posts, comments, upvotes, uploads, explore, ai
+├── drizzle/                 # SQL migrations — generated by Drizzle Kit, never edit manually
+├── docker-compose.yml
+└── .env.example
+```
 
 ---
 
-## Tech stack
+## Commands
 
-Aligned with the product spec:
+| Directory | Command | Purpose |
+|---|---|---|
+| `server/` | `npm run dev` | Start API with hot reload |
+| `server/` | `npm run typecheck` | TypeScript check (no emit) |
+| `server/` | `npm test` | Run server unit tests |
+| `server/` | `npm run migrate` | Apply pending DB migrations |
+| `client/` | `npm run dev` | Start Vite dev server |
+| `client/` | `npm run build` | Production build |
+| `client/` | `npm run lint` | ESLint |
+| root | `docker compose up -d` | Start PostgreSQL + Redis |
 
-- **Frontend:** React, Tailwind CSS, shadcn/ui patterns, Vite, React Router; PWA-oriented setup for later phases.
-- **Backend:** Node.js, TypeScript, Express (controller–service–route style).
-- **Database:** PostgreSQL with **Drizzle ORM**; migrations via `drizzle-kit generate` / `drizzle-kit migrate` (do not use `push` in production).
-- **Caching (Phase 2):** Redis for trending scores and rate limiting.
-- **Observability:** Sentry (optional), Pino structured logging.
-- **Infrastructure (later):** AWS (EC2, S3, SES, Route53), Terraform, Ansible, GitHub Actions—see `docs/` roadmap.
+### Database migrations
+
+```bash
+# Generate a migration from schema changes
+cd server && npx drizzle-kit generate
+
+# Apply pending migrations
+cd server && npm run migrate
+```
+
+> **Never use `drizzle-kit push` in production.** Always generate + migrate.
 
 ---
 
-## Documentation
+## Contributing
 
-- Product requirements: [`docs/Polished-PRD.md`](docs/Polished-PRD.md)
-- Build roadmap and milestone checklist: [`docs/The-Long-And-Winding-Road.md`](docs/The-Long-And-Winding-Road.md)
-- Phase 1.5 polish notes: [`docs/PHASE-1.5-POLISH-AND-INTEGRATION.md`](docs/PHASE-1.5-POLISH-AND-INTEGRATION.md)
-- Design system ("Signal" identity): [`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md)
-- Polish notes & suggested improvements: [`docs/POLISH-NOTES.md`](docs/POLISH-NOTES.md)
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide — branching conventions, code rules, how migrations work, and the PR checklist.
 
 ---
 
 ## License
 
-See repository license if present; otherwise treat as private / unlicensed until specified.
+MIT — see [LICENSE](LICENSE).
