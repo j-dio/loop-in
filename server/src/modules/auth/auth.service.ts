@@ -4,6 +4,7 @@ import { and, eq, gt, lt, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { generateRefreshToken, hashRefreshToken, refreshTokenExpiryDate } from "./auth.tokens";
 import { autoFollowFeaturedWorkspace } from "../workspaces/workspaces.follows.service";
+import { isValidAvatarUrl } from "../uploads/uploads.service";
 
 /**
  * Lazy cleanup of expired session rows (PRD §6.2). Fire-and-forget from POST /auth/refresh.
@@ -89,8 +90,13 @@ export async function upsertOAuthUser(input: {
       .update(users)
       .set({
         email: input.email,
-        name: input.name,
-        avatarUrl: input.avatarUrl,
+        // Preserve user-customized display name; only fall back to OAuth if null.
+        name: byProvider.name ?? input.name,
+        // Keep S3-uploaded avatar; re-sync OAuth photo URL otherwise (handles
+        // the case where the user updated their Google/GitHub profile picture).
+        avatarUrl: isValidAvatarUrl(byProvider.avatarUrl ?? "", byProvider.id)
+          ? byProvider.avatarUrl
+          : input.avatarUrl,
       })
       .where(eq(users.id, byProvider.id))
       .returning();
@@ -109,8 +115,10 @@ export async function upsertOAuthUser(input: {
       const [updated] = await db
         .update(users)
         .set({
-          name: input.name ?? byEmail.name,
-          avatarUrl: input.avatarUrl ?? byEmail.avatarUrl,
+          name: byEmail.name ?? input.name,
+          avatarUrl: isValidAvatarUrl(byEmail.avatarUrl ?? "", byEmail.id)
+            ? byEmail.avatarUrl
+            : input.avatarUrl,
         })
         .where(eq(users.id, byEmail.id))
         .returning();
