@@ -1,4 +1,4 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { motion, MotionConfig } from "framer-motion";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { getApiBase } from "@/lib/api";
@@ -6,17 +6,13 @@ import { LoopMark } from "@/components/brand/Logo";
 import { Hero } from "@/components/landing/Hero";
 import { LandingMarketing } from "@/components/landing/LandingMarketing";
 import { CursorFollower } from "@/components/landing/CursorFollower";
-import { SmoothScrollProvider, useSmoothScroll } from "@/lib/lenis";
+import { SmoothScrollProvider } from "@/lib/lenis";
 
-/**
- * Logged-out marketing site. Lives inside SmoothScrollProvider so the hero CTAs
- * and nav anchors scroll through Lenis (momentum) rather than jumping.
- */
 function LoggedOutMarketing({ api }: { api: string }) {
-  const scrollTo = useSmoothScroll();
+  const navigate = useNavigate();
   return (
     <>
-      <Hero onPrimary={() => scrollTo("#start")} />
+      <Hero onPrimary={() => navigate("/signin")} />
       <LandingMarketing googleHref={`${api}/auth/google`} githubHref={`${api}/auth/github`} />
     </>
   );

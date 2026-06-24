@@ -71,7 +71,7 @@ export function HeroLoopGraphic() {
       ref={root}
       viewBox="0 0 400 400"
       fill="none"
-      className="h-full w-full text-foreground"
+      className="h-full w-full"
       aria-hidden
     >
       {/* slow dashed outer ring */}
