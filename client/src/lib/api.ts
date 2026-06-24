@@ -213,6 +213,10 @@ export async function unfollowWorkspace(slug: string): Promise<FollowResult> {
   return apiFetch(`${ws(slug)}/follow`, { method: "DELETE" });
 }
 
+export async function deleteWorkspace(slug: string): Promise<{ ok: true }> {
+  return apiFetch(ws(slug), { method: "DELETE" });
+}
+
 export type ExplorePostItem = {
   type: "post";
   id: string;

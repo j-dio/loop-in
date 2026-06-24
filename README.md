@@ -10,7 +10,7 @@ LoopIn is an open-source platform that solves two problems at once:
 
 Think Canny × Product Hunt, but open-source and built for the indie dev era.
 
-**Live demo:** [https://zucchini-laughter-production.up.railway.app](https://zucchini-laughter-production.up.railway.app)
+**Live demo:** [https://loopin.diolumacang.me](https://loopin.diolumacang.me)
 
 ---
 

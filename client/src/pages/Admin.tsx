@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { type DropResult } from "@hello-pangea/dnd";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
@@ -14,7 +14,7 @@ import { ProfileFieldsForm } from "@/components/admin/ProfileFieldsForm";
 import { ScreenshotManager } from "@/components/admin/ScreenshotManager";
 import { LinksManager } from "@/components/admin/LinksManager";
 import { useWorkspace } from "@/context/WorkspaceContext";
-import { ApiError, apiFetch, updateWorkspace } from "@/lib/api";
+import { ApiError, apiFetch, deleteWorkspace, updateWorkspace } from "@/lib/api";
 import type { PostDTO } from "@/lib/postTypes";
 
 type WorkspaceRole = "owner" | "admin" | "member";
@@ -80,6 +80,7 @@ const VALID_SECTIONS = ["triage", "kanban", "updates", "settings", "profile"] as
 export function Admin() {
   const { slug } = useParams();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const raw = searchParams.get("section");
   const section: AdminSection = VALID_SECTIONS.includes(raw as AdminSection) ? (raw as AdminSection) : "triage";
   const {
@@ -110,6 +111,7 @@ export function Admin() {
 
   const [settingsDraft, setSettingsDraft] = useState<SettingsDraft | null>(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [deletingWorkspace, setDeletingWorkspace] = useState(false);
   const [settingsFeedback, setSettingsFeedback] = useState<{ kind: "ok" | "err"; text: string } | null>(
     null
   );
@@ -289,6 +291,23 @@ export function Admin() {
       setSettingsFeedback({ kind: "err", text: msg });
     } finally {
       setSettingsSaving(false);
+    }
+  }
+
+  async function handleDeleteWorkspace() {
+    if (!slug) return;
+    setDeletingWorkspace(true);
+    try {
+      await deleteWorkspace(slug);
+      await refreshSession();
+      navigate("/home");
+    } catch (e) {
+      setSettingsFeedback({
+        kind: "err",
+        text: errorTextFromApiBody(e, "Could not delete workspace."),
+      });
+    } finally {
+      setDeletingWorkspace(false);
     }
   }
 
@@ -557,6 +576,8 @@ export function Admin() {
             feedback={settingsFeedback}
             onChange={(patch) => setSettingsDraft((d) => (d ? { ...d, ...patch } : d))}
             onSubmit={() => void saveWorkspaceSettings()}
+            onDelete={canEditWorkspaceSettings ? () => handleDeleteWorkspace() : undefined}
+            deleting={deletingWorkspace}
           />
           <WorkspaceLogoSection canManage={canInviteMembers} />
           {canInviteMembers ? (
