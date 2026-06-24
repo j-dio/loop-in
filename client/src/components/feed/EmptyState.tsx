@@ -7,18 +7,25 @@ interface EmptyStateProps {
   action?: React.ReactNode;
 }
 
-/** Centered empty/placeholder state — icon tile + title + subtext + optional action. */
+/**
+ * Editorial empty state — a quiet, rule-framed band rather than a boxed card.
+ * Left-aligned with the icon set in a hairline square; type carries it.
+ */
 export function EmptyState({ icon: Icon, title, children, action }: EmptyStateProps) {
   return (
-    <div className="mt-4 flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center">
-      <span className="flex size-11 items-center justify-center rounded-xl border border-border bg-muted/40 text-muted-foreground">
-        <Icon className="size-5" aria-hidden />
+    <div className="mt-4 flex items-start gap-4 border-y border-border py-10">
+      <span className="flex size-10 shrink-0 items-center justify-center border border-border text-muted-foreground">
+        <Icon className="size-4" aria-hidden />
       </span>
-      <p className="font-display text-base font-semibold tracking-tight text-foreground">{title}</p>
-      {children ? (
-        <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">{children}</p>
-      ) : null}
-      {action}
+      <div className="min-w-0">
+        <p className="font-display text-base font-semibold tracking-tight text-foreground">
+          {title}
+        </p>
+        {children ? (
+          <p className="mt-1 max-w-md text-sm leading-relaxed text-muted-foreground">{children}</p>
+        ) : null}
+        {action ? <div className="mt-4">{action}</div> : null}
+      </div>
     </div>
   );
 }
