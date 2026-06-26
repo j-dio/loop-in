@@ -92,7 +92,7 @@ async function callGemini(postsJson: string): Promise<unknown> {
     },
   });
 
-  const text = response.text;
+  const text = response.text?.trim();
   if (!text) throw new Error("Gemini returned empty response");
   return JSON.parse(text) as unknown;
 }
@@ -117,7 +117,7 @@ async function callOpenRouter(postsJson: string): Promise<unknown> {
     response_format: { type: "json_object" },
   });
 
-  const text = completion.choices[0]?.message.content;
+  const text = completion.choices[0]?.message.content?.trim();
   if (!text) throw new Error("OpenRouter returned empty response");
   return JSON.parse(text) as unknown;
 }
@@ -127,8 +127,7 @@ export async function generateDigest(input: {
   ctx: RequesterContext;
 }): Promise<DigestResult | "not_configured" | "empty"> {
   const useGemini = isGeminiConfigured();
-  const useOpenRouter = !useGemini && isOpenRouterConfigured();
-  if (!useGemini && !useOpenRouter) return "not_configured";
+  if (!useGemini && !isOpenRouterConfigured()) return "not_configured";
 
   const posts = await listApprovedPostsForKanban({
     workspaceId: input.workspaceId,
@@ -141,7 +140,18 @@ export async function generateDigest(input: {
   const payload = buildPostsPayload(posts);
   const postsJson = JSON.stringify(payload);
 
-  const raw = useGemini ? await callGemini(postsJson) : await callOpenRouter(postsJson);
+  let raw: unknown;
+  if (useGemini) {
+    try {
+      raw = await callGemini(postsJson);
+    } catch (err) {
+      if (!isOpenRouterConfigured()) throw err;
+      logger.warn({ err, workspaceId: input.workspaceId }, "Gemini failed, falling back to OpenRouter");
+      raw = await callOpenRouter(postsJson);
+    }
+  } else {
+    raw = await callOpenRouter(postsJson);
+  }
 
   const validated = DigestResultSchema.safeParse(raw);
   if (!validated.success) {
