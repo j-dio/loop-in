@@ -87,7 +87,7 @@ export function WorkspaceSettings({
             <Label htmlFor="ws-visibility">Visibility</Label>
             <select
               id="ws-visibility"
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+              className="flex h-9 w-full rounded-md border border-input bg-background text-foreground px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
               value={draft.visibility}
               onChange={(e) => onChange({ visibility: e.target.value as SettingsDraft["visibility"] })}
               disabled={!canEdit}
