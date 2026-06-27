@@ -141,7 +141,7 @@ export function SignIn() {
         <div className="flex flex-1 flex-col px-8 py-8 sm:px-12 sm:py-10">
           {/* Header row */}
           <div className="flex items-center justify-between">
-            <Logo size="sm" />
+            <Logo size="sm" textClassName="text-[#0b0b0c]" />
             <Link
               to="/"
               className="lg:hidden inline-flex items-center gap-1.5 font-mono text-[11px] tracking-[0.2em] text-[#0b0b0c]/40 uppercase transition-colors hover:text-[var(--brand)]"

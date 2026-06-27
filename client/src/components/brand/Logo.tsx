@@ -55,6 +55,8 @@ export function LoopMark({ className, stroke, title }: MarkProps) {
 
 type LogoProps = {
   className?: string;
+  /** Override wordmark text color (e.g. when logo sits on a fixed-light bg in dark mode). */
+  textClassName?: string;
   /** Hide the "Loop In" wordmark and show just the mark. */
   markOnly?: boolean;
   size?: "sm" | "md" | "lg";
@@ -66,13 +68,13 @@ const SIZES = {
   lg: { mark: "size-9", text: "text-xl" },
 } as const;
 
-export function Logo({ className, markOnly = false, size = "md" }: LogoProps) {
+export function Logo({ className, textClassName, markOnly = false, size = "md" }: LogoProps) {
   const s = SIZES[size];
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
       <LoopMark className={s.mark} title="Loop In" />
       {!markOnly ? (
-        <span className={cn("font-sans font-semibold tracking-tight text-foreground", s.text)}>
+        <span className={cn("font-sans font-semibold tracking-tight text-foreground", s.text, textClassName)}>
           Loop<span className="text-brand">In</span>
         </span>
       ) : null}
