@@ -56,7 +56,7 @@ export async function createWorkspaceWithOwnerMembership(input: {
   primaryColor?: string | undefined;
   visibility?: WorkspaceVisibility | undefined;
   requireApproval?: boolean | undefined;
-}): Promise<Workspace> {
+}): Promise<Workspace & { role: WorkspaceRole }> {
   return await db.transaction(async (tx) => {
     const [insertedWorkspace] = await tx
       .insert(workspaces)
@@ -86,7 +86,10 @@ export async function createWorkspaceWithOwnerMembership(input: {
 
     if (!memberRow) throw new Error("Failed to create workspace owner membership");
 
-    return mapWorkspaceRow(insertedWorkspace);
+    // Return role alongside the workspace so the client can mark the creator as owner without a
+    // follow-up GET /api/workspaces. The list endpoint carries role; the create endpoint must too,
+    // otherwise a freshly created board renders with canManage=false until a session refresh.
+    return { ...mapWorkspaceRow(insertedWorkspace), role: memberRow.role as WorkspaceRole };
   });
 }
 

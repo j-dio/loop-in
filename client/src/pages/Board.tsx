@@ -82,14 +82,25 @@ export function Board() {
   // readable board (no access error) + a signed-in user means participation is allowed — whether
   // they're a member of an invite_only board or an outside participant on a public one.
   const canPost = Boolean(slug && user && !error);
+  // Owner/admin can manage. `ownerId === user.id` is a role-independent owner signal: it stays
+  // correct even if `activeWorkspace` was populated by a path that didn't carry `role` (e.g. a
+  // just-created board before the next session refresh), so the creator never loses Manage/checklist.
   const canManage = Boolean(
     user &&
     activeWorkspace &&
     activeWorkspace.slug === slug &&
-    (activeWorkspace.role === "owner" || activeWorkspace.role === "admin")
+    (activeWorkspace.role === "owner" ||
+      activeWorkspace.role === "admin" ||
+      activeWorkspace.ownerId === user.id)
   );
-  // Founder badge: only the actual workspace owner's posts get the badge, not admins.
-  const isOwner = Boolean(user && activeWorkspace && activeWorkspace.slug === slug && activeWorkspace.role === "owner");
+  // Founder badge: only the actual workspace owner's posts get the badge, not admins. Same
+  // role-independent fallback as canManage so a just-created board badges the owner immediately.
+  const isOwner = Boolean(
+    user &&
+    activeWorkspace &&
+    activeWorkspace.slug === slug &&
+    (activeWorkspace.role === "owner" || activeWorkspace.ownerId === user.id)
+  );
 
   const fetchPage = useCallback(
     async (opts: { sort: PostSort; cursor?: string | undefined; append: boolean; q?: string }) => {
