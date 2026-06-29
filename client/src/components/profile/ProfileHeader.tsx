@@ -1,11 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Apple, Globe, Link as LinkIcon, Play, Settings } from "lucide-react";
 import { ApiError, getWorkspaceProfile } from "@/lib/api";
+import { computeSetup, setFlag } from "@/lib/profileSetup";
 import { WorkspaceTile } from "@/components/WorkspaceTile";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FollowButton } from "@/components/FollowButton";
+import { useShareBoard } from "@/components/profile/useShareBoard";
+import { ShareButton } from "@/components/profile/ShareButton";
+import { SetupChecklist } from "@/components/profile/SetupChecklist";
 import type { LinkDTO, WorkspaceProfileDTO } from "@/lib/profileTypes";
 
 const PLATFORM_LABEL: Record<NonNullable<WorkspaceProfileDTO["workspace"]["platform"]>, string> = {
@@ -58,16 +62,25 @@ export function ProfileHeader({ slug, canManage }: { slug: string; canManage: bo
     };
   }, [slug]);
 
+  const [sharedTick, setSharedTick] = useState(0);
+  const { share, copied } = useShareBoard(slug, () => {
+    setFlag("share", slug);
+    setSharedTick((t) => t + 1);
+  });
+  /* eslint-disable react-hooks/exhaustive-deps */
+  // sharedTick forces recompute after a successful share (computeSetup re-reads localStorage flags).
+  const setup = useMemo(
+    () => (data ? computeSetup(data, slug, canManage) : null),
+    [data, slug, canManage, sharedTick],
+  );
+  /* eslint-enable react-hooks/exhaustive-deps */
+
   if (!loaded) {
     return <div className="h-28 animate-pulse border-b border-border" aria-hidden />;
   }
   if (!data) return null;
 
   const { workspace: w, screenshots, links } = data;
-  // The create wizard already forces tagline/platform/category, so "complete" is measured by the
-  // high-impact *deferrable* fields: logo, description, and at least one screenshot. Website + links
-  // stay optional so the nudge is dismissible once the essentials are in.
-  const profileIncomplete = !w.logoUrl || !w.description || screenshots.length === 0;
 
   return (
     <section className="border-b border-border pb-8">
@@ -105,6 +118,7 @@ export function ProfileHeader({ slug, canManage }: { slug: string; canManage: bo
               onChange={(s) => setFollowerCount(s.followerCount)}
             />
           )}
+          <ShareButton copied={copied} onClick={share} />
           <span className="font-mono text-xs text-muted-foreground">
             {followerCount} {followerCount === 1 ? "follower" : "followers"}
           </span>
@@ -162,18 +176,8 @@ export function ProfileHeader({ slug, canManage }: { slug: string; canManage: bo
         </div>
       ) : null}
 
-      {canManage && profileIncomplete ? (
-        <div className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 border-l-2 border-brand bg-brand-bright/5 px-4 py-3 text-sm">
-          <span className="text-muted-foreground">
-            Add a logo, description, and screenshots so people know what you’re building.
-          </span>
-          <Link
-            to={`/${slug}/admin?section=profile`}
-            className="font-medium text-brand hover:underline"
-          >
-            Enhance your profile →
-          </Link>
-        </div>
+      {setup && setup.showCard ? (
+        <SetupChecklist slug={slug} state={setup} onShare={share} />
       ) : null}
     </section>
   );
