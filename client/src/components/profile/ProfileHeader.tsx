@@ -34,7 +34,15 @@ function linkMeta(kind: LinkDTO["kind"]): { label: string; Icon: typeof Globe } 
   }
 }
 
-export function ProfileHeader({ slug, canManage }: { slug: string; canManage: boolean }) {
+export function ProfileHeader({
+  slug,
+  canManage,
+  isOwner,
+}: {
+  slug: string;
+  canManage: boolean;
+  isOwner: boolean;
+}) {
   const [data, setData] = useState<WorkspaceProfileDTO | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
@@ -67,13 +75,15 @@ export function ProfileHeader({ slug, canManage }: { slug: string; canManage: bo
     setFlag("share", slug);
     setSharedTick((t) => t + 1);
   });
-  /* eslint-disable react-hooks/exhaustive-deps */
-  // sharedTick forces recompute after a successful share (computeSetup re-reads localStorage flags).
+  // The checklist is owner-only: the profile/settings editors it deep-links to are gated to the
+  // owner (admins land on read-only forms), and "finish setting up your board" is the owner's task.
+  // sharedTick is an intentional extra dep — it forces a recompute so computeSetup re-reads the
+  // localStorage share flag after a successful share.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const setup = useMemo(
-    () => (data ? computeSetup(data, slug, canManage) : null),
-    [data, slug, canManage, sharedTick],
+    () => (data ? computeSetup(data, slug, isOwner) : null),
+    [data, slug, isOwner, sharedTick],
   );
-  /* eslint-enable react-hooks/exhaustive-deps */
 
   if (!loaded) {
     return <div className="h-28 animate-pulse border-b border-border" aria-hidden />;
@@ -104,7 +114,7 @@ export function ProfileHeader({ slug, canManage }: { slug: string; canManage: bo
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
           {canManage ? (
-            <Button asChild variant="outline" size="sm" className="gap-1.5">
+            <Button asChild variant="brand" size="sm" className="gap-1.5">
               <Link to={`/${slug}/admin`}>
                 <Settings className="size-3.5" />
                 Manage

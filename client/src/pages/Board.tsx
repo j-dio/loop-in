@@ -200,7 +200,7 @@ export function Board() {
 
   return (
     <div className="space-y-6">
-      <ProfileHeader slug={slug} canManage={canManage} />
+      <ProfileHeader slug={slug} canManage={canManage} isOwner={isOwner} />
 
       {/* Pinned row: PINNED label (only when posts are pinned) + Announcement button (owner-only).
           Collapses entirely for non-owners with nothing pinned. */}

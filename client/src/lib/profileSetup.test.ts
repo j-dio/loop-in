@@ -66,14 +66,21 @@ function doneIds(state: ReturnType<typeof computeSetup>): string[] {
   return state.steps.filter((s) => s.done).map((s) => s.id);
 }
 
+// All three required field steps done: website + screenshots + description.
+function makeComplete(): WorkspaceProfileDTO {
+  return makeProfile(
+    { websiteUrl: "https://x", description: "A real description" },
+    { screenshots: [{ id: "s1", url: "u", sortOrder: 0 }] },
+  );
+}
+
 describe("computeSetup — step done rules", () => {
   beforeEach(() => localStorage.clear());
 
-  it("tagline done only for non-empty, non-whitespace tagline", () => {
-    expect(doneIds(computeSetup(makeProfile({ tagline: null }), "acme", true))).not.toContain("tagline");
-    expect(doneIds(computeSetup(makeProfile({ tagline: "" }), "acme", true))).not.toContain("tagline");
-    expect(doneIds(computeSetup(makeProfile({ tagline: "   " }), "acme", true))).not.toContain("tagline");
-    expect(doneIds(computeSetup(makeProfile({ tagline: "Track feedback" }), "acme", true))).toContain("tagline");
+  it("has no tagline step (tagline is forced at creation, never actionable)", () => {
+    const ids = computeSetup(makeProfile(), "acme", true).steps.map((s) => s.id);
+    expect(ids).not.toContain("tagline");
+    expect(ids).toEqual(["website", "screenshots", "description", "logo", "share"]);
   });
 
   it("website done via websiteUrl OR at least one link", () => {
@@ -87,6 +94,13 @@ describe("computeSetup — step done rules", () => {
     expect(doneIds(computeSetup(makeProfile(), "acme", true))).not.toContain("screenshots");
   });
 
+  it("description done only for non-empty, non-whitespace description", () => {
+    expect(doneIds(computeSetup(makeProfile({ description: null }), "acme", true))).not.toContain("description");
+    expect(doneIds(computeSetup(makeProfile({ description: "" }), "acme", true))).not.toContain("description");
+    expect(doneIds(computeSetup(makeProfile({ description: "   " }), "acme", true))).not.toContain("description");
+    expect(doneIds(computeSetup(makeProfile({ description: "What we do" }), "acme", true))).toContain("description");
+  });
+
   it("logo done when logoUrl set, and is marked optional", () => {
     const state = computeSetup(makeProfile({ logoUrl: "https://logo" }), "acme", true);
     expect(doneIds(state)).toContain("logo");
@@ -98,12 +112,12 @@ describe("computeSetup — step done rules", () => {
     expect(doneIds(computeSetup(makeProfile(), "acme", true))).toContain("share");
   });
 
-  it("deep-links: tagline/website/screenshots -> profile section, logo -> settings", () => {
+  it("deep-links: website/screenshots/description -> profile section, logo -> settings", () => {
     const steps = computeSetup(makeProfile(), "acme", true).steps;
     const href = (id: string) => steps.find((s) => s.id === id)?.href;
-    expect(href("tagline")).toBe("/acme/admin?section=profile");
     expect(href("website")).toBe("/acme/admin?section=profile");
     expect(href("screenshots")).toBe("/acme/admin?section=profile");
+    expect(href("description")).toBe("/acme/admin?section=profile");
     expect(href("logo")).toBe("/acme/admin?section=settings");
     expect(steps.find((s) => s.id === "share")?.action).toBe("share");
   });
@@ -112,24 +126,27 @@ describe("computeSetup — step done rules", () => {
 describe("computeSetup — counts and gating", () => {
   beforeEach(() => localStorage.clear());
 
-  it("requiredTotal is 4 and logo is never counted", () => {
+  it("requiredTotal is 3 (website+screenshots+description); logo and share never counted", () => {
     const state = computeSetup(makeProfile({ logoUrl: "https://logo" }), "acme", true);
-    expect(state.requiredTotal).toBe(4);
+    expect(state.requiredTotal).toBe(3);
     expect(state.requiredDone).toBe(0); // logo set but not required
   });
 
-  it("allRequiredDone true only when tagline+website+screenshots+share all done", () => {
+  it("share being done does not advance requiredDone (share is uncounted)", () => {
     setFlag("share", "acme");
-    const complete = computeSetup(
-      makeProfile({ tagline: "Hi", websiteUrl: "https://x" }, { screenshots: [{ id: "s1", url: "u", sortOrder: 0 }] }),
-      "acme",
-      true,
-    );
-    expect(complete.allRequiredDone).toBe(true);
-    expect(complete.requiredDone).toBe(4);
+    const state = computeSetup(makeProfile(), "acme", true);
+    expect(doneIds(state)).toContain("share");
+    expect(state.requiredDone).toBe(0);
+    expect(state.allRequiredDone).toBe(false);
   });
 
-  it("showCard false when not canManage", () => {
+  it("allRequiredDone true when website+screenshots+description done, regardless of share", () => {
+    const complete = computeSetup(makeComplete(), "acme", true); // share flag NOT set
+    expect(complete.allRequiredDone).toBe(true);
+    expect(complete.requiredDone).toBe(3);
+  });
+
+  it("showCard false when not the owner (canSetup false)", () => {
     expect(computeSetup(makeProfile(), "acme", false).showCard).toBe(false);
   });
 
@@ -138,17 +155,11 @@ describe("computeSetup — counts and gating", () => {
     expect(computeSetup(makeProfile(), "acme", true).showCard).toBe(false);
   });
 
-  it("showCard false when all required done", () => {
-    setFlag("share", "acme");
-    const complete = computeSetup(
-      makeProfile({ tagline: "Hi", websiteUrl: "https://x" }, { screenshots: [{ id: "s1", url: "u", sortOrder: 0 }] }),
-      "acme",
-      true,
-    );
-    expect(complete.showCard).toBe(false);
+  it("showCard false when all required done (even if never shared)", () => {
+    expect(computeSetup(makeComplete(), "acme", true).showCard).toBe(false);
   });
 
-  it("showCard true for a manager with incomplete, non-dismissed board", () => {
+  it("showCard true for an owner with incomplete, non-dismissed board", () => {
     expect(computeSetup(makeProfile(), "acme", true).showCard).toBe(true);
   });
 });

@@ -26,7 +26,7 @@ export function setFlag(kind: FlagKind, slug: string): void {
   }
 }
 
-export type SetupStepId = "tagline" | "website" | "screenshots" | "logo" | "share";
+export type SetupStepId = "website" | "screenshots" | "description" | "logo" | "share";
 
 export interface SetupStep {
   id: SetupStepId;
@@ -48,20 +48,18 @@ export interface SetupState {
 export function computeSetup(
   profile: WorkspaceProfileDTO,
   slug: string,
-  canManage: boolean,
+  canSetup: boolean,
 ): SetupState {
   const { workspace: w, screenshots, links } = profile;
   const adminProfile = `/${slug}/admin?section=profile`;
   const adminSettings = `/${slug}/admin?section=settings`;
 
+  // Tagline is intentionally absent: it is required at creation, so it would always render
+  // pre-checked and never be actionable. The real deferred profile fields are website, screenshots,
+  // and description. `logo` (optional) and `share` (a one-time action) are shown but never counted
+  // toward completion — sharing is not "setup", and gating completion on it strands builders who
+  // simply don't want to share.
   const steps: SetupStep[] = [
-    {
-      id: "tagline",
-      label: "Add a tagline",
-      done: !!w.tagline && w.tagline.trim().length > 0,
-      optional: false,
-      href: adminProfile,
-    },
     {
       id: "website",
       label: "Add your website & links",
@@ -73,6 +71,13 @@ export function computeSetup(
       id: "screenshots",
       label: "Upload screenshots",
       done: screenshots.length > 0,
+      optional: false,
+      href: adminProfile,
+    },
+    {
+      id: "description",
+      label: "Write a description",
+      done: !!w.description && w.description.trim().length > 0,
       optional: false,
       href: adminProfile,
     },
@@ -92,11 +97,12 @@ export function computeSetup(
     },
   ];
 
-  const required = steps.filter((s) => !s.optional);
+  // Counted = required field steps only: not optional (logo) and not an action (share).
+  const required = steps.filter((s) => !s.optional && !s.action);
   const requiredDone = required.filter((s) => s.done).length;
   const requiredTotal = required.length;
   const allRequiredDone = requiredDone === requiredTotal;
-  const showCard = canManage && !getFlag("dismiss", slug) && !allRequiredDone;
+  const showCard = canSetup && !getFlag("dismiss", slug) && !allRequiredDone;
 
   return { steps, requiredDone, requiredTotal, allRequiredDone, showCard };
 }
