@@ -6,18 +6,19 @@ async function copyToClipboard(url: string): Promise<boolean> {
     return true;
   } catch {
     // Insecure context or no Clipboard API — legacy fallback.
+    const ta = document.createElement("textarea");
+    ta.value = url;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
     try {
-      const ta = document.createElement("textarea");
-      ta.value = url;
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
       ta.select();
-      const ok = document.execCommand("copy");
-      document.body.removeChild(ta);
-      return ok;
+      return document.execCommand("copy");
     } catch {
       return false;
+    } finally {
+      // Always detach, even if select()/execCommand throws after appendChild.
+      ta.remove();
     }
   }
 }
