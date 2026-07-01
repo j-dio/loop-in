@@ -8,7 +8,7 @@ LoopIn is an open-source platform that solves two problems at once:
 
 **2. The feedback loop** — users submit ideas and bug reports, other users upvote what resonates, and builders triage the signal onto a Kanban roadmap — then notify every supporter the moment something ships.
 
-Think Canny × Product Hunt, but open-source and built for the indie dev era.
+A social feedback platform, but open-source and built for the indie dev era.
 
 **Live demo:** [https://loopin.diolumacang.me](https://loopin.diolumacang.me)
 
